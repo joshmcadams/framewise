@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>framewise-lite render</title>
+    <style>
+      /* Zero the body margin: the browser's default 8px would shift and clip
+         the composition. The render root is the positioned, sized containing
+         block that AbsoluteFill layers fill. */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+      }
+      #render-root {
+        position: relative;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="render-root"></div>
+    <script type="module" src="/src/render/main-render.tsx"></script>
+  </body>
+</html>
