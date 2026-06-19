@@ -27,7 +27,16 @@ npm run render -- --comp WithVideo --out out/withvideo.mp4
 
 # Render in parallel across 4 browsers (identical output, ~2.6x faster):
 npm run render -- --comp HelloWorld --concurrency 4 --out out/hello.mp4
+
+# Parametrize a composition from the CLI and tune the encode:
+npm run render -- --comp HelloWorld --props '{"title":"Hi"}' --crf 28 --codec libx265 --out out/hi.mp4
 ```
+
+> Render flags: `--props <json>` (merged over the comp's defaultProps),
+> `--crf <n>` (quality, default 18), `--codec <name>` (default libx264),
+> `--audio-bitrate <k>` (default 192k), `--public-dir <path>` (asset base dir,
+> default `public`). The renderer fails fast with a clear message if `ffmpeg` or
+> Chrome is missing.
 
 > **Rendering requires `ffmpeg` on your PATH and Google Chrome (or Chromium)
 > installed** (the renderer uses `puppeteer-core` pointed at the system browser).

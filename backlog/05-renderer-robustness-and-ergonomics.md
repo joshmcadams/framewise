@@ -1,5 +1,16 @@
 # 05 — Renderer: preflight checks, configurable output, and asset-path resolution
 
+> **✅ Done.** `scripts/render.mjs` now: runs an `assertFfmpeg()` preflight before
+> any rendering (Chrome was already validated at module load by backlog 01);
+> accepts `--crf` (default 18), `--codec` (default libx264), and
+> `--audio-bitrate` (default 192k), shared across both ffmpeg branches so output
+> stays in sync; resolves asset URLs through a single `assetPath()` helper with
+> an overridable `--public-dir`; and takes `--props '<json>'` (validated up
+> front) which `main-render.tsx` merges over `defaultProps`. README + the
+> script's usage header document all flags. Verified standalone: ffmpeg ENOENT →
+> actionable error, props JSON validation/ordering, asset-path override, and URL
+> encoding. (Full end-to-end render not run — no Chrome on the dev machine.)
+
 ## Problem
 
 `scripts/render.mjs` works for the demo's happy path but is brittle and

@@ -7,10 +7,18 @@
 // number, the output is identical regardless of how the work is split.
 //
 // Usage:  npm run render -- [--comp <id>] [--out <path.mp4>] [--no-wait]
-//                           [--concurrency <N>]
+//                           [--concurrency <N>] [--props <json>]
+//                           [--crf <n>] [--codec <name>] [--audio-bitrate <k>]
+//                           [--public-dir <path>] [--chrome <path>]
 //
-// --no-wait      ignore delayRender (Stage 2 behaviour) to see async comps break.
-// --concurrency  number of parallel browsers (default 4; 1 = sequential).
+// --no-wait        ignore delayRender (Stage 2 behaviour) to see async comps break.
+// --concurrency    number of parallel browsers (default 4; 1 = sequential).
+// --props          JSON object merged over the composition's defaultProps.
+// --crf            x264/x265 quality (default 18; lower = better/larger).
+// --codec          video codec (default libx264).
+// --audio-bitrate  AAC bitrate when there's audio (default 192k).
+// --public-dir     base dir for composition asset URLs (default public).
+// --chrome         path to a Chrome/Chromium binary (else auto-detected).
 
 import {createServer} from 'vite';
 import puppeteer from 'puppeteer-core';
@@ -36,6 +44,33 @@ const compId = flag('comp', '');
 const out = flag('out', 'out/video.mp4');
 const noWait = args.includes('--no-wait');
 const requestedConcurrency = Math.max(1, parseInt(flag('concurrency', '4'), 10) || 4);
+
+// Encode settings (defaults reproduce the previous hardcoded behaviour, plus an
+// explicit CRF). Identical across all workers — only the final ffmpeg pass uses
+// them, so they can't affect per-frame determinism.
+const crf = flag('crf', '18');
+const codec = flag('codec', 'libx264');
+const audioBitrate = flag('audio-bitrate', '192k');
+
+// Where composition asset URLs (e.g. "/bg.wav") resolve on disk. One place, so
+// the renderer and any future staticFile() helper agree.
+const publicDir = flag('public-dir', 'public');
+const assetPath = (src) => join(publicDir, src.replace(/^\//, ''));
+
+// Optional CLI props, merged over the composition's defaultProps in the browser.
+// Validate up front so a typo fails immediately, not after a full render.
+const propsArg = flag('props', '');
+let inputProps = null;
+if (propsArg) {
+  try {
+    inputProps = JSON.parse(propsArg);
+  } catch (e) {
+    throw new Error(`--props must be valid JSON: ${e.message}`);
+  }
+  if (typeof inputProps !== 'object' || inputProps === null || Array.isArray(inputProps)) {
+    throw new Error(`--props must be a JSON object, e.g. '{"title":"Hi"}'`);
+  }
+}
 
 // puppeteer-core ships no browser, so we must point it at a system Chrome/
 // Chromium. Resolve it cross-platform: explicit --chrome flag, then env vars,
@@ -116,6 +151,22 @@ function run(cmd, cmdArgs) {
         : reject(new Error(`${cmd} exited ${code}\n${stderr.slice(-2000)}`)),
     );
   });
+}
+
+// Fail fast if ffmpeg is missing, before spending minutes rendering frames we'd
+// be unable to stitch. (Chrome is already validated by resolveChromePath at
+// module load.)
+async function assertFfmpeg() {
+  try {
+    await run('ffmpeg', ['-version']);
+  } catch (e) {
+    if (e && e.code === 'ENOENT') {
+      throw new Error(
+        'ffmpeg was not found on your PATH. Install it (https://ffmpeg.org/download.html) and try again.',
+      );
+    }
+    throw new Error(`ffmpeg preflight failed: ${e.message}`);
+  }
 }
 
 // Turn per-frame audio reports into contiguous segments. Keyed by the <Audio>'s
@@ -216,10 +267,17 @@ const framesDir = await mkdtemp(join(tmpdir(), 'framewise-lite-'));
 const started = Date.now();
 
 try {
+  await assertFfmpeg();
+
   await server.listen();
   const port = server.httpServer.address().port;
-  const url = `http://localhost:${port}/render.html${compId ? `?comp=${encodeURIComponent(compId)}` : ''}`;
+  const query = new URLSearchParams();
+  if (compId) query.set('comp', compId);
+  if (inputProps) query.set('props', JSON.stringify(inputProps));
+  const qs = query.toString();
+  const url = `http://localhost:${port}/render.html${qs ? `?${qs}` : ''}`;
   console.log(`▶ serving render page: ${url}`);
+  if (inputProps) console.log(`▶ input props: ${JSON.stringify(inputProps)}`);
 
   const config = await probeConfig(url);
   const {width, height, fps, durationInFrames} = config;
@@ -271,14 +329,17 @@ try {
   // Stitch PNGs -> mp4; mix any audio segments in via filter_complex.
   await mkdir(dirname(out), {recursive: true});
   const videoInput = ['-framerate', String(fps), '-start_number', '0', '-i', join(framesDir, 'frame-%05d.png')];
+  // Shared encode settings so the two ffmpeg branches stay in sync.
+  const videoEncodeArgs = ['-c:v', codec, '-crf', String(crf), '-pix_fmt', 'yuv420p'];
+  console.log(`▶ encode: ${codec} crf ${crf}${segments.length ? ` · audio aac ${audioBitrate}` : ''}`);
 
   if (segments.length === 0) {
-    await run('ffmpeg', ['-y', ...videoInput, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', out]);
+    await run('ffmpeg', ['-y', ...videoInput, ...videoEncodeArgs, out]);
   } else {
     const inputArgs = [];
     const filters = [];
     segments.forEach((seg, k) => {
-      inputArgs.push('-i', join('public', seg.src.replace(/^\//, '')));
+      inputArgs.push('-i', assetPath(seg.src));
       const idx = k + 1;
       const dur = (seg.endFrame - seg.startFrame + 1) / fps;
       const delayMs = Math.round((seg.startFrame / fps) * 1000);
@@ -297,8 +358,8 @@ try {
       '-y', ...videoInput, ...inputArgs,
       '-filter_complex', filters.join(';'),
       '-map', '0:v', '-map', outLabel,
-      '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac', '-b:a', '192k',
+      ...videoEncodeArgs,
+      '-c:a', 'aac', '-b:a', audioBitrate,
       out,
     ]);
   }

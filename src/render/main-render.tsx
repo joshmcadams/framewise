@@ -37,6 +37,20 @@ const params = new URLSearchParams(window.location.search);
 const comp = getComposition(params.get('comp'));
 const Component = comp.component;
 
+// Optional CLI props (?props=<json>) override the composition's defaultProps.
+// The renderer validates the JSON before injecting it, so parsing is a
+// best-effort fallback here.
+const propsParam = params.get('props');
+let overrideProps: Record<string, unknown> = {};
+if (propsParam) {
+  try {
+    overrideProps = JSON.parse(propsParam) as Record<string, unknown>;
+  } catch {
+    overrideProps = {};
+  }
+}
+const mergedProps = {...comp.defaultProps, ...overrideProps};
+
 const config: VideoConfig = {
   width: comp.width,
   height: comp.height,
@@ -64,7 +78,7 @@ const renderFrame = (frame: number) => {
       // No `playback` prop: the PlaybackContext stays null, which is how
       // <Audio>/<Video> know they're rendering and must not drive the element.
       <CompositionHost config={config} frame={frame}>
-        <Component {...comp.defaultProps} />
+        <Component {...mergedProps} />
       </CompositionHost>,
     );
   });
