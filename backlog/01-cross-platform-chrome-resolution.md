@@ -1,5 +1,9 @@
 # 01 — Make the renderer find Chrome on every OS (not just macOS)
 
+> **✅ Done** (commit `b87f326`). `resolveChromePath()` in `scripts/render.mjs`
+> implements the flag → env → per-OS precedence below; README documents the
+> `CHROME_PATH` / `--chrome` overrides.
+
 ## Problem
 
 `scripts/render.mjs:23` hardcodes the macOS Chrome path:

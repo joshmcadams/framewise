@@ -1,5 +1,9 @@
 # 02 — `spring({overshootClamping: true})` is a silent no-op unless `to === 1`
 
+> **✅ Done** (commit `a5c4be8`). `spring()` now maps to `[from, to]` first, then
+> clamps against `to`, so clamping works for any range. Regression tests added
+> for `to=100` and a descending `100→0` spring.
+
 ## Problem (confirmed bug)
 
 `overshootClamping` is supposed to prevent a spring from ever passing its target.
