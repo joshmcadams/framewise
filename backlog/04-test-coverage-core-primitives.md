@@ -1,5 +1,14 @@
 # 04 — Test the untested core: `<Sequence>`, the Player clock, and `delayRender`
 
+> **✅ Done.** Added `jsdom` and per-file `// @vitest-environment jsdom`
+> docblocks (pure-math tests stay on `node`). New suites: `Sequence.test.tsx`
+> (frame rebasing, half-open mount window, layout wrapper), `Player.test.tsx`
+> (wall-clock → frame derivation independent of rAF tick count, loop/stop),
+> `delay-render.test.tsx` (pending tracking, idempotent clear, subscription,
+> timeout logging, `useDelayRenderPending` hook). Extended `interpolate.test.ts`
+> with `posterize`, left-edge `wrap`, and easing-array validation. Suite is
+> 23 → 42 tests, all green; typecheck clean.
+
 ## Problem
 
 The suite covers the two pure-math modules well (`interpolate.test.ts`,

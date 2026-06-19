@@ -53,4 +53,28 @@ describe('interpolate', () => {
   it('throws on mismatched range lengths', () => {
     expect(() => interpolate(5, [0, 10], [0, 100, 200])).toThrow(/same length/);
   });
+
+  it('wraps on the left edge too', () => {
+    // -5 wraps to 5 within [0,10] -> 50
+    expect(interpolate(-5, [0, 10], [0, 100], {extrapolateLeft: 'wrap'})).toBe(50);
+  });
+
+  it('snaps the input to the step with posterize', () => {
+    // floor(7/5)*5 = 5 -> 50; floor(9/5)*5 = 5 -> 50; floor(12/5)*5 = 10 -> 100
+    expect(interpolate(7, [0, 10], [0, 100], {posterize: 5})).toBe(50);
+    expect(interpolate(9, [0, 10], [0, 100], {posterize: 5})).toBe(50);
+    expect(interpolate(12, [0, 20], [0, 200], {posterize: 5})).toBe(100);
+  });
+
+  it('throws on a non-positive posterize step', () => {
+    expect(() => interpolate(5, [0, 10], [0, 100], {posterize: 0})).toThrow(/posterize/);
+    expect(() => interpolate(5, [0, 10], [0, 100], {posterize: -1})).toThrow(/posterize/);
+  });
+
+  it('throws when an easing array has the wrong number of segments', () => {
+    // 3-point range = 2 segments, but only one easing function supplied.
+    expect(() =>
+      interpolate(5, [0, 10, 20], [0, 1, 2], {easing: [(t) => t]}),
+    ).toThrow(/one entry per segment/);
+  });
 });
