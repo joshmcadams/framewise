@@ -5,7 +5,7 @@ import {CompositionHost} from '../framewise-lite/CompositionHost';
 import {getPendingDelayRenders} from '../framewise-lite/delay-render';
 import {beginAudioFrame, readAudioFrame} from '../framewise-lite/audio-registry';
 import type {AudioReport} from '../framewise-lite/audio-registry';
-import {getComposition} from './registry';
+import {getComposition, compositions} from './registry';
 
 /**
  * The RENDER entry point — a deliberately chrome-less counterpart to the Player.
@@ -29,6 +29,8 @@ declare global {
       getPending: () => {handle: number; label: string}[];
       /** The audio active in the frame most recently rendered. */
       getAudioFrame: () => AudioReport[];
+      /** All registered compositions — used by --list in render.mjs. */
+      compositionIds: string[];
     };
   }
 }
@@ -91,4 +93,5 @@ window.framewiseLite = {
   renderFrame,
   getPending: getPendingDelayRenders,
   getAudioFrame: readAudioFrame,
+  compositionIds: compositions.map((c) => c.id),
 };

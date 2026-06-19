@@ -20,3 +20,5 @@ export {
   useDelayRenderPending,
   type DelayRenderHandle,
 } from './delay-render';
+export {staticFile} from './staticFile';
+export {random} from './random';

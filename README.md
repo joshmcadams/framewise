@@ -11,8 +11,9 @@ into an `.mp4`, **`delayRender`** so async assets render deterministically,
 ```bash
 npm install
 npm run dev     # open http://localhost:5173  (Space = play/pause, ←/→ = step)
-npm test        # unit tests for interpolate, spring, audio-registry, Sequence, Player, delayRender
+npm test        # unit tests for interpolate, spring, audio-registry, Sequence, Player, delayRender, staticFile, random
 npm run build   # typecheck + production build
+npm run render -- --list                 # list available composition IDs (no Chrome needed)
 npm run render -- --out out/hello.mp4    # render the demo to an mp4 (needs ffmpeg + Chrome)
 
 # See delayRender in action — render an async composition broken vs fixed:
@@ -70,6 +71,8 @@ about clocks.** The `<Player>` is just one possible frame source.
 | `src/framewise-lite/Audio.tsx` | `<Audio>` — collected for the mix in render, played in preview | `<Audio>` from `framewise` |
 | `src/framewise-lite/Video.tsx` | `<Video>` — frame-accurate seek gated by delayRender + audio mux | `<Video>`/`<OffthreadVideo>` from `framewise` |
 | `src/framewise-lite/audio-registry.ts` | Per-frame audio collection sink | Framewise's render-time asset collection |
+| `src/framewise-lite/staticFile.ts` | `staticFile('photo.png')` → `'/photo.png'`; keeps public-dir convention explicit | `staticFile()` from `framewise` |
+| `src/framewise-lite/random.ts` | Seeded PRNG (FNV-1a + mulberry32) — identical in preview and all render workers | `random(seed)` from `framewise` |
 | `src/framewise-lite/playback.ts` | Preview-only playback context | Player playback state |
 | `src/compositions/HelloWorld.tsx` | Demo composition exercising every primitive | A composition registered in `Root.tsx` |
 | `src/compositions/AsyncImage.tsx` | Async demo: `<Img>` + a delayRender-gated fetch | A composition that loads assets |

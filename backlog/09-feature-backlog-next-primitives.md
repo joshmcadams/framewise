@@ -1,5 +1,26 @@
 # 09 — Feature backlog: the next primitives to build on the core
 
+> **Partially done (A, F, G).** The three "Small" items were implemented:
+>
+> - **A. `staticFile(path)`** — `src/framewise-lite/staticFile.ts` returns a
+>   root-relative URL (`'photo.png'` → `'/photo.png'`) consistent with both Vite's
+>   public-dir serving and render.mjs's `assetPath()` mapping. Exported from
+>   `index.ts`, tested.
+> - **F. `random(seed)`** — `src/framewise-lite/random.ts` implements a seeded
+>   PRNG (FNV-1a 32-bit hash → mulberry32) that returns identical [0, 1) values for
+>   the same seed across preview and all parallel render workers. Accepts number or
+>   string seeds. Exported from `index.ts`, tested (7 cases).
+> - **G. Render progress + `--list`** — `scripts/render.mjs` now logs per-chunk
+>   progress every 10 frames (frame N/total, percentage). `--list` prints all
+>   registered composition IDs from `src/render/registry.ts` without launching
+>   Chrome (`node scripts/render.mjs --list` → HelloWorld, AsyncImage, …).
+>
+> Remaining (B–E are Medium complexity):
+> - **B.** `interpolate` string/tuple outputs + color interpolation
+> - **C.** `Easing` library (bezier, in/out/inOut, linear)
+> - **D.** `<Series>` sequential sequences + `<Loop>` repeat helper
+> - **E.** `measureSpring` / spring `durationInFrames` / `reverse`
+
 The README's "Deliberately omitted" section already lists the natural next
 features. This file turns them into discrete, buildable units, roughly ordered
 by value-for-effort. Each is independent; pick one per PR.

@@ -9,8 +9,9 @@
 // Usage:  npm run render -- [--comp <id>] [--out <path.mp4>] [--no-wait]
 //                           [--concurrency <N>] [--props <json>]
 //                           [--crf <n>] [--codec <name>] [--audio-bitrate <k>]
-//                           [--public-dir <path>] [--chrome <path>]
+//                           [--public-dir <path>] [--chrome <path>] [--list]
 //
+// --list           print available composition IDs and exit (no Chrome needed).
 // --no-wait        ignore delayRender (Stage 2 behaviour) to see async comps break.
 // --concurrency    number of parallel browsers (default 4; 1 = sequential).
 // --props          JSON object merged over the composition's defaultProps.
@@ -75,6 +76,20 @@ if (propsArg) {
   if (typeof inputProps !== 'object' || inputProps === null || Array.isArray(inputProps)) {
     throw new Error(`--props must be a JSON object, e.g. '{"title":"Hi"}'`);
   }
+}
+
+// --list: print registered composition IDs without requiring Chrome or ffmpeg.
+// Reads src/render/registry.ts statically, so it works even if nothing is installed.
+if (args.includes('--list')) {
+  const registryPath = new URL('../src/render/registry.ts', import.meta.url);
+  const src = await readFile(registryPath, 'utf8');
+  const ids = [...src.matchAll(/\bid:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  if (ids.length === 0) {
+    process.stderr.write('Could not parse composition IDs from src/render/registry.ts\n');
+    process.exit(1);
+  }
+  for (const id of ids) console.log(id);
+  process.exit(0);
 }
 
 // puppeteer-core ships no browser, so we must point it at a system Chrome/
@@ -258,6 +273,14 @@ async function renderChunk(url, startFrame, endFrame, {width, height, fps, frame
 
       if (pendingAtCapture.length) {
         console.log(`  · [${label}] frame ${f} pending at capture: [${pendingAtCapture.join(', ')}]`);
+      }
+
+      // Progress: log on the first frame, every 10th, and the last.
+      const done = f - startFrame + 1;
+      const total = endFrame - startFrame;
+      if (done === 1 || done % 10 === 0 || done === total) {
+        const pct = Math.round((done / total) * 100);
+        console.log(`  [${label}] ${done}/${total} frames (${pct}%)`);
       }
     }
     return audioByFrame;
