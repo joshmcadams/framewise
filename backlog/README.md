@@ -13,7 +13,7 @@ goal → acceptance criteria).
 | [05](05-renderer-robustness-and-ergonomics.md) | Renderer preflight + config + props | Robustness / feature | ✅ Done | Fail-fast on missing ffmpeg, configurable encode, asset paths, `--props`. |
 | [06](06-spring-quadratic-recompute.md) | `spring` O(n²) recompute | Performance | ✅ Done | Recomputes from frame 0 every call; matters on long timelines. |
 | [07](07-delayrender-timeout-behavior.md) | delayRender timeout behavior | Correctness / consistency | ✅ Done | Timeout only logs; 30s constant duplicated; backstop ordering unclear. |
-| [08](08-fidelity-and-docs-cleanup.md) | Fidelity & docs cleanup | Docs / trust | ☐ Todo | Undocumented non-upstream `posterize`; stale README claims. |
+| [08](08-fidelity-and-docs-cleanup.md) | Fidelity & docs cleanup | Docs / trust | ✅ Done | Undocumented non-upstream `posterize`; stale README claims. |
 | [09](09-feature-backlog-next-primitives.md) | Next primitives | Features | ☐ Todo | staticFile, string/color interpolate, Easing, Series/Loop, measureSpring, seeded random, progress. |
 
 **Bugs (do first):** 01, 02. **Then** architecture/quality 03–04, robustness 05.

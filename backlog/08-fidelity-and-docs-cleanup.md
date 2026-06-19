@@ -1,5 +1,18 @@
 # 08 — Fidelity & docs cleanup: undocumented `posterize`, stale README claims
 
+> **✅ Done.**
+> 1. `interpolate.ts` header: documented `posterize` as a deliberate extension
+>    not in upstream Framewise (it was already tested from backlog 04).
+> 2. `spring.ts` header: replaced "behave exactly like Framewise" for
+>    `overshootClamping` with an explicit note that this is a deliberate deviation —
+>    upstream clamps in normalized space (no-op for `to !== 1`); we clamp in
+>    output space after mapping.
+> 3. README "What's here" table: noted `posterize` as an extension, not a port.
+> 4. README "Notes on fidelity": added the `overshootClamping` deviation.
+> 5. README `npm test` line: removed stale "17 unit tests for interpolate + spring"
+>    and replaced with a module list that won't drift with counts.
+> Build + 42 tests pass unchanged.
+
 ## Problem
 
 The project's value is partly *pedagogical accuracy* — the README leans on "this

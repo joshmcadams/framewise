@@ -4,6 +4,11 @@
 // keep the educational core readable. The semantics of the numeric path match
 // Framewise exactly, including the surprising default: extrapolation is "extend",
 // so values run linearly *past* the range rather than clamping.
+//
+// Deliberate extension (not in upstream Framewise): the `posterize` option.
+// Posterizing snaps the input to multiples of `posterize` before mapping,
+// producing a staircase effect. It's documented and tested here as an example
+// of building on top of the core without touching the ported math.
 
 export type ExtrapolateType = 'extend' | 'identity' | 'clamp' | 'wrap';
 

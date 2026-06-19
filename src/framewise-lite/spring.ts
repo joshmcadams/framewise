@@ -4,9 +4,13 @@
 // a faithful copy. Like Framewise we memoize the integer-frame chain (pure perf,
 // byte-identical output — see integerChainCache below); we drop the
 // `reverse`/`durationInFrames` options (which need measureSpring) to keep the
-// educational core small. `from`, `to`, and `delay`
-// behave exactly like Framewise; `overshootClamping` clamps against the
-// requested `to` in output space so it works for any range, not just to === 1
+// educational core small. `from`, `to`, and `delay` behave exactly like
+// Framewise.
+//
+// Deliberate deviation from upstream: `overshootClamping`. Upstream clamps
+// `spr.current` (normalized 0..1 space) directly against `to` (output space),
+// which silently does nothing when `to !== 1`. We clamp in output space after
+// mapping with `interpolate()`, so it works correctly for any `from`/`to` pair.
 // (see the note at the clamp site).
 
 import {interpolate} from './interpolate';

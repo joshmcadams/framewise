@@ -11,7 +11,7 @@ into an `.mp4`, **`delayRender`** so async assets render deterministically,
 ```bash
 npm install
 npm run dev     # open http://localhost:5173  (Space = play/pause, ←/→ = step)
-npm test        # 17 unit tests for interpolate + spring
+npm test        # unit tests for interpolate, spring, audio-registry, Sequence, Player, delayRender
 npm run build   # typecheck + production build
 npm run render -- --out out/hello.mp4    # render the demo to an mp4 (needs ffmpeg + Chrome)
 
@@ -61,7 +61,7 @@ about clocks.** The `<Player>` is just one possible frame source.
 | File | What it is | Real Framewise equivalent |
 |---|---|---|
 | `src/framewise-lite/VideoConfig.tsx` | Frame + config contexts, `useCurrentFrame`, `useVideoConfig`, `AbsoluteFill` | Same hooks; `framewise` core |
-| `src/framewise-lite/interpolate.ts` | Map a value between ranges (extend/clamp/identity/wrap, easing, multi-segment) | Faithful port of `interpolate` (numeric path only) |
+| `src/framewise-lite/interpolate.ts` | Map a value between ranges (extend/clamp/identity/wrap, easing, multi-segment, posterize¹) | Faithful port of `interpolate` (numeric path only); `posterize` is an extension not in upstream |
 | `src/framewise-lite/spring.ts` | Damped-harmonic-oscillator animation | Verbatim math from `spring/spring-utils.ts` |
 | `src/framewise-lite/Sequence.tsx` | Shifts the frame so children start at 0; clips outside the window | `<Sequence>` (Series/transitions build on it) |
 | `src/framewise-lite/Player.tsx` | A wall-clock frame source with controls + scrubber + pending badge | `@framewise/player`'s `<Player>` |
@@ -89,7 +89,10 @@ about clocks.** The `<Player>` is just one possible frame source.
   critically-damped solution is the classic "almost right" trap, so it's a
   verbatim copy of Framewise's `advance()` / `springCalculation()`. Defaults:
   `mass 1, damping 10, stiffness 100`. At frame 0 it equals `from`; with the
-  default underdamped config it overshoots before settling.
+  default underdamped config it overshoots before settling. One deliberate
+  deviation: `overshootClamping` clamps in output space (after mapping to
+  `[from, to]`) so it works correctly for any range, not just `to === 1`. Upstream
+  clamps in normalized space, which silently does nothing when `to !== 1`.
 - **The Player clock derives frame from elapsed wall-clock time**
   (`floor(elapsedMs * fps / 1000)`), never `frame++` per animation frame.
   Incrementing per tick would couple playback speed to the monitor refresh rate
