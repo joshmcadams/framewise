@@ -3,8 +3,10 @@
 // reconstructing it from scratch is the classic "almost right" trap, so this is
 // a faithful copy. We drop Framewise's memoization caches (pure perf, no effect
 // on output) and the `reverse`/`durationInFrames` options (which need
-// measureSpring) to keep the educational core small. `from`, `to`,
-// `overshootClamping`, and `delay` behave exactly like Framewise.
+// measureSpring) to keep the educational core small. `from`, `to`, and `delay`
+// behave exactly like Framewise; `overshootClamping` clamps against the
+// requested `to` in output space so it works for any range, not just to === 1
+// (see the note at the clamp site).
 
 import {interpolate} from './interpolate';
 
@@ -164,13 +166,19 @@ export function spring({
 
   const spr = springCalculation({fps, frame: delayProcessed, config});
 
-  const inner = config.overshootClamping
-    ? to >= from
-      ? Math.min(spr.current, to)
-      : Math.max(spr.current, to)
-    : spr.current;
+  // springCalculation always animates in normalized [0, 1] space, so map to the
+  // requested [from, to] range first, THEN clamp against `to`. Clamping
+  // spr.current against `to` directly (as upstream's snippet appears to) only
+  // works when to === 1; for any other target it compares a 0..1 quantity to an
+  // output-space value and never clamps.
+  const mapped =
+    from === 0 && to === 1
+      ? spr.current
+      : interpolate(spr.current, [0, 1], [from, to]);
 
-  return from === 0 && to === 1
-    ? inner
-    : interpolate(inner, [0, 1], [from, to]);
+  if (!config.overshootClamping) {
+    return mapped;
+  }
+
+  return to >= from ? Math.min(mapped, to) : Math.max(mapped, to);
 }

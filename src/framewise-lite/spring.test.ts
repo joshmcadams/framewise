@@ -27,6 +27,24 @@ describe('spring', () => {
     expect(Math.max(...values)).toBeLessThanOrEqual(1);
   });
 
+  it('clamps overshoot against a non-default `to` (not just to === 1)', () => {
+    // Regression: the default underdamped spring overshoots ~16%, which would
+    // map to ~116 without clamping. overshootClamping must hold it to <= 100.
+    const values = Array.from({length: 90}, (_, f) =>
+      spring({frame: f, fps, from: 0, to: 100, config: {overshootClamping: true}}),
+    );
+    expect(Math.max(...values)).toBeLessThanOrEqual(100);
+    // And it still actually reaches the target.
+    expect(spring({frame: 300, fps, from: 0, to: 100, config: {overshootClamping: true}})).toBeCloseTo(100, 3);
+  });
+
+  it('clamps undershoot for a descending spring (from > to)', () => {
+    const values = Array.from({length: 90}, (_, f) =>
+      spring({frame: f, fps, from: 100, to: 0, config: {overshootClamping: true}}),
+    );
+    expect(Math.min(...values)).toBeGreaterThanOrEqual(0);
+  });
+
   it('rises monotonically before the first overshoot peak', () => {
     let prev = -Infinity;
     for (let f = 0; f <= 8; f++) {
