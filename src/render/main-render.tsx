@@ -1,10 +1,7 @@
 import {createRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
-import {
-  FrameProvider,
-  VideoConfigProvider,
-  type VideoConfig,
-} from '../framewise-lite/VideoConfig';
+import {type VideoConfig} from '../framewise-lite/VideoConfig';
+import {CompositionHost} from '../framewise-lite/CompositionHost';
 import {getPendingDelayRenders} from '../framewise-lite/delay-render';
 import {beginAudioFrame, readAudioFrame} from '../framewise-lite/audio-registry';
 import type {AudioReport} from '../framewise-lite/audio-registry';
@@ -64,11 +61,11 @@ const renderFrame = (frame: number) => {
   // batched/deferred and we'd screenshot a stale frame.
   flushSync(() => {
     root.render(
-      <VideoConfigProvider value={config}>
-        <FrameProvider value={frame}>
-          <Component {...comp.defaultProps} />
-        </FrameProvider>
-      </VideoConfigProvider>,
+      // No `playback` prop: the PlaybackContext stays null, which is how
+      // <Audio>/<Video> know they're rendering and must not drive the element.
+      <CompositionHost config={config} frame={frame}>
+        <Component {...comp.defaultProps} />
+      </CompositionHost>,
     );
   });
 };

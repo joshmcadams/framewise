@@ -1,5 +1,14 @@
 # 03 — Extract a shared "composition host" to stop the Player and renderer drifting
 
+> **✅ Done.** New `src/framewise-lite/CompositionHost.tsx` owns the provider
+> stack; `Player.tsx` and `main-render.tsx` both delegate to it. Render mode
+> passes no `playback`, preserving the null-context contract. Typecheck, full
+> build, and the test suite pass. (Runtime render-hash parity not re-checked here
+> — no Chrome on the dev machine — but the change is structurally output-neutral.)
+>
+> Secondary cleanup (Player taking a single `config` object) intentionally left
+> out of scope to keep the change tight.
+
 ## Problem
 
 The two frame sources — `<Player>` (preview) and `main-render.tsx` (export) —

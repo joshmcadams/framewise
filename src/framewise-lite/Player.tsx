@@ -7,13 +7,9 @@ import {
   useState,
 } from 'react';
 import type {ComponentType} from 'react';
-import {
-  FrameProvider,
-  VideoConfigProvider,
-  type VideoConfig,
-} from './VideoConfig';
+import {type VideoConfig} from './VideoConfig';
 import {useDelayRenderPending} from './delay-render';
-import {PlaybackProvider} from './playback';
+import {CompositionHost} from './CompositionHost';
 
 export type PlayerProps<P extends Record<string, unknown>> = VideoConfig & {
   component: ComponentType<P>;
@@ -191,14 +187,10 @@ export function Player<P extends Record<string, unknown>>({
             transformOrigin: 'top left',
           }}
         >
-          <VideoConfigProvider value={config}>
-            <FrameProvider value={frame}>
-              <PlaybackProvider value={playbackValue}>
-                {/* The composition. It sees only the frame + config. */}
-                <Component {...((inputProps ?? {}) as P)} />
-              </PlaybackProvider>
-            </FrameProvider>
-          </VideoConfigProvider>
+          <CompositionHost config={config} frame={frame} playback={playbackValue}>
+            {/* The composition. It sees only the frame + config. */}
+            <Component {...((inputProps ?? {}) as P)} />
+          </CompositionHost>
         </div>
 
         {pending > 0 && (

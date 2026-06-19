@@ -8,7 +8,7 @@ goal → acceptance criteria).
 |---|------|------|--------|-------------------|
 | [01](01-cross-platform-chrome-resolution.md) | Cross-platform Chrome resolution | Bug (portability) | ✅ Done | The headline feature (render) can't run off macOS — including this repo's own WSL/Linux env. Hardcoded Chrome path. |
 | [02](02-spring-overshoot-clamping-bug.md) | `spring` overshootClamping no-op for `to≠1` | Bug (correctness) | ✅ Done | Confirmed: clamping silently does nothing unless `to===1`. Hidden by single-case test. |
-| [03](03-shared-composition-host.md) | Shared composition host | Architecture / reuse | 🔧 In progress | Player and renderer duplicate the provider stack — the exact seam the project is about. |
+| [03](03-shared-composition-host.md) | Shared composition host | Architecture / reuse | ✅ Done | Player and renderer duplicate the provider stack — the exact seam the project is about. |
 | [04](04-test-coverage-core-primitives.md) | Test the untested core | Quality | ☐ Todo | `<Sequence>`, the Player clock, and `delayRender` — the most important primitives — have no tests. |
 | [05](05-renderer-robustness-and-ergonomics.md) | Renderer preflight + config + props | Robustness / feature | ☐ Todo | Fail-fast on missing ffmpeg, configurable encode, asset paths, `--props`. |
 | [06](06-spring-quadratic-recompute.md) | `spring` O(n²) recompute | Performance | ☐ Todo | Recomputes from frame 0 every call; matters on long timelines. |
