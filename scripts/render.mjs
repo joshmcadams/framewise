@@ -28,11 +28,16 @@ import {existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {tmpdir, platform} from 'node:os';
 import {join, dirname, delimiter} from 'node:path';
+import {DEFAULT_DELAY_RENDER_TIMEOUT, RENDERER_TIMEOUT_MARGIN_MS} from '../src/framewise-lite/delay-render-defaults.mjs';
 
 // Identical for every browser (workers AND the config probe), so that a
 // sequential-vs-parallel determinism check can't differ for flag reasons.
 const LAUNCH_ARGS = ['--no-sandbox', '--hide-scrollbars', '--force-color-profile=srgb'];
-const DELAY_RENDER_TIMEOUT = 30_000;
+// Strictly longer than DEFAULT_DELAY_RENDER_TIMEOUT so the in-app console.error
+// (which names the stuck handle's label) fires before Puppeteer's backstop throws
+// a generic TimeoutError. Both constants come from delay-render-defaults.mjs —
+// single source of truth, no second literal.
+const DELAY_RENDER_TIMEOUT = DEFAULT_DELAY_RENDER_TIMEOUT + RENDERER_TIMEOUT_MARGIN_MS;
 
 // --- arg parsing ---------------------------------------------------------
 const args = process.argv.slice(2);

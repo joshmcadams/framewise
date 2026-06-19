@@ -1,5 +1,17 @@
 # 07 — `delayRender` timeout only logs; timeout constant is duplicated
 
+> **✅ Done.** Created `src/framewise-lite/delay-render-defaults.mjs` (with a
+> `.d.mts` companion for TypeScript) as the single source of truth for
+> `DEFAULT_DELAY_RENDER_TIMEOUT` (30 000 ms) and `RENDERER_TIMEOUT_MARGIN_MS`
+> (5 000 ms). `delay-render.ts` imports and re-exports the constant; the old
+> inline literal is gone. `render.mjs` imports both and sets
+> `DELAY_RENDER_TIMEOUT = DEFAULT_DELAY_RENDER_TIMEOUT + RENDERER_TIMEOUT_MARGIN_MS`
+> (35 000 ms), making the ordering contract explicit and guaranteed: the in-app
+> `console.error` (which already names the stuck handle's label) fires at 30 s,
+> the Puppeteer backstop fires 5 s later. Updated the timeout callback comment to
+> document this contract. Verified: `npm run build` + all 42 tests pass;
+> `delay-render-defaults.mjs` imports correctly from a plain Node.js ESM script.
+
 ## Problem
 
 Two related inconsistencies around the delayRender timeout:
