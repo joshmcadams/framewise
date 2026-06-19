@@ -16,11 +16,11 @@ import {createServer} from 'vite';
 import puppeteer from 'puppeteer-core';
 import {spawn} from 'node:child_process';
 import {mkdtemp, rm, mkdir, readFile, readdir} from 'node:fs/promises';
+import {existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {tmpdir} from 'node:os';
-import {join, dirname} from 'node:path';
+import {tmpdir, platform} from 'node:os';
+import {join, dirname, delimiter} from 'node:path';
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 // Identical for every browser (workers AND the config probe), so that a
 // sequential-vs-parallel determinism check can't differ for flag reasons.
 const LAUNCH_ARGS = ['--no-sandbox', '--hide-scrollbars', '--force-color-profile=srgb'];
@@ -36,6 +36,72 @@ const compId = flag('comp', '');
 const out = flag('out', 'out/video.mp4');
 const noWait = args.includes('--no-wait');
 const requestedConcurrency = Math.max(1, parseInt(flag('concurrency', '4'), 10) || 4);
+
+// puppeteer-core ships no browser, so we must point it at a system Chrome/
+// Chromium. Resolve it cross-platform: explicit --chrome flag, then env vars,
+// then well-known per-OS locations. Fail loudly with an actionable message
+// rather than letting puppeteer throw a raw spawn ENOENT mid-render.
+function resolveChromePath() {
+  const explicit =
+    flag('chrome', '') ||
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    process.env.CHROME_PATH;
+  if (explicit) {
+    if (!existsSync(explicit)) {
+      throw new Error(`Chrome not found at the path you provided: ${explicit}`);
+    }
+    return explicit;
+  }
+
+  // Resolve a bare command name (e.g. "google-chrome") against PATH.
+  const onPath = (cmd) => {
+    for (const dir of (process.env.PATH || '').split(delimiter)) {
+      if (!dir) continue;
+      const candidate = join(dir, cmd);
+      if (existsSync(candidate)) return candidate;
+    }
+    return null;
+  };
+
+  const os = platform();
+  const candidates =
+    os === 'darwin'
+      ? [
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+          '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        ]
+      : os === 'win32'
+        ? [
+            process.env.PROGRAMFILES,
+            process.env['PROGRAMFILES(X86)'],
+            process.env.LOCALAPPDATA,
+          ]
+            .filter(Boolean)
+            .map((base) => join(base, 'Google', 'Chrome', 'Application', 'chrome.exe'))
+        : // linux & friends: prefer PATH lookups, then common absolute paths.
+          [
+            onPath('google-chrome'),
+            onPath('google-chrome-stable'),
+            onPath('chromium'),
+            onPath('chromium-browser'),
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+            '/usr/bin/chromium',
+            '/usr/bin/chromium-browser',
+          ].filter(Boolean);
+
+  const found = candidates.find((p) => p && existsSync(p));
+  if (found) return found;
+
+  throw new Error(
+    `Could not find Google Chrome or Chromium on this system (${os}).\n` +
+      `Install Chrome/Chromium, or set CHROME_PATH (or PUPPETEER_EXECUTABLE_PATH),\n` +
+      `or pass --chrome <path-to-executable>.`,
+  );
+}
+
+const CHROME = resolveChromePath();
 
 // --- helpers -------------------------------------------------------------
 function run(cmd, cmdArgs) {

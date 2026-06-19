@@ -29,8 +29,11 @@ npm run render -- --comp WithVideo --out out/withvideo.mp4
 npm run render -- --comp HelloWorld --concurrency 4 --out out/hello.mp4
 ```
 
-> **Rendering requires `ffmpeg` on your PATH and Google Chrome installed** (the
-> renderer uses `puppeteer-core` pointed at the system Chrome). See
+> **Rendering requires `ffmpeg` on your PATH and Google Chrome (or Chromium)
+> installed** (the renderer uses `puppeteer-core` pointed at the system browser).
+> It auto-detects Chrome/Chromium on macOS, Linux, and Windows; for a
+> non-standard install set `CHROME_PATH` (or `PUPPETEER_EXECUTABLE_PATH`) or pass
+> `--chrome <path>`. See
 > [chapter 7](docs/code/07-renderer.md) (renderer) and
 > [chapter 8](docs/code/08-delay-render.md) (delayRender) for how it works.
 
