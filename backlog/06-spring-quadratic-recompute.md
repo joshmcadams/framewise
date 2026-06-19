@@ -1,5 +1,16 @@
 # 06 — `spring()` recomputes from frame 0 on every call (O(n²) over a render)
 
+> **✅ Done.** Implemented Option B (incremental integer-chain cache, keyed by
+> `fps|damping|mass|stiffness`) in `spring.ts`. Repeated calls are amortized
+> O(1); a full render is O(N) instead of O(N²). Verified **byte-identical** to
+> the naive loop across 210 cases (5 configs × 3 fps × integer/fractional/
+> negative/repeat frames) — the cache issues the exact same `advance()` sequence,
+> and fractional frames branch off `A_{floor-1}` exactly as the old `f +=
+> unevenRest` did. Microbench (compute every frame 0..N): naive 51ms→205ms for
+> N=1500→3000 (quadratic), cached 0.31ms→0.42ms (linear), 165–482× faster. All 9
+> spring tests pass unchanged. (Renderer sha256 not re-run — no Chrome here — but
+> byte-identical normalized output guarantees identical frames.)
+
 ## Problem
 
 `springCalculation` (`src/framewise-lite/spring.ts:98-135`) integrates the
