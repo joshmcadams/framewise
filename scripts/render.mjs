@@ -6,26 +6,29 @@
 // then reassembles them in order. Because a frame is a pure function of its
 // number, the output is identical regardless of how the work is split.
 //
-// Usage:  npm run render -- [--comp <id>] [--out <path.mp4>] [--no-wait]
+// Usage:  npm run render -- [--comp <id>] [--out <path>] [--no-wait]
 //                           [--concurrency <N>] [--props <json>]
 //                           [--crf <n>] [--codec <name>] [--audio-bitrate <k>]
 //                           [--public-dir <path>] [--chrome <path>] [--list]
+//                           [--format mp4|webm|gif|png-seq] [--still <frame>]
 //
 // --list           print available composition IDs and exit (no Chrome needed).
 // --no-wait        ignore delayRender (Stage 2 behaviour) to see async comps break.
 // --concurrency    number of parallel browsers (default 4; 1 = sequential).
 // --props          JSON object merged over the composition's defaultProps.
-// --crf            x264/x265 quality (default 18; lower = better/larger).
-// --codec          video codec (default libx264).
-// --audio-bitrate  AAC bitrate when there's audio (default 192k).
+// --crf            x264/x265/VP9 quality (default 18; lower = better/larger).
+// --codec          video codec (overrides the format default).
+// --audio-bitrate  audio bitrate (default 192k; aac for mp4, libopus for webm).
 // --public-dir     base dir for composition asset URLs (default public).
 // --chrome         path to a Chrome/Chromium binary (else auto-detected).
 // --no-sandbox     disable Chrome's sandbox (only for root/containers where it cannot start).
+// --format         output format: mp4 (default), webm, gif, or png-seq (skips ffmpeg).
+// --still          render a single frame as a PNG; mutually exclusive with --format/--concurrency.
 
 import {createServer} from 'vite';
 import puppeteer from 'puppeteer-core';
 import {spawn} from 'node:child_process';
-import {mkdtemp, rm, mkdir, readFile, readdir} from 'node:fs/promises';
+import {mkdtemp, rm, mkdir, readFile, readdir, copyFile} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {tmpdir, platform} from 'node:os';
@@ -41,6 +44,7 @@ import {
   planChunks,
   parseRegistryIds,
   hasEncoderToken,
+  planEncode,
 } from './render-lib.mjs';
 
 // Sandbox policy: keep Chrome's OS sandbox ON by default. It only has to be
@@ -69,16 +73,64 @@ const DELAY_RENDER_TIMEOUT = DEFAULT_DELAY_RENDER_TIMEOUT + RENDERER_TIMEOUT_MAR
 const args = process.argv.slice(2);
 const flag = (name, fallback) => readFlag(args, name, fallback);
 const compId = flag('comp', '');
-const out = flag('out', 'out/video.mp4');
 const noWait = args.includes('--no-wait');
-const requestedConcurrency = Math.max(1, parseInt(flag('concurrency', '4'), 10) || 4);
 
-// Encode settings (defaults reproduce the previous hardcoded behaviour, plus an
-// explicit CRF). Identical across all workers — only the final ffmpeg pass uses
-// them, so they can't affect per-frame determinism.
+// --format: validate against the four values
+const formatRaw = flag('format', undefined);
+const format = formatRaw ?? 'mp4';
+const formatExplicit = formatRaw !== undefined;
+const VALID_FORMATS = ['mp4', 'webm', 'gif', 'png-seq'];
+if (!VALID_FORMATS.includes(format)) {
+  throw new Error(
+    `Unknown format: ${format}. Valid formats: ${VALID_FORMATS.join(', ')}.`,
+  );
+}
+
+// --still: integer frame number
+const stillRaw = flag('still', undefined);
+const stillFrame = stillRaw !== undefined ? parseInt(stillRaw, 10) : null;
+const stillExplicit = stillRaw !== undefined;
+if (stillExplicit && (Number.isNaN(stillFrame) || stillFrame < 0)) {
+  throw new Error(
+    `--still must be a non-negative integer frame number, got: ${stillRaw}`,
+  );
+}
+
+// --still is mutually exclusive with explicit --format and --concurrency
+if (stillExplicit && formatExplicit) {
+  throw new Error('--still is mutually exclusive with --format.');
+}
+const concurrencyRaw = flag('concurrency', undefined);
+const concurrencyExplicit = concurrencyRaw !== undefined;
+if (stillExplicit && concurrencyExplicit) {
+  throw new Error('--still is mutually exclusive with --concurrency.');
+}
+const requestedConcurrency = Math.max(1, parseInt(concurrencyRaw ?? '4', 10) || 4);
+
+// Encode settings
 const crf = flag('crf', '18');
-const codec = flag('codec', 'libx264');
+const codec = flag('codec', undefined);
 const audioBitrate = flag('audio-bitrate', '192k');
+
+// Default out path: format-aware when user didn't pass --out
+const outRaw = flag('out', undefined);
+const outExplicit = outRaw !== undefined;
+let out;
+const FORMAT_EXTENSIONS = {mp4: '.mp4', webm: '.webm', gif: '.gif'};
+if (outExplicit) {
+  out = outRaw;
+  if (FORMAT_EXTENSIONS[format] && !out.endsWith(FORMAT_EXTENSIONS[format])) {
+    console.warn(
+      `--out extension does not match --format ${format}: writing ${format} content to ${out}`,
+    );
+  }
+} else if (stillExplicit) {
+  out = `out/still-${stillFrame}.png`;
+} else if (format === 'png-seq') {
+  out = 'out/frames';
+} else {
+  out = `out/video.${format}`;
+}
 
 // Where composition asset URLs (e.g. "/bg.wav") resolve on disk. One place, so
 // the renderer and any future staticFile() helper agree.
@@ -423,7 +475,19 @@ for (const [sig, code] of [
 }
 
 try {
-  await assertFfmpeg(codec);
+  // Skip ffmpeg preflight entirely for still and png-seq (no ffmpeg needed).
+  // For mp4/webm, verify the effective codec. For gif, verify ffmpeg exists
+  // but don't check a specific codec (gif uses the palette filter).
+  if (!stillExplicit && format !== 'png-seq') {
+    const effectiveCodec =
+      codec ?? {mp4: 'libx264', webm: 'libvpx-vp9', gif: null}[format];
+    if (effectiveCodec) {
+      await assertFfmpeg(effectiveCodec);
+    } else {
+      // gif: only verify ffmpeg is on PATH
+      await run('ffmpeg', ['-version']);
+    }
+  }
 
   await server.listen();
   const port = server.httpServer.address().port;
@@ -438,6 +502,14 @@ try {
   const config = await probeConfig(url);
   const {width, height, fps, durationInFrames} = config;
   console.log(`▶ composition: ${width}x${height} @ ${fps}fps · ${durationInFrames} frames`);
+
+  // Validate still frame against the composition range.
+  if (stillExplicit && stillFrame >= durationInFrames) {
+    throw new Error(
+      `--still ${stillFrame}: out of range (composition has ${durationInFrames} frames, valid range is 0–${durationInFrames - 1}).`,
+    );
+  }
+
   console.log(
     noWait
       ? '⚠ --no-wait: ignoring delayRender (Stage 2 behaviour)'
@@ -445,7 +517,10 @@ try {
   );
 
   // Split the frame range into contiguous chunks, one browser each.
-  const chunks = planChunks(durationInFrames, requestedConcurrency);
+  // For --still, we render exactly one frame.
+  const chunks = stillExplicit
+    ? [[stillFrame, stillFrame + 1]]
+    : planChunks(durationInFrames, requestedConcurrency);
   console.log(
     `▶ rendering across ${chunks.length} worker(s): ${chunks.map(([s, e]) => `[${s},${e})`).join(' ')}`,
   );
@@ -469,90 +544,78 @@ try {
     `▶ rendered ${durationInFrames} frames in ${renderSecs}s (concurrency ${chunks.length})`,
   );
 
-  // Determinism + integrity: every frame present, and a stable hash of the set.
+  // Determinism + integrity: verify frame count and hash the set.
+  const expectedFrames = stillExplicit ? 1 : durationInFrames;
   const files = (await readdir(framesDir)).filter((f) => f.endsWith('.png')).sort();
-  if (files.length !== durationInFrames) {
+  if (files.length !== expectedFrames) {
     throw new Error(
-      `expected ${durationInFrames} frames but found ${files.length} — chunk range bug?`,
+      `expected ${expectedFrames} frames but found ${files.length} — chunk range bug?`,
     );
   }
   const hash = createHash('sha256');
   for (const f of files) hash.update(await readFile(join(framesDir, f)));
   console.log(`▶ frames: ${files.length} · sha256 ${hash.digest('hex').slice(0, 16)}`);
 
-  // Merge each chunk's audio reports and aggregate into segments.
-  const audioByFrame = results.flatMap((r) => r.value);
-  const segments = aggregateAudioSegments(audioByFrame);
-  if (segments.length) {
-    console.log(`▶ audio: ${segments.length} segment(s)`);
-    for (const s of segments) {
-      console.log(
-        `  · ${s.src}  frames ${s.startFrame}–${s.endFrame}  @${(s.startFrame / fps).toFixed(2)}s  trim ${s.trimStart.toFixed(2)}s  vol ${s.volume}`,
-      );
-    }
-  }
-
-  // Stitch PNGs -> mp4; mix any audio segments in via filter_complex.
+  // --- output --------------------------------------------------------------
   await mkdir(dirname(out), {recursive: true});
-  const videoInput = [
-    '-framerate',
-    String(fps),
-    '-start_number',
-    '0',
-    '-i',
-    join(framesDir, 'frame-%05d.png'),
-  ];
-  // Shared encode settings so the two ffmpeg branches stay in sync.
-  const videoEncodeArgs = ['-c:v', codec, '-crf', String(crf), '-pix_fmt', 'yuv420p'];
-  console.log(
-    `▶ encode: ${codec} crf ${crf}${segments.length ? ` · audio aac ${audioBitrate}` : ''}`,
-  );
 
-  if (segments.length === 0) {
-    await run('ffmpeg', ['-y', ...videoInput, ...videoEncodeArgs, out]);
+  if (stillExplicit) {
+    // Copy the single rendered PNG to the output path.
+    const srcFile = join(framesDir, files[0]);
+    await copyFile(srcFile, out);
+    const secs = ((Date.now() - started) / 1000).toFixed(1);
+    console.log(`✔ wrote ${out} in ${secs}s total`);
+  } else if (format === 'png-seq') {
+    // Copy all PNGs to the output directory.
+    for (const f of files) {
+      await copyFile(join(framesDir, f), join(out, f));
+    }
+    const secs = ((Date.now() - started) / 1000).toFixed(1);
+    console.log(`✔ wrote ${files.length} PNGs to ${out} in ${secs}s total`);
   } else {
-    const inputArgs = [];
-    const filters = [];
-    segments.forEach((seg, k) => {
-      inputArgs.push('-i', assetPath(seg.src));
-      const idx = k + 1;
-      const dur = (seg.endFrame - seg.startFrame + 1) / fps;
-      const delayMs = Math.round((seg.startFrame / fps) * 1000);
-      filters.push(
-        `[${idx}:a]atrim=start=${seg.trimStart.toFixed(6)}:duration=${dur.toFixed(6)},` +
-          `asetpts=PTS-STARTPTS,volume=${seg.volume},adelay=${delayMs}:all=1[s${k}]`,
-      );
+    // Audio: aggregate only for encode formats.
+    const audioByFrame = results.flatMap((r) => r.value);
+    const segments = aggregateAudioSegments(audioByFrame);
+    if (segments.length) {
+      console.log(`▶ audio: ${segments.length} segment(s)`);
+      for (const s of segments) {
+        console.log(
+          `  · ${s.src}  frames ${s.startFrame}–${s.endFrame}  @${(s.startFrame / fps).toFixed(2)}s  trim ${s.trimStart.toFixed(2)}s  vol ${s.volume}`,
+        );
+      }
+    }
+
+    const plan = planEncode({
+      format,
+      codec,
+      crf,
+      audioBitrate,
+      fps,
+      framesPattern: join(framesDir, 'frame-%05d.png'),
+      segments,
+      assetPaths: segments.map((seg) => assetPath(seg.src)),
+      out,
     });
 
-    const outLabel =
-      segments.length === 1
-        ? '[s0]'
-        : (filters.push(
-            `${segments.map((_, k) => `[s${k}]`).join('')}amix=inputs=${segments.length}:normalize=0[aout]`,
-          ),
-          '[aout]');
+    if (plan === null) {
+      // Should not reach here (png-seq is handled above), but guard.
+      throw new Error('planEncode returned null for a non-png-seq format');
+    }
 
-    await run('ffmpeg', [
-      '-y',
-      ...videoInput,
-      ...inputArgs,
-      '-filter_complex',
-      filters.join(';'),
-      '-map',
-      '0:v',
-      '-map',
-      outLabel,
-      ...videoEncodeArgs,
-      '-c:a',
-      'aac',
-      '-b:a',
-      audioBitrate,
-      out,
-    ]);
+    if (plan.dropsAudio) {
+      console.warn('⚠ --format gif drops audio: skipping audio mux');
+    }
+
+    console.log(
+      `▶ encode: ${format}${
+        segments.length ? ` · audio ${{mp4: 'aac', webm: 'libopus'}[format] || 'aac'} ${audioBitrate}` : ''
+      }`,
+    );
+    await run('ffmpeg', plan.args);
+
+    const secs = ((Date.now() - started) / 1000).toFixed(1);
+    console.log(`✔ wrote ${out} in ${secs}s total`);
   }
-
-  const secs = ((Date.now() - started) / 1000).toFixed(1);
-  console.log(`✔ wrote ${out} in ${secs}s total`);
 } finally {
   // Workers own and close their own browsers; here we only tear down shared
   // resources, and only after Promise.allSettled above has resolved.
