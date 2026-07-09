@@ -132,8 +132,9 @@ export function useMediaSync(
 }
 ```
 
-Move the effect body verbatim; the only edits are the named constant and
-reading `ref.current` (already the shape both callers use).
+Move the effect body verbatim from **Audio.tsx** (its copy has the drift-correction
+and scrub-to-frame inline comments that the Video copy lacks). The only edits
+are the named constant and reading `ref.current` (already the shape both callers use).
 
 **Verify**: `npm run typecheck` → exit 0.
 
