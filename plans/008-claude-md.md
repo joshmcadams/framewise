@@ -53,10 +53,12 @@ against the live `package.json` before writing):
   3. Determinism: a frame is a pure function of its number. Compositions use
      `random(seed)` (never `Math.random()`); the renderer verifies a sha256
      frame-set hash, identical at any `--concurrency`.
-  4. The no-deps `useLayoutEffect`s in `Audio.tsx`/`Video.tsx` and the
-     layout-effect (not useEffect / not useState-initializer) pattern in
-     `Img.tsx` are load-bearing — the file comments explain why; don't
-     "fix" them to satisfy lint instincts.
+   4. The no-deps `useLayoutEffect`s in `Audio.tsx`/`Video.tsx` and the
+      layout-effect (not useEffect / not useState-initializer) pattern in
+      `Img.tsx` are load-bearing — the file comments explain why; don't
+      "fix" them to satisfy lint instincts. The preview media-sync is
+      extracted into `useMediaSync.ts` (plan 011) with a full deps list —
+      shared by both components, internal, must not be inlined back.
   5. `delayRender` timeout constants have a single source of truth:
      `src/framewise-lite/delay-render-defaults.mjs` (+ `.d.mts`), shared by TS
      and `render.mjs`; the renderer's backstop must fire AFTER the in-app
@@ -133,7 +135,9 @@ Every claim must carry a `file` or `file:line` pointer so future agents can
 verify instead of trusting.
 
 **Verify**: `grep -c "src/" CLAUDE.md` → ≥ 8 (pointers present).
-**Verify**: every `npm run X` mentioned exists: `node -e "const p=require('./package.json').scripts; for (const m of require('fs').readFileSync('CLAUDE.md','utf8').matchAll(/npm run ([a-z:]+)/g)) if(!p[m[1]]) {console.error('missing script: '+m[1]); process.exit(1)}; console.log('ok')"` → `ok`.
+**Verify**: every `npm run X` mentioned exists — since this is an ESM package,
+run the check with `--input-type=commonjs`:
+`node --input-type=commonjs -e "const p=require('./package.json').scripts; for (const m of require('fs').readFileSync('CLAUDE.md','utf8').matchAll(/npm run ([a-z:]+)/g)) if(!p[m[1]]) {console.error('missing script: '+m[1]); process.exit(1)}; console.log('ok')"` → `ok`.
 
 ### Step 2: Sanity
 
@@ -160,7 +164,8 @@ None — content file. The two grep/node checks above are the gates.
 
 ## Maintenance notes
 
-- When plans 001/007 land (if not already), extend the Commands table with
-  `verify`/`lint` — whichever executor lands last reconciles.
+- Plans 001 and 007 have both landed; `verify`, `typecheck`, `lint`, `format`,
+  and `format:check` all exist in `package.json` and should appear in the
+  Commands table.
 - Reviewers: check the invariants section against the actual file comments —
   CLAUDE.md must summarize them, not contradict them.
