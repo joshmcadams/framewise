@@ -79,7 +79,7 @@ if (propsArg) {
   try {
     inputProps = JSON.parse(propsArg);
   } catch (e) {
-    throw new Error(`--props must be valid JSON: ${e.message}`);
+    throw new Error(`--props must be valid JSON: ${e.message}`, {cause: e});
   }
   if (typeof inputProps !== 'object' || inputProps === null || Array.isArray(inputProps)) {
     throw new Error(`--props must be a JSON object, e.g. '{"title":"Hi"}'`);
@@ -201,9 +201,10 @@ async function assertFfmpeg(codec) {
     if (e && e.code === 'ENOENT') {
       throw new Error(
         'ffmpeg was not found on your PATH. Install it (https://ffmpeg.org/download.html) and try again.',
+        {cause: e},
       );
     }
-    throw new Error(`ffmpeg preflight failed: ${e.message}`);
+    throw new Error(`ffmpeg preflight failed: ${e.message}`, {cause: e});
   }
 
   const encoders = await runCapture('ffmpeg', ['-hide_banner', '-encoders']);
@@ -251,7 +252,7 @@ async function probeConfig(url) {
 
 // Render one contiguous chunk [startFrame, endFrame) in its own browser. Returns
 // the chunk's audio reports. Owns its browser so a failure can't leak it.
-async function renderChunk(url, startFrame, endFrame, {width, height, fps, framesDir, label}) {
+async function renderChunk(url, startFrame, endFrame, {width, height, framesDir, label}) {
   const browser = await puppeteer.launch({
     executablePath: CHROME,
     headless: true,

@@ -45,5 +45,5 @@ export function useMediaSync(
       el.pause();
       el.currentTime = mediaTime; // scrub to the exact frame
     }
-  }, [playback, playback?.playing, mediaTime, volume]);
+  }, [playback, playback?.playing, mediaTime, volume, ref]);
 }

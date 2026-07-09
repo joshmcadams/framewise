@@ -13,6 +13,7 @@ import {WithVideo} from '../compositions/WithVideo';
  */
 export type Composition = {
   id: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous composition props (justified any)
   component: ComponentType<any>;
   width: number;
   height: number;
