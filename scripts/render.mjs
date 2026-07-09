@@ -212,15 +212,37 @@ async function assertFfmpeg(codec) {
   }
 }
 
+// Browsers currently open (tracked so a signal handler can kill them — see
+// `cleanup()` below). puppeteer.launch() installs its own SIGINT/SIGTERM/
+// SIGHUP handler by default that kills the child Chrome and then calls
+// `process.exit()` *synchronously*, in the same signal-emit tick, without
+// awaiting anything. Node runs same-signal listeners in registration order,
+// so once any browser is launched, that handler runs right after ours and
+// terminates the process before our async cleanup() (server.close()/rm())
+// gets a turn to do anything — the temp frames dir leaks anyway, just later
+// in the run than before. We disable puppeteer's own handling below on
+// every launch() call and take over both responsibilities (killing the
+// browser AND tearing down shared resources) in one place: `cleanup()`.
+const liveBrowsers = new Set();
+
 // Read the static composition metadata from a throwaway page.
 async function probeConfig(url) {
-  const browser = await puppeteer.launch({executablePath: CHROME, headless: true, args: LAUNCH_ARGS});
+  const browser = await puppeteer.launch({
+    executablePath: CHROME,
+    headless: true,
+    args: LAUNCH_ARGS,
+    handleSIGINT: false,
+    handleSIGTERM: false,
+    handleSIGHUP: false,
+  });
+  liveBrowsers.add(browser);
   try {
     const page = await browser.newPage();
     await page.goto(url, {waitUntil: 'load'});
     await page.waitForFunction(() => Boolean(window.framewiseLite?.config));
     return await page.evaluate(() => window.framewiseLite.config);
   } finally {
+    liveBrowsers.delete(browser);
     await browser.close();
   }
 }
@@ -228,7 +250,15 @@ async function probeConfig(url) {
 // Render one contiguous chunk [startFrame, endFrame) in its own browser. Returns
 // the chunk's audio reports. Owns its browser so a failure can't leak it.
 async function renderChunk(url, startFrame, endFrame, {width, height, fps, framesDir, label}) {
-  const browser = await puppeteer.launch({executablePath: CHROME, headless: true, args: LAUNCH_ARGS});
+  const browser = await puppeteer.launch({
+    executablePath: CHROME,
+    headless: true,
+    args: LAUNCH_ARGS,
+    handleSIGINT: false,
+    handleSIGTERM: false,
+    handleSIGHUP: false,
+  });
+  liveBrowsers.add(browser);
   try {
     const page = await browser.newPage();
     await page.goto(url, {waitUntil: 'load'});
@@ -272,6 +302,7 @@ async function renderChunk(url, startFrame, endFrame, {width, height, fps, frame
     }
     return audioByFrame;
   } finally {
+    liveBrowsers.delete(browser);
     await browser.close();
   }
 }
@@ -281,16 +312,29 @@ const server = await createServer({server: {port: 0}, logLevel: 'warn'});
 const framesDir = await mkdtemp(join(tmpdir(), 'framewise-lite-'));
 const started = Date.now();
 
-// Fault-isolated, idempotent teardown of the shared resources above (workers
-// own and close their own browsers — see the finally block below and
-// renderChunk/probeConfig — so this never touches a browser). Both branches
-// are guarded individually so a rejection from one (e.g. server.close())
-// can't prevent the other (e.g. removing the temp frames dir) from running,
-// on the normal finally path AND when a signal cuts the run short.
+// Fault-isolated, idempotent teardown. Under normal completion, workers have
+// already closed their own browsers (renderChunk/probeConfig's own finally,
+// which also removes them from liveBrowsers) by the time this runs — but if
+// a signal cuts the run short mid-render, a browser can still be in
+// liveBrowsers here, so we take responsibility for it: force-kill rather
+// than a graceful browser.close(), since we've disabled puppeteer's own
+// signal handling (see liveBrowsers above) and want a bounded, fast exit
+// rather than waiting on a CDP round-trip to a browser that may be wedged
+// or mid-render. Every step is individually guarded so one failing (e.g.
+// server.close()) can't prevent the others (e.g. removing the temp frames
+// dir) from running, on the normal finally path AND when a signal cuts the
+// run short.
 let cleanedUp = false;
 async function cleanup() {
   if (cleanedUp) return;
   cleanedUp = true;
+  for (const browser of liveBrowsers) {
+    try {
+      browser.process()?.kill('SIGKILL');
+    } catch (e) {
+      console.error(`cleanup: killing browser process failed: ${e.message}`);
+    }
+  }
   try {
     await server.close();
   } catch (e) {
@@ -306,8 +350,6 @@ async function cleanup() {
 // `finally`, leaking the temp frames dir (and leaving the Vite server's
 // socket open until process exit). Registered here — after the --list block
 // has already exited — because `server`/`framesDir` must exist first.
-// Puppeteer installs its own signal handlers that kill child Chrome
-// processes, so we don't need to (and shouldn't try to) close browsers here.
 for (const [sig, code] of [['SIGINT', 130], ['SIGTERM', 143]]) {
   process.on(sig, () => {
     void cleanup().finally(() => process.exit(code));
