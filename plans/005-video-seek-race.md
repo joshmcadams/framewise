@@ -7,10 +7,12 @@
 > in `plans/README.md` — unless a reviewer dispatched you and told you they
 > maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat 985ca38..HEAD -- src/framewise-lite/Video.tsx src/framewise-lite/Video.test.tsx`
-> Plan 004 MUST have landed (Video.test.tsx exists with the race
-> characterization). If it hasn't, STOP. If Video.tsx changed beyond plan 004,
-> compare excerpts before proceeding.
+> **Drift check (run first)**: `git diff --stat 985ca38..HEAD -- src/framewise-lite/Video.tsx`
+> Plan 004 MUST have landed — `Video.test.tsx` must exist with the race
+> characterization (case 5). Run `npx vitest run src/framewise-lite/Video.test.tsx`
+> first to confirm the 5 plan-004 tests pass (including the BUG-documented
+> race). If `Video.test.tsx` is missing or doesn't pass, STOP. If `Video.tsx`
+> changed beyond plan 004, compare excerpts before proceeding.
 
 ## Status
 
@@ -103,7 +105,15 @@ Context you need:
 - The preview effect (`Video.tsx:107-125`) and audio report effect
   (`Video.tsx:55-59`) are OUT of scope — do not modify them.
 - `Video.test.tsx` (from plan 004) has the race characterization as its case 5,
-  plus the seek-lifecycle tests (cases 1-3) that must keep passing.
+  plus the seek-lifecycle tests (cases 1-3) that must keep passing. Review
+  those tests before starting: they use `Object.defineProperty(el, 'readyState',
+  {value: N, configurable: true})` to control the element's state, manually
+  dispatch `loadedmetadata`/`seeked` events, and stub `pause`/`play` on
+  `HTMLMediaElement.prototype` to silence jsdom warnings. You will use the
+  same readyState pattern in the new regression tests below — when a test step
+  says "dispatch `seeked`" or "complete a seek," it means you must also have
+  defined readyState to ≥1 so `seekNow()` fires synchronously. When a test
+  expects the parked bail to trigger, readyState must be ≥2.
 
 ## Commands you will need
 
@@ -231,25 +241,69 @@ cases 1-4 still pass; case 5 now FAILS (expected — fix it in Step 2).
 
 ### Step 2: Flip the characterization and add regression tests
 
-In `Video.test.tsx`:
+In `Video.test.tsx`, model all new tests on the harness already in the file:
+jsdom `readyState` control via `Object.defineProperty`, manual event dispatch
+(`loadedmetadata`/`seeked`), and `pause`/`play` stubs on
+`HTMLMediaElement.prototype`. Every test that needs `seekNow()` to fire must
+define `readyState` to ≥1 *before* the mount or *immediately after* (before
+dispatching `loadedmetadata`). Every test that expects the parked bail to
+trigger must define `readyState` to ≥2 before the re-render.
 
-1. **Flip case 5**: after the same-target recommit mid-seek, assert
-   `getPendingDelayRenders()` has exactly ONE pending handle (the original
-   seek), and that dispatching `seeked` then empties it. Remove the
-   `// BUG (documented)` comment; reference this plan instead.
-2. **New — target change mid-seek**: start a seek for frame 30 (1 pending);
-   re-render at frame 31 before `seeked`; assert exactly 1 pending (new
-   handle, old one resolved: total pending is 1, not 2); dispatch `seeked` →
-   0 pending.
-3. **New — parked bail requires a completed seek**: complete a full
-   seek-with-`seeked` for frame 30; re-render frame 30 → 0 pending (no new
-   handle — the bail works); then re-render frame 31 → 1 pending (parked
-   state doesn't leak across targets).
-4. **New — unmount mid-seek** still resolves: start a seek, unmount → 0
-   pending (this is case 3 from plan 004; confirm it still passes with the
-   new structure — the unmount-only effect owns it now).
+1. **Flip the plan-004 race characterization** (formerly case 5). Follow the
+   same 5-step sequence the old test used, but flip the final assertion:
 
-**Verify**: `npx vitest run src/framewise-lite/Video.test.tsx` → all pass.
+   a. Park at frame 30: renderAt(30), defineProperty readyState=1, dispatch
+      `loadedmetadata`, dispatch `seeked` → 0 pending.
+   b. Re-render at frame 31: renderAt(31) → 1 pending (seekNow fires because
+      readyState >= 1, setting `el.currentTime` to frame 31's seekTarget).
+   c. DefineProperty readyState=2 (needed for the parked bail in step d).
+   d. Re-render frame 31 AGAIN (same frame, before `seeked`): the same-target
+      recommit path fires — seekStateRef still holds the handle from step b
+      (`inFlight.target === seekTarget && inFlight.el === el` → return).
+   e. **Assert**: exactly ONE pending handle (the original seek from step b
+      is still blocking). Then dispatch `seeked` → 0 pending.
+
+   Remove the `// BUG (documented)` comment; replace with `// Plan 005: the
+   same-frame recommit no longer clears the handle mid-seek.`
+
+2. **New — target change mid-seek**. The seek moves to a new frame before
+   the previous `seeked` fires; the old handle must resolve and a new one must
+   register, netting exactly 1 pending (not 2):
+
+   a. RenderAt(30), defineProperty readyState=1, dispatch `loadedmetadata` →
+      `seekNow()` fires → 1 pending. Capture the handle number:
+      `const handle30 = getPendingDelayRenders()[0].handle`.
+   b. Re-render at frame 31 (before dispatching `seeked` for frame 30).
+   c. **Assert**: `getPendingDelayRenders()` has length 1 AND its handle is
+      NOT `handle30` (the old handle was resolved; a new one was registered).
+      This proves the target-change path resolved the old handle — a count of
+      1 alone could mean the old handle leaked and no new one was created.
+   d. Dispatch `seeked` → 0 pending.
+
+3. **New — parked bail requires a completed seek**. Once a seek completes
+   with `seeked`, a subsequent render of the same frame must skip the handle
+   entirely (no-op), but a different frame must still register:
+
+   a. RenderAt(30), defineProperty readyState=1, dispatch `loadedmetadata`,
+      dispatch `seeked` → 0 pending. This writes `lastSeekedTargetRef` to
+      frame 30's seekTarget and clears `seekStateRef`.
+   b. **DefineProperty readyState=2** (the new bail checks both
+      `lastSeekedTargetRef === seekTarget` AND `readyState >= 2`).
+   c. Re-render frame 30 → 0 pending (bail fires: same target, readyState≥2).
+   d. Re-render frame 31 → 1 pending (different target, bail doesn't fire).
+   e. Dispatch `seeked` → 0 pending.
+
+4. **New — unmount mid-seek** still resolves (the unmount-only `[]`-deps
+   effect owns this now):
+
+   a. RenderAt(30), defineProperty readyState=1, dispatch `loadedmetadata`
+      (seek starts) → 1 pending.
+   b. Unmount: `act(() => root.unmount())` → 0 pending. The old plan-004 case 3
+      tested this path via the effect cleanup; confirm it still passes now that
+      the unmount-only effect is responsible.
+
+**Verify**: `npx vitest run src/framewise-lite/Video.test.tsx` → all pass
+(plan-004 cases 1-4 + flipped case 5 + 3 new = 8 tests).
 
 ### Step 3: Full gate + optional end-to-end
 
@@ -271,9 +325,10 @@ modeled on the plan-004 harness (jsdom media element, manual
 
 - [ ] `npm run verify` exits 0
 - [ ] `Video.test.tsx`: same-target recommit mid-seek keeps exactly 1 pending handle until `seeked`
-- [ ] `Video.test.tsx`: target change mid-seek nets exactly 1 pending handle
-- [ ] `Video.test.tsx`: unmount mid-seek → 0 pending
-- [ ] `grep -n "finish" src/framewise-lite/Video.tsx` → no hits in the render-seek effect
+- [ ] `Video.test.tsx`: target change mid-seek resolves the old handle and registers a new one (handle number changes; NOT just count=1)
+- [ ] `Video.test.tsx`: parked bail fires for a completed frame (0 pending on re-render of same frame) but not for a different frame
+- [ ] `Video.test.tsx`: unmount mid-seek → 0 pending (unmount-only effect resolves the handle)
+- [ ] `grep -n "finish" src/framewise-lite/Video.tsx` → no hits
 - [ ] Only `Video.tsx`, `Video.test.tsx`, `plans/README.md` modified (`git status`)
 - [ ] `plans/README.md` status row updated
 
@@ -281,11 +336,20 @@ modeled on the plan-004 harness (jsdom media element, manual
 
 Stop and report back (do not improvise) if:
 
-- Plan 004's Video tests don't exist or don't pass before your change.
-- The plan-004 case-5 characterization already shows a pending handle (the
-  race doesn't reproduce) — the premise is wrong; report instead of "fixing".
-- Keeping listeners attached across commits provably breaks a preview-mode
-  test or leaks handles in the jsdom suite after your Step 2 tests.
+- `Video.test.tsx` doesn't exist or its 5 plan-004 tests don't pass before your
+  change (run `npx vitest run src/framewise-lite/Video.test.tsx` first).
+- The plan-004 case-5 race characterization already shows a pending handle
+  after the same-frame recommit (the race no longer reproduces) — the premise
+  is wrong; report instead of "fixing."
+- In the flipped case-5 test, the same-target recommit mid-seek does NOT keep
+  a pending handle (something about the ref structure isn't working — report
+  the actual pending count and the ref values).
+- The target-change test (Step 2 case 2) shows 2 pending handles after the
+  target change (the old handle leaked). Or it shows 0 pending (the new handle
+  failed to register). Report both `getPendingDelayRenders()` and the handle
+  numbers.
+- Keeping listeners attached across commits provably leaks handles in the
+  jsdom suite after your Step 2 tests (run the full suite: `npm test`).
 - You need to modify `Img.tsx`, `delay-render.ts`, or the renderer to make
   the tests pass.
 
