@@ -47,7 +47,6 @@ export function delayRender(
     // waitForFunction backstop fires DEFAULT_DELAY_RENDER_TIMEOUT +
     // RENDERER_TIMEOUT_MARGIN_MS later (see render.mjs), so this message always
     // reaches the user before Puppeteer throws a generic TimeoutError.
-    // eslint-disable-next-line no-console
     console.error(
       `delayRender(): handle ${handle} ("${label}") was not cleared within ${timeoutMs}ms`,
     );
