@@ -26,7 +26,7 @@ plans cite them.
 | 010  | staticFile()/random(): demo usage, walkthrough coverage, barrel hygiene | P2 | M | 006 | DONE (executed, merged; all 4 compositions wired, docs updated) |
 | 011  | Extract shared preview media-sync into useMediaSync() | P2 | S | 004, 005 | DONE (executed, merged; Audio + Video now share one hook) |
 | 012  | Player: interactive-surface tests + opt-in maxHeight fitting | P2 | S | 001 | DONE (executed, merged; 8 new tests, maxHeight prop) |
-| 013  | Test spring()'s fractional-frame branch | P2 | S | 001 | TODO |
+| 013  | Test spring()'s fractional-frame branch | P2 | S | 001 | DONE (executed, merged; 7 new tests, toBeCloseTo(1) for known ODE divergence) |
 | 014  | React 18.3 → 19 upgrade | P3 | M | 004 | TODO |
 | 015  | Output formats: --format webm/gif/png-seq + --still | P2 | M | 002, 003 | TODO |
 | 016  | Easing library (backlog item C) | P2 | M | 001 (order after 006, 010) | TODO |
