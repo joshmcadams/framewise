@@ -308,7 +308,25 @@ async function renderChunk(url, startFrame, endFrame, {width, height, fps, frame
 }
 
 // --- render --------------------------------------------------------------
+// Vite's createServer() unconditionally registers its own `process.once('SIGTERM', ...)`
+// handler (gated only by `middlewareMode`, which we don't set) that awaits
+// `server.close()` then calls `process.exit()` — the same race shape as
+// puppeteer's signal handlers above. It's registered here, before our own
+// handler loop below, and its chain is shorter (no browser-kill, no
+// rm(framesDir)), so on SIGTERM it reliably wins and exits the process
+// before our cleanup() ever reaches rm(framesDir). Diff the process's
+// SIGTERM listeners before/after createServer() and remove whatever it just
+// added, so our handler (registered right after) ends up the sole SIGTERM
+// authority — mirroring how `handleSIGTERM: false` makes us the sole
+// authority for puppeteer above. (Vite registers nothing for SIGINT or
+// SIGHUP, so those two are unaffected by this.)
+const sigtermListenersBeforeVite = new Set(process.listeners('SIGTERM'));
 const server = await createServer({server: {port: 0}, logLevel: 'warn'});
+for (const listener of process.listeners('SIGTERM')) {
+  if (!sigtermListenersBeforeVite.has(listener)) {
+    process.removeListener('SIGTERM', listener);
+  }
+}
 const framesDir = await mkdtemp(join(tmpdir(), 'framewise-lite-'));
 const started = Date.now();
 
@@ -346,11 +364,16 @@ async function cleanup() {
     console.error(`cleanup: rm frames dir failed: ${e.message}`);
   }
 }
-// Node's default SIGINT/SIGTERM handling terminates without running our
-// `finally`, leaking the temp frames dir (and leaving the Vite server's
-// socket open until process exit). Registered here — after the --list block
-// has already exited — because `server`/`framesDir` must exist first.
-for (const [sig, code] of [['SIGINT', 130], ['SIGTERM', 143]]) {
+// Node's default signal handling terminates without running our `finally`,
+// leaking the temp frames dir (and leaving the Vite server's socket open
+// until process exit). Registered here — after the --list block has already
+// exited — because `server`/`framesDir` must exist first. Includes SIGHUP:
+// we disabled puppeteer's own handleSIGHUP above (same race as SIGINT/
+// SIGTERM), so we must be the one to own it too, or a dropped
+// terminal/SSH session mid-render would leak the temp dir AND orphan Chrome
+// (Node's default SIGHUP action is an immediate terminate — it runs neither
+// this handler nor puppeteer's disabled one).
+for (const [sig, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
   process.on(sig, () => {
     void cleanup().finally(() => process.exit(code));
   });
