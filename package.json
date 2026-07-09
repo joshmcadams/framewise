@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": { "node": ">=20" },
   "description": "A minimal, educational clone of Framewise's core: frame-as-state engine, interpolate, spring, Sequence, and a Player.",
   "scripts": {
     "dev": "vite",
@@ -10,7 +11,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "render": "node scripts/render.mjs"
+    "render": "node scripts/render.mjs",
+    "typecheck": "tsc -b",
+    "verify": "tsc -b && vitest run && vite build"
   },
   "dependencies": {
     "react": "^18.3.1",
