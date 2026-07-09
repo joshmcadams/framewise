@@ -67,3 +67,63 @@ describe('spring', () => {
     expect(() => spring({frame: 5, fps, config: {damping: 0}})).toThrow(/damping/);
   });
 });
+
+describe('spring — fractional frames', () => {
+  it('lies between integer neighbors during the initial monotonic rise', () => {
+    const v5 = spring({frame: 5, fps});
+    const v6 = spring({frame: 6, fps});
+    const v5_5 = spring({frame: 5.5, fps});
+    expect(v5_5).toBeGreaterThanOrEqual(v5);
+    expect(v5_5).toBeLessThanOrEqual(v6);
+  });
+
+  it('is continuous near integer boundaries', () => {
+    const v6 = spring({frame: 6, fps});
+    const v5_999999 = spring({frame: 5.999999, fps});
+    expect(v5_999999).toBeCloseTo(v6, 1);
+
+    const v5 = spring({frame: 5, fps});
+    const v5_000001 = spring({frame: 5.000001, fps});
+    expect(v5_000001).toBeCloseTo(v5, 1);
+  });
+
+  it('returns the same value before and after the integer chain is extended (fractional-first)', () => {
+    const freshConfig = {stiffness: 100.001};
+    const first = spring({frame: 5.5, fps, config: freshConfig});
+    for (let f = 0; f <= 10; f++) {
+      spring({frame: f, fps, config: freshConfig});
+    }
+    const second = spring({frame: 5.5, fps, config: freshConfig});
+    expect(second).toBe(first);
+  });
+
+  it('respects delay on fractional frames', () => {
+    expect(spring({frame: 10.5, fps, delay: 10})).toBe(spring({frame: 0.5, fps}));
+  });
+
+  it('maps from/to correctly for fractional frames', () => {
+    const normalized = spring({frame: 5.5, fps});
+    const mapped = spring({frame: 5.5, fps, from: 10, to: 20});
+    expect(mapped).toBeCloseTo(10 + normalized * 10, 10);
+  });
+
+  it('clamps overshoot at fractional frames when overshootClamping is on', () => {
+    let peakFrame = 0.5;
+    let peakValue = -Infinity;
+    for (let f = 0; f <= 30; f++) {
+      const frame = f + 0.5;
+      const v = spring({frame, fps});
+      if (v > peakValue) {
+        peakValue = v;
+        peakFrame = frame;
+      }
+    }
+    expect(peakValue).toBeGreaterThan(1);
+    const clampedValue = spring({frame: peakFrame, fps, config: {overshootClamping: true}});
+    expect(clampedValue).toBeLessThanOrEqual(1);
+  });
+
+  it('clamps negative frames to 0', () => {
+    expect(spring({frame: -0.5, fps})).toBe(spring({frame: 0, fps}));
+  });
+});
