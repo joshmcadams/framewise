@@ -17,7 +17,7 @@ plans cite them.
 | 001  | Verification baseline: typecheck/verify scripts, CI, engines, tsconfig fix | P1 | S | — | DONE (merged `f1021dd`, on `review-fixes`) |
 | 002  | Extract render.mjs pure logic into render-lib.mjs + unit tests | P1 | M | 001 | DONE (merged `dd32944`, on `review-fixes`) |
 | 003  | Renderer robustness: signal cleanup, fault-isolated teardown, codec preflight, strict flags | P1 | M | 002 | DONE (merged `4e5541c`, on `review-fixes`) |
-| 004  | Characterization tests: Img, Audio, Video, CompositionHost | P1 | M | 001 | TODO |
+| 004  | Characterization tests: Img, Audio, Video, CompositionHost | P1 | M | 001 | DONE (executed `983ac37` in worktree; test files need merge) |
 | 005  | Fix the Video render-seek race | P1 | M | 004 | TODO |
 | 006  | Docs drift: teach CompositionHost, regenerate the source map | P1 | M | — | TODO |
 | 007  | ESLint (flat) + Prettier, wired into verify/CI | P2 | M | 001 | TODO |
