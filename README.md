@@ -43,7 +43,8 @@ npm run render -- --comp HelloWorld --props '{"title":"Hi"}' --crf 28 --codec li
 > installed** (the renderer uses `puppeteer-core` pointed at the system browser).
 > It auto-detects Chrome/Chromium on macOS, Linux, and Windows; for a
 > non-standard install set `CHROME_PATH` (or `PUPPETEER_EXECUTABLE_PATH`) or pass
-> `--chrome <path>`. See
+> `--chrome <path>`. Chrome's sandbox is on by default; pass `--no-sandbox` when
+> running as root or in a container where it cannot start. See
 > [chapter 7](docs/code/07-renderer.md) (renderer) and
 > [chapter 8](docs/code/08-delay-render.md) (delayRender) for how it works.
 

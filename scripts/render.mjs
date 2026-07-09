@@ -20,6 +20,7 @@
 // --audio-bitrate  AAC bitrate when there's audio (default 192k).
 // --public-dir     base dir for composition asset URLs (default public).
 // --chrome         path to a Chrome/Chromium binary (else auto-detected).
+// --no-sandbox     disable Chrome's sandbox (only for root/containers where it cannot start).
 
 import {createServer} from 'vite';
 import puppeteer from 'puppeteer-core';
@@ -42,9 +43,22 @@ import {
   hasEncoderToken,
 } from './render-lib.mjs';
 
-// Identical for every browser (workers AND the config probe), so that a
+// Sandbox policy: keep Chrome's OS sandbox ON by default. It only has to be
+// disabled where it cannot start — running as root (common in containers/CI).
+// Explicit --no-sandbox opts out; running as root falls back with a warning.
+// Args stay identical for every browser (workers AND the config probe), so a
 // sequential-vs-parallel determinism check can't differ for flag reasons.
-const LAUNCH_ARGS = ['--no-sandbox', '--hide-scrollbars', '--force-color-profile=srgb'];
+const disableSandbox =
+  process.argv.includes('--no-sandbox') ||
+  (typeof process.getuid === 'function' && process.getuid() === 0);
+if (disableSandbox) {
+  console.warn('⚠ launching Chrome with --no-sandbox (explicit flag or running as root)');
+}
+const LAUNCH_ARGS = [
+  ...(disableSandbox ? ['--no-sandbox'] : []),
+  '--hide-scrollbars',
+  '--force-color-profile=srgb',
+];
 // Strictly longer than DEFAULT_DELAY_RENDER_TIMEOUT so the in-app console.error
 // (which names the stuck handle's label) fires before Puppeteer's backstop throws
 // a generic TimeoutError. Both constants come from delay-render-defaults.mjs —
@@ -230,14 +244,26 @@ const liveBrowsers = new Set();
 
 // Read the static composition metadata from a throwaway page.
 async function probeConfig(url) {
-  const browser = await puppeteer.launch({
-    executablePath: CHROME,
-    headless: true,
-    args: LAUNCH_ARGS,
-    handleSIGINT: false,
-    handleSIGTERM: false,
-    handleSIGHUP: false,
-  });
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      executablePath: CHROME,
+      headless: true,
+      args: LAUNCH_ARGS,
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false,
+    });
+  } catch (e) {
+    if (!disableSandbox) {
+      throw new Error(
+        `Chrome failed to launch: ${e.message}\n` +
+        `If you are in a container or otherwise cannot use Chrome's sandbox, retry with --no-sandbox.`,
+        {cause: e},
+      );
+    }
+    throw e;
+  }
   liveBrowsers.add(browser);
   try {
     const page = await browser.newPage();
