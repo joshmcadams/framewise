@@ -31,13 +31,26 @@ npm run render -- --comp HelloWorld --concurrency 4 --out out/hello.mp4
 
 # Parametrize a composition from the CLI and tune the encode:
 npm run render -- --comp HelloWorld --props '{"title":"Hi"}' --crf 28 --codec libx265 --out out/hi.mp4
+
+# Output formats: webm (VP9 + Opus), gif (palette filter, drops audio), PNG sequence:
+npm run render -- --comp WithAudio --format webm --out out/withaudio.webm
+npm run render -- --comp HelloWorld --format gif --out out/hello.gif
+npm run render -- --comp HelloWorld --format png-seq --out out/frames
+
+# Render a single frame as a still PNG:
+npm run render -- --comp WithVideo --still 75 --out out/still-75.png
 ```
 
 > Render flags: `--props <json>` (merged over the comp's defaultProps),
-> `--crf <n>` (quality, default 18), `--codec <name>` (default libx264),
-> `--audio-bitrate <k>` (default 192k), `--public-dir <path>` (asset base dir,
-> default `public`). The renderer fails fast with a clear message if `ffmpeg` or
-> Chrome is missing.
+> `--format mp4|webm|gif|png-seq` (output format, default mp4),
+> `--crf <n>` (quality, default 18), `--codec <name>` (overrides the format
+> default codec), `--audio-bitrate <k>` (default 192k),
+> `--public-dir <path>` (asset base dir, default `public`),
+> `--still <frame>` (single-frame PNG still; mutually exclusive with `--format`/`--concurrency`).
+> The renderer fails fast with a clear message if `ffmpeg` or
+> Chrome is missing. GIF output drops audio (a warning is printed if the comp
+> has audio segments). `--format png-seq` treats `--out` as a directory and
+> copies the raw PNG frames there — no ffmpeg is invoked.
 
 > **Rendering requires `ffmpeg` on your PATH and Google Chrome (or Chromium)
 > installed** (the renderer uses `puppeteer-core` pointed at the system browser).
