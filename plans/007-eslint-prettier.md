@@ -165,10 +165,13 @@ cannot change behavior; this confirms it).
 
 Run `npm run lint` and resolve per these rules:
 
-- `react-hooks/exhaustive-deps` on the DELIBERATE no-deps effects
-  (`Audio.tsx:38`, `Video.tsx:55` and `:63`, `Img` uses `[src]` and should be
-  clean): add a line-scoped disable with the reason, e.g.
+- `react-hooks/exhaustive-deps` on DELIBERATE no-deps effects: the render-mode
+  audio-report effect in Audio.tsx, the audio-report and seek-gate effects in
+  Video.tsx, and the unmount-only `[]`-deps cleanup effect in Video.tsx (added
+  by plan 005). Add a line-scoped disable with the reason, e.g.
   `// eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: must re-run every commit (see comment above)`.
+  `Img` uses `[src]` and should be clean; `useMediaSync` has a full deps list
+  and should also be clean.
 - `@typescript-eslint/no-explicit-any` on `src/render/registry.ts:16`
   (`ComponentType<any>` — heterogeneous composition props): line-scoped
   disable with reason, matching the audit's "justified `any`" verdict.
