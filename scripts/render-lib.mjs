@@ -3,10 +3,18 @@
 import {join} from 'node:path';
 
 // Read a `--name value` flag out of an argv-style array. Returns `fallback`
-// when the flag is absent, or when it's present but has no following token.
+// when the flag is absent. When the flag IS present, a missing or
+// flag-looking value (e.g. `--crf --codec libx264`, or `--crf` as the last
+// token) is an error rather than a silent fallback or mis-parse — those are
+// invocation mistakes, not "flag not passed".
 export const readFlag = (args, name, fallback) => {
   const i = args.indexOf(`--${name}`);
-  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+  if (i < 0) return fallback;
+  const value = args[i + 1];
+  if (value === undefined || value.startsWith('--')) {
+    throw new Error(`--${name} requires a value (e.g. --${name} <value>)`);
+  }
+  return value;
 };
 
 // Where composition asset URLs (e.g. "/bg.wav") resolve on disk. One place, so
@@ -14,8 +22,32 @@ export const readFlag = (args, name, fallback) => {
 export const assetPath = (publicDir, src) => join(publicDir, src.replace(/^\//, ''));
 
 // Parse composition ids out of a src/render/registry.ts-shaped source string.
-export const parseRegistryIds = (registrySource) =>
-  [...registrySource.matchAll(/\bid:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+// Scoped to `id:` as the first member of an object literal (each registry
+// entry opens with `{\n    id: '...'`) rather than any `id:` anywhere in the
+// file, to cut down on false positives (e.g. a `defaultProps: { id: ... }`).
+// That narrower shape still can't fully distinguish a top-level entry from a
+// nested object that itself opens with an `id:` field, so we additionally
+// cross-check against the number of `component:` fields — every real entry
+// has exactly one — and warn (but still return the ids) on a mismatch.
+export const parseRegistryIds = (registrySource) => {
+  const ids = [...registrySource.matchAll(/\{\s*id:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  // `\w+\s*,` (a bare identifier immediately followed by a comma) matches an
+  // object-literal member like `component: HelloWorld,` but not the type
+  // declaration's `component: ComponentType<any>;` (generic + semicolon).
+  const componentCount = [...registrySource.matchAll(/\bcomponent:\s*\w+\s*,/g)].length;
+  if (ids.length !== componentCount) {
+    console.warn(
+      `parseRegistryIds: found ${ids.length} id(s) but ${componentCount} component: field(s) — ` +
+        `the registry shape may have changed, or a nested id: field (e.g. inside defaultProps) was picked up.`,
+    );
+  }
+  return ids;
+};
+
+// Check whether `codec` appears as a whitespace-delimited token in `ffmpeg
+// -encoders` output, so a substring like "libx26" doesn't false-positive
+// against "libx264".
+export const hasEncoderToken = (encodersOutput, codec) => encodersOutput.split(/\s+/).includes(codec);
 
 // Turn per-frame audio reports into contiguous segments. Keyed by the <Audio>'s
 // stable instance id (so the same file used twice yields two segments), and

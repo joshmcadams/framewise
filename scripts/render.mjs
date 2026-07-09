@@ -30,7 +30,7 @@ import {createHash} from 'node:crypto';
 import {tmpdir, platform} from 'node:os';
 import {join, dirname, delimiter} from 'node:path';
 import {DEFAULT_DELAY_RENDER_TIMEOUT, RENDERER_TIMEOUT_MARGIN_MS} from '../src/framewise-lite/delay-render-defaults.mjs';
-import {readFlag, assetPath as assetPathIn, aggregateAudioSegments, planChunks, parseRegistryIds} from './render-lib.mjs';
+import {readFlag, assetPath as assetPathIn, aggregateAudioSegments, planChunks, parseRegistryIds, hasEncoderToken} from './render-lib.mjs';
 
 // Identical for every browser (workers AND the config probe), so that a
 // sequential-vs-parallel determinism check can't differ for flag reasons.
@@ -171,10 +171,28 @@ function run(cmd, cmdArgs) {
   });
 }
 
-// Fail fast if ffmpeg is missing, before spending minutes rendering frames we'd
-// be unable to stitch. (Chrome is already validated by resolveChromePath at
-// module load.)
-async function assertFfmpeg() {
+// Like run(), but resolves with stdout instead of discarding it.
+function runCapture(cmd, cmdArgs) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(cmd, cmdArgs, {stdio: ['ignore', 'pipe', 'pipe']});
+    let stdout = '';
+    let stderr = '';
+    p.stdout.on('data', (d) => (stdout += d));
+    p.stderr.on('data', (d) => (stderr += d));
+    p.on('error', reject);
+    p.on('close', (code) =>
+      code === 0
+        ? resolve(stdout)
+        : reject(new Error(`${cmd} exited ${code}\n${stderr.slice(-2000)}`)),
+    );
+  });
+}
+
+// Fail fast if ffmpeg is missing, or the requested codec isn't one of its
+// encoders, before spending minutes rendering frames we'd be unable to stitch
+// (or would stitch with the wrong codec). (Chrome is already validated by
+// resolveChromePath at module load.)
+async function assertFfmpeg(codec) {
   try {
     await run('ffmpeg', ['-version']);
   } catch (e) {
@@ -184,6 +202,13 @@ async function assertFfmpeg() {
       );
     }
     throw new Error(`ffmpeg preflight failed: ${e.message}`);
+  }
+
+  const encoders = await runCapture('ffmpeg', ['-hide_banner', '-encoders']);
+  if (!hasEncoderToken(encoders, codec)) {
+    throw new Error(
+      `--codec ${codec}: not found in \`ffmpeg -encoders\` output. Check the spelling, or run \`ffmpeg -encoders\` to see what your build supports.`,
+    );
   }
 }
 
@@ -256,8 +281,41 @@ const server = await createServer({server: {port: 0}, logLevel: 'warn'});
 const framesDir = await mkdtemp(join(tmpdir(), 'framewise-lite-'));
 const started = Date.now();
 
+// Fault-isolated, idempotent teardown of the shared resources above (workers
+// own and close their own browsers — see the finally block below and
+// renderChunk/probeConfig — so this never touches a browser). Both branches
+// are guarded individually so a rejection from one (e.g. server.close())
+// can't prevent the other (e.g. removing the temp frames dir) from running,
+// on the normal finally path AND when a signal cuts the run short.
+let cleanedUp = false;
+async function cleanup() {
+  if (cleanedUp) return;
+  cleanedUp = true;
+  try {
+    await server.close();
+  } catch (e) {
+    console.error(`cleanup: server.close failed: ${e.message}`);
+  }
+  try {
+    await rm(framesDir, {recursive: true, force: true});
+  } catch (e) {
+    console.error(`cleanup: rm frames dir failed: ${e.message}`);
+  }
+}
+// Node's default SIGINT/SIGTERM handling terminates without running our
+// `finally`, leaking the temp frames dir (and leaving the Vite server's
+// socket open until process exit). Registered here — after the --list block
+// has already exited — because `server`/`framesDir` must exist first.
+// Puppeteer installs its own signal handlers that kill child Chrome
+// processes, so we don't need to (and shouldn't try to) close browsers here.
+for (const [sig, code] of [['SIGINT', 130], ['SIGTERM', 143]]) {
+  process.on(sig, () => {
+    void cleanup().finally(() => process.exit(code));
+  });
+}
+
 try {
-  await assertFfmpeg();
+  await assertFfmpeg(codec);
 
   await server.listen();
   const port = server.httpServer.address().port;
@@ -354,6 +412,5 @@ try {
 } finally {
   // Workers own and close their own browsers; here we only tear down shared
   // resources, and only after Promise.allSettled above has resolved.
-  await server.close();
-  await rm(framesDir, {recursive: true, force: true});
+  await cleanup();
 }

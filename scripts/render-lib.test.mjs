@@ -1,7 +1,14 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {join} from 'node:path';
 import {readFile} from 'node:fs/promises';
-import {aggregateAudioSegments, assetPath, parseRegistryIds, planChunks, readFlag} from './render-lib.mjs';
+import {
+  aggregateAudioSegments,
+  assetPath,
+  hasEncoderToken,
+  parseRegistryIds,
+  planChunks,
+  readFlag,
+} from './render-lib.mjs';
 
 describe('planChunks', () => {
   const assertInvariants = (chunks, durationInFrames) => {
@@ -144,18 +151,24 @@ describe('readFlag', () => {
     expect(readFlag(['--out', 'x.mp4'], 'comp', 'fallback')).toBe('fallback');
   });
 
-  // Characterization (current behavior, not necessarily desired): a following
-  // flag-looking token is returned as the value verbatim — the parser has no
-  // notion of "looks like another flag". Plan 003 may change this.
-  it('characterization: a following --other token is returned as the value', () => {
-    expect(readFlag(['--no-wait', '--comp', 'HelloWorld'], 'no-wait', 'fallback')).toBe('--comp');
+  // Was previously a silent mis-parse (the following flag's name was returned
+  // as the value). Plan 003 makes this an actionable error instead.
+  it('throws naming the flag when the next token looks like another flag', () => {
+    expect(() => readFlag(['--crf', '--codec', 'libx264'], 'crf', '18')).toThrow(
+      '--crf requires a value',
+    );
   });
 
-  // Characterization: a value-flag with nothing after it (e.g. it's the last
-  // argv token) falls back, silently swallowing the flag. Plan 003 may change
-  // this.
-  it('characterization: a trailing value-flag with no following token returns the fallback', () => {
-    expect(readFlag(['--comp'], 'comp', 'fallback')).toBe('fallback');
+  // Was previously a silent fallback (the flag was swallowed with no
+  // diagnostic). Plan 003 makes this an actionable error instead.
+  it('throws when a trailing value-flag has no following token', () => {
+    expect(() => readFlag(['--props'], 'props', '')).toThrow('--props requires a value');
+  });
+
+  it('still returns the fallback for an unrelated absent flag even when other flags in argv are malformed', () => {
+    // --crf here has no value, but we're reading --out, which is present and
+    // fine — only the flag actually being read is checked.
+    expect(readFlag(['--out', 'x.mp4', '--crf'], 'out', 'fallback')).toBe('x.mp4');
   });
 });
 
@@ -188,10 +201,22 @@ describe('parseRegistryIds', () => {
     expect(parseRegistryIds('export const compositions = [];')).toEqual([]);
   });
 
-  // Characterization: the regex matches any `id: '...'` textually, including
-  // one nested inside defaultProps — it has no notion of registry structure.
-  // Plan 003 may tighten this.
-  it('characterization: an id: field inside defaultProps is incorrectly picked up too', () => {
+  it('does not warn when the id count matches the component count (real registry)', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const registrySource = await readFile(new URL('../src/render/registry.ts', import.meta.url), 'utf8');
+    parseRegistryIds(registrySource);
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  // The `{ id: ... }` shape narrows out plain `id:` fields that aren't the
+  // first member of an object literal, but a nested object that itself opens
+  // with `id:` (e.g. `defaultProps: { id: ... }`) still matches — the
+  // function can't fully distinguish structure from text. It compensates by
+  // warning (to stderr) on a component:/id: count mismatch, while still
+  // returning the (over-inclusive) id list so --list keeps working.
+  it('still picks up a nested id: field but warns about the id/component count mismatch', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const synthetic = `
       export const compositions = [
         {
@@ -203,5 +228,31 @@ describe('parseRegistryIds', () => {
       ];
     `;
     expect(parseRegistryIds(synthetic)).toEqual(['Real', 'not-a-composition-id']);
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(warnSpy.mock.calls[0][0]).toContain('component:');
+    warnSpy.mockRestore();
+  });
+});
+
+describe('hasEncoderToken', () => {
+  const encoders = `
+ Encoders:
+  V..... = Video
+  A..... = Audio
+ ------
+ V..... libx264              libx264 H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10
+ V..... libx265              libx265 H.265 / HEVC
+`;
+
+  it('matches an exact whitespace-delimited token', () => {
+    expect(hasEncoderToken(encoders, 'libx264')).toBe(true);
+  });
+
+  it('does not match a substring of a token', () => {
+    expect(hasEncoderToken(encoders, 'libx26')).toBe(false);
+  });
+
+  it('does not match a codec absent from the output', () => {
+    expect(hasEncoderToken(encoders, 'libx999')).toBe(false);
   });
 });

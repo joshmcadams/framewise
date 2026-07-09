@@ -47,10 +47,14 @@ let overrideProps: Record<string, unknown> = {};
 if (propsParam) {
   try {
     overrideProps = JSON.parse(propsParam) as Record<string, unknown>;
-  } catch {
+  } catch (e) {
+    console.error(`Ignoring malformed ?props= value: ${(e as Error).message}`);
     overrideProps = {};
   }
 }
+// Shallow merge: a nested-object prop in ?props= replaces the corresponding
+// default wholesale rather than merging into it (e.g. `{settings: {b: 1}}`
+// drops `settings.a` from defaultProps rather than combining the two).
 const mergedProps = {...comp.defaultProps, ...overrideProps};
 
 const config: VideoConfig = {
@@ -60,7 +64,10 @@ const config: VideoConfig = {
   durationInFrames: comp.durationInFrames,
 };
 
-const el = document.getElementById('render-root')!;
+const el = document.getElementById('render-root');
+if (!el) {
+  throw new Error('main-render: #render-root not found — is render.html the page being served?');
+}
 // Size the positioned containing block so AbsoluteFill resolves against it
 // (not the viewport) and the capture is exactly the composition box.
 el.style.width = `${config.width}px`;
