@@ -16,7 +16,6 @@ export {
   delayRender,
   continueRender,
   getPendingDelayRenders,
-  subscribeToDelayRenders,
   useDelayRenderPending,
   type DelayRenderHandle,
 } from './delay-render';
