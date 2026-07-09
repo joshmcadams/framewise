@@ -30,6 +30,7 @@ import {createHash} from 'node:crypto';
 import {tmpdir, platform} from 'node:os';
 import {join, dirname, delimiter} from 'node:path';
 import {DEFAULT_DELAY_RENDER_TIMEOUT, RENDERER_TIMEOUT_MARGIN_MS} from '../src/framewise-lite/delay-render-defaults.mjs';
+import {readFlag, assetPath as assetPathIn, aggregateAudioSegments, planChunks, parseRegistryIds} from './render-lib.mjs';
 
 // Identical for every browser (workers AND the config probe), so that a
 // sequential-vs-parallel determinism check can't differ for flag reasons.
@@ -42,10 +43,7 @@ const DELAY_RENDER_TIMEOUT = DEFAULT_DELAY_RENDER_TIMEOUT + RENDERER_TIMEOUT_MAR
 
 // --- arg parsing ---------------------------------------------------------
 const args = process.argv.slice(2);
-const flag = (name, fallback) => {
-  const i = args.indexOf(`--${name}`);
-  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
-};
+const flag = (name, fallback) => readFlag(args, name, fallback);
 const compId = flag('comp', '');
 const out = flag('out', 'out/video.mp4');
 const noWait = args.includes('--no-wait');
@@ -61,7 +59,7 @@ const audioBitrate = flag('audio-bitrate', '192k');
 // Where composition asset URLs (e.g. "/bg.wav") resolve on disk. One place, so
 // the renderer and any future staticFile() helper agree.
 const publicDir = flag('public-dir', 'public');
-const assetPath = (src) => join(publicDir, src.replace(/^\//, ''));
+const assetPath = (src) => assetPathIn(publicDir, src);
 
 // Optional CLI props, merged over the composition's defaultProps in the browser.
 // Validate up front so a typo fails immediately, not after a full render.
@@ -83,7 +81,7 @@ if (propsArg) {
 if (args.includes('--list')) {
   const registryPath = new URL('../src/render/registry.ts', import.meta.url);
   const src = await readFile(registryPath, 'utf8');
-  const ids = [...src.matchAll(/\bid:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  const ids = parseRegistryIds(src);
   if (ids.length === 0) {
     process.stderr.write('Could not parse composition IDs from src/render/registry.ts\n');
     process.exit(1);
@@ -189,42 +187,6 @@ async function assertFfmpeg() {
   }
 }
 
-// Turn per-frame audio reports into contiguous segments. Keyed by the <Audio>'s
-// stable instance id (so the same file used twice yields two segments), and
-// split whenever the active frames have a gap.
-function aggregateAudioSegments(audioByFrame) {
-  const byId = new Map();
-  for (const {frame, reports} of audioByFrame) {
-    for (const r of reports) {
-      if (!byId.has(r.id)) byId.set(r.id, []);
-      byId.get(r.id).push({frame, ...r});
-    }
-  }
-
-  const segments = [];
-  for (const points of byId.values()) {
-    points.sort((a, b) => a.frame - b.frame);
-    let run = null;
-    for (const p of points) {
-      if (run && p.frame === run.endFrame + 1) {
-        run.endFrame = p.frame;
-      } else {
-        if (run) segments.push(run);
-        run = {
-          src: p.src,
-          startFrame: p.frame,
-          endFrame: p.frame,
-          trimStart: p.mediaTime,
-          volume: p.volume,
-        };
-      }
-    }
-    if (run) segments.push(run);
-  }
-
-  return segments.sort((a, b) => a.startFrame - b.startFrame);
-}
-
 // Read the static composition metadata from a throwaway page.
 async function probeConfig(url) {
   const browser = await puppeteer.launch({executablePath: CHROME, headless: true, args: LAUNCH_ARGS});
@@ -313,12 +275,7 @@ try {
   console.log(noWait ? '⚠ --no-wait: ignoring delayRender (Stage 2 behaviour)' : '▶ waiting for delayRender handles each frame');
 
   // Split the frame range into contiguous chunks, one browser each.
-  const concurrency = Math.min(requestedConcurrency, durationInFrames);
-  const perChunk = Math.ceil(durationInFrames / concurrency);
-  const chunks = [];
-  for (let s = 0; s < durationInFrames; s += perChunk) {
-    chunks.push([s, Math.min(s + perChunk, durationInFrames)]);
-  }
+  const chunks = planChunks(durationInFrames, requestedConcurrency);
   console.log(`▶ rendering across ${chunks.length} worker(s): ${chunks.map(([s, e]) => `[${s},${e})`).join(' ')}`);
 
   const renderStart = Date.now();
