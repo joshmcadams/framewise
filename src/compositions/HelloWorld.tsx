@@ -1,6 +1,7 @@
 import {
   AbsoluteFill,
   interpolate,
+  random,
   spring,
   Sequence,
   useCurrentFrame,
@@ -113,6 +114,11 @@ const LoopingDot = () => {
   });
   const x = interpolate(bounce, [0, 1], [-120, 120]);
 
+  const cycle = Math.floor(frame / fps);
+  // Deterministic "randomness": same seed → same value in preview and in every
+  // parallel render worker. Math.random() here would break the frame-hash check.
+  const jitter = interpolate(random(`dot:${cycle}`), [0, 1], [-24, 24]);
+
   return (
     <div
       style={{
@@ -124,7 +130,7 @@ const LoopingDot = () => {
         marginLeft: -8,
         borderRadius: '50%',
         background: 'white',
-        transform: `translateX(${x}px)`,
+        transform: `translateX(${x}px) translateY(${jitter}px)`,
       }}
     />
   );

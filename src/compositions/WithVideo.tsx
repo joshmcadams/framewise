@@ -1,4 +1,4 @@
-import {AbsoluteFill, Video, useCurrentFrame} from '../framewise-lite';
+import {AbsoluteFill, staticFile, Video, useCurrentFrame} from '../framewise-lite';
 
 /**
  * Embeds the test clip full-frame and overlays a React banner on top. The clip
@@ -12,7 +12,7 @@ export const WithVideo = () => {
 
   return (
     <AbsoluteFill style={{background: '#000'}}>
-      <Video src="/clip.mp4" style={{position: 'absolute', inset: 0}} />
+      <Video src={staticFile('clip.mp4')} style={{position: 'absolute', inset: 0}} />
 
       {/* React overlay composited on top of the decoded video frames. */}
       <AbsoluteFill

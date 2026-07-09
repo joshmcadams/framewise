@@ -6,6 +6,7 @@ import {
   delayRender,
   Img,
   interpolate,
+  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from '../framewise-lite';
@@ -46,7 +47,7 @@ export const AsyncImage = ({fetchDelayMs}: AsyncImageProps) => {
       }}
     >
       <Img
-        src="/photo.png"
+        src={staticFile('photo.png')}
         width={320}
         height={320}
         style={{borderRadius: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.5)'}}

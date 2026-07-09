@@ -4,6 +4,7 @@ import {
   interpolate,
   Sequence,
   spring,
+  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from '../framewise-lite';
@@ -61,12 +62,12 @@ export const WithAudio = () => {
       </div>
 
       {/* Background tone for the whole video. */}
-      <Audio src="/bg.wav" volume={0.3} />
+      <Audio src={staticFile('bg.wav')} volume={0.3} />
 
       {/* A blip at frame 60 (2.0s). The Sequence both times it and clips it to
           the blip's 15-frame (0.5s) length. */}
       <Sequence from={60} durationInFrames={15} layout="none">
-        <Audio src="/blip.wav" volume={0.7} />
+        <Audio src={staticFile('blip.wav')} volume={0.7} />
       </Sequence>
     </AbsoluteFill>
   );
