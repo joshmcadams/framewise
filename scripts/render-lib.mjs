@@ -86,6 +86,103 @@ export function aggregateAudioSegments(audioByFrame) {
   return segments.sort((a, b) => a.startFrame - b.startFrame);
 }
 
+// Build ffmpeg args for a format. Returns null for formats that don't invoke
+// ffmpeg (png-seq). Pure: no fs, no spawning, no side effects.
+export function planEncode({
+  format,
+  codec = undefined,
+  crf = '18',
+  audioBitrate = '192k',
+  fps,
+  framesPattern,
+  segments = [],
+  assetPaths = [],
+  out,
+}) {
+  if (format === 'png-seq') return null;
+
+  const videoInput = [
+    '-framerate',
+    String(fps),
+    '-start_number',
+    '0',
+    '-i',
+    framesPattern,
+  ];
+
+  if (format === 'gif') {
+    const filterGraph = `fps=${fps},split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse`;
+    return {
+      args: ['-y', ...videoInput, '-filter_complex', filterGraph, out],
+      dropsAudio: segments.length > 0,
+    };
+  }
+
+  if (format === 'mp4' || format === 'webm') {
+    const defaults = {
+      mp4: {vc: 'libx264', ac: 'aac'},
+      webm: {vc: 'libvpx-vp9', ac: 'libopus'},
+    };
+    const vc = codec ?? defaults[format].vc;
+    const ac = defaults[format].ac;
+
+    const encodeArgs =
+      format === 'webm'
+        ? ['-c:v', vc, '-crf', String(crf), '-b:v', '0', '-pix_fmt', 'yuv420p']
+        : ['-c:v', vc, '-crf', String(crf), '-pix_fmt', 'yuv420p'];
+
+    if (segments.length === 0) {
+      return {args: ['-y', ...videoInput, ...encodeArgs, out], dropsAudio: false};
+    }
+
+    const inputArgs = [];
+    const filters = [];
+    segments.forEach((seg, k) => {
+      inputArgs.push('-i', assetPaths[k]);
+      const idx = k + 1;
+      const dur = (seg.endFrame - seg.startFrame + 1) / fps;
+      const delayMs = Math.round((seg.startFrame / fps) * 1000);
+      filters.push(
+        `[${idx}:a]atrim=start=${seg.trimStart.toFixed(6)}:duration=${dur.toFixed(6)},` +
+          `asetpts=PTS-STARTPTS,volume=${seg.volume},adelay=${delayMs}:all=1[s${k}]`,
+      );
+    });
+
+    const outLabel =
+      segments.length === 1
+        ? '[s0]'
+        : (filters.push(
+            `${segments.map((_, k) => `[s${k}]`).join('')}amix=inputs=${segments.length}:normalize=0[aout]`,
+          ),
+          '[aout]');
+
+    return {
+      args: [
+        '-y',
+        ...videoInput,
+        ...inputArgs,
+        '-filter_complex',
+        filters.join(';'),
+        '-map',
+        '0:v',
+        '-map',
+        outLabel,
+        ...encodeArgs,
+        '-c:a',
+        ac,
+        '-b:a',
+        audioBitrate,
+        out,
+      ],
+      dropsAudio: false,
+    };
+  }
+
+  throw new Error(
+    `Unknown format: ${format}. Valid formats: mp4, webm, gif, png-seq.`,
+  );
+}
+
 // Split the frame range into contiguous chunks, one browser each.
 export function planChunks(durationInFrames, requestedConcurrency) {
   const concurrency = Math.min(requestedConcurrency, durationInFrames);

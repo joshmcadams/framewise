@@ -7,6 +7,7 @@ import {
   hasEncoderToken,
   parseRegistryIds,
   planChunks,
+  planEncode,
   readFlag,
 } from './render-lib.mjs';
 
@@ -256,6 +257,280 @@ describe('parseRegistryIds', () => {
     expect(warnSpy).toHaveBeenCalledOnce();
     expect(warnSpy.mock.calls[0][0]).toContain('component:');
     warnSpy.mockRestore();
+  });
+});
+
+describe('planEncode', () => {
+  const base = {
+    crf: '18',
+    audioBitrate: '192k',
+    fps: 30,
+    framesPattern: '/tmp/foo/frame-%05d.png',
+    segments: [],
+    assetPaths: [],
+    out: 'out/video.mp4',
+  };
+
+  describe('mp4', () => {
+    it('no audio: args match today\'s exactly', () => {
+      const plan = planEncode({...base, format: 'mp4'});
+      expect(plan).toEqual({
+        args: [
+          '-y',
+          '-framerate', '30',
+          '-start_number', '0',
+          '-i', '/tmp/foo/frame-%05d.png',
+          '-c:v', 'libx264',
+          '-crf', '18',
+          '-pix_fmt', 'yuv420p',
+          'out/video.mp4',
+        ],
+        dropsAudio: false,
+      });
+    });
+
+    it('no audio: dropsAudio is false', () => {
+      const plan = planEncode({...base, format: 'mp4'});
+      expect(plan.dropsAudio).toBe(false);
+    });
+
+    it('with 2 segments: includes amix in filter complex', () => {
+      const segments = [
+        {src: 'a.wav', startFrame: 0, endFrame: 149, trimStart: 0, volume: 1},
+        {src: 'b.wav', startFrame: 30, endFrame: 89, trimStart: 5, volume: 0.5},
+      ];
+      const plan = planEncode({
+        ...base,
+        format: 'mp4',
+        segments,
+        assetPaths: ['/tmp/a.wav', '/tmp/b.wav'],
+      });
+      expect(plan.dropsAudio).toBe(false);
+      const fcIdx = plan.args.indexOf('-filter_complex');
+      expect(fcIdx).not.toBe(-1);
+      const filterGraph = plan.args[fcIdx + 1];
+      expect(filterGraph).toContain('amix=inputs=2:normalize=0');
+      expect(filterGraph).toContain('atrim');
+      expect(filterGraph).toContain('adelay');
+    });
+
+    it('with 1 segment: no amix, uses [s0] label', () => {
+      const segments = [
+        {src: 'a.wav', startFrame: 0, endFrame: 149, trimStart: 0, volume: 1},
+      ];
+      const plan = planEncode({
+        ...base,
+        format: 'mp4',
+        segments,
+        assetPaths: ['/tmp/a.wav'],
+      });
+      const fcIdx = plan.args.indexOf('-filter_complex');
+      const filterGraph = plan.args[fcIdx + 1];
+      expect(filterGraph).not.toContain('amix');
+      // Out label should be [s0], not [aout]
+      const mapIdx = plan.args.indexOf('-map', plan.args.indexOf('-map') + 1);
+      expect(plan.args[mapIdx + 1]).toBe('[s0]');
+    });
+
+    it('includes -c:a aac when audio is present', () => {
+      const segments = [
+        {src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1},
+      ];
+      const plan = planEncode({
+        ...base,
+        format: 'mp4',
+        segments,
+        assetPaths: ['/tmp/a.wav'],
+      });
+      const aCodecIdx = plan.args.indexOf('-c:a');
+      expect(aCodecIdx).not.toBe(-1);
+      expect(plan.args[aCodecIdx + 1]).toBe('aac');
+    });
+
+    it('delay in filter matches (startFrame / fps) * 1000 rounded', () => {
+      const segments = [
+        {src: 'a.wav', startFrame: 60, endFrame: 120, trimStart: 1.5, volume: 0.8},
+      ];
+      const plan = planEncode({
+        ...base,
+        format: 'mp4',
+        segments,
+        assetPaths: ['/tmp/a.wav'],
+      });
+      const fcIdx = plan.args.indexOf('-filter_complex');
+      const filterGraph = plan.args[fcIdx + 1];
+      // startFrame=60, fps=30 → delay = (60/30)*1000 = 2000ms
+      expect(filterGraph).toContain('adelay=2000:all=1');
+      expect(filterGraph).toContain('volume=0.8');
+      expect(filterGraph).toContain('atrim=start=1.500000');
+    });
+  });
+
+  describe('webm', () => {
+    it('defaults to libvpx-vp9 and libopus with -b:v 0', () => {
+      const plan = planEncode({...base, format: 'webm'});
+      expect(plan.args).toContain('-c:v');
+      expect(plan.args).toContain('libvpx-vp9');
+      expect(plan.args).toContain('-b:v');
+      expect(plan.args).toContain('0');
+      expect(plan.args).toContain('-pix_fmt');
+      expect(plan.args).toContain('yuv420p');
+      expect(plan.dropsAudio).toBe(false);
+    });
+
+    it('with audio: uses libopus not aac', () => {
+      const segments = [
+        {src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1},
+      ];
+      const plan = planEncode({
+        ...base,
+        format: 'webm',
+        segments,
+        assetPaths: ['/tmp/a.wav'],
+      });
+      const aCodecIdx = plan.args.indexOf('-c:a');
+      expect(plan.args[aCodecIdx + 1]).toBe('libopus');
+    });
+
+    it('explicit codec overrides libvpx-vp9 but keeps libopus for audio', () => {
+      const segments = [
+        {src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1},
+      ];
+      const plan = planEncode({
+        ...base,
+        format: 'webm',
+        codec: 'libx264',
+        segments,
+        assetPaths: ['/tmp/a.wav'],
+      });
+      const vCodecIdx = plan.args.indexOf('-c:v');
+      expect(plan.args[vCodecIdx + 1]).toBe('libx264');
+      const aCodecIdx = plan.args.indexOf('-c:a');
+      expect(plan.args[aCodecIdx + 1]).toBe('libopus');
+    });
+
+    it('explicit codec override with no audio', () => {
+      const plan = planEncode({
+        ...base,
+        format: 'webm',
+        codec: 'libx264',
+      });
+      const vCodecIdx = plan.args.indexOf('-c:v');
+      expect(plan.args[vCodecIdx + 1]).toBe('libx264');
+      expect(plan.args).toContain('-b:v');
+      expect(plan.args).not.toContain('-c:a');
+    });
+
+    it('no audio: dropsAudio is false', () => {
+      const plan = planEncode({...base, format: 'webm'});
+      expect(plan.dropsAudio).toBe(false);
+    });
+  });
+
+  describe('gif', () => {
+    it('uses palettegen/paletteuse filter complex', () => {
+      const plan = planEncode({
+        ...base,
+        format: 'gif',
+        out: 'out/video.gif',
+      });
+      const fcIdx = plan.args.indexOf('-filter_complex');
+      const filterGraph = plan.args[fcIdx + 1];
+      expect(filterGraph).toBe('fps=30,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse');
+    });
+
+    it('has no -c:v, no -pix_fmt, no -crf', () => {
+      const plan = planEncode({
+        ...base,
+        format: 'gif',
+        out: 'out/video.gif',
+      });
+      expect(plan.args).not.toContain('-c:v');
+      expect(plan.args).not.toContain('-pix_fmt');
+      expect(plan.args).not.toContain('-crf');
+    });
+
+    it('no audio: dropsAudio is false', () => {
+      const plan = planEncode({
+        ...base,
+        format: 'gif',
+        out: 'out/video.gif',
+      });
+      expect(plan.dropsAudio).toBe(false);
+    });
+
+    it('with segments: dropsAudio is true but audio args omitted', () => {
+      const segments = [
+        {src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1},
+      ];
+      const plan = planEncode({
+        ...base,
+        format: 'gif',
+        segments,
+        assetPaths: ['/tmp/a.wav'],
+        out: 'out/video.gif',
+      });
+      expect(plan.dropsAudio).toBe(true);
+      expect(plan.args).not.toContain('-c:a');
+      const fcIdx = plan.args.indexOf('-filter_complex');
+      const filterGraph = plan.args[fcIdx + 1];
+      expect(filterGraph).not.toContain('atrim');
+      expect(filterGraph).not.toContain('adelay');
+    });
+
+    it('includes video input args', () => {
+      const plan = planEncode({
+        ...base,
+        format: 'gif',
+        out: 'out/video.gif',
+      });
+      expect(plan.args).toContain('-framerate');
+      expect(plan.args).toContain('30');
+      expect(plan.args).toContain('-start_number');
+      expect(plan.args).toContain('0');
+    });
+  });
+
+  describe('png-seq', () => {
+    it('returns null', () => {
+      const plan = planEncode({...base, format: 'png-seq'});
+      expect(plan).toBeNull();
+    });
+
+    it('returns null even with segments', () => {
+      const segments = [
+        {src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1},
+      ];
+      const plan = planEncode({
+        ...base,
+        format: 'png-seq',
+        segments,
+        assetPaths: ['/tmp/a.wav'],
+      });
+      expect(plan).toBeNull();
+    });
+  });
+
+  describe('validation', () => {
+    it('throws on unknown format', () => {
+      expect(() => planEncode({...base, format: 'avi'})).toThrow(
+        'Unknown format: avi',
+      );
+    });
+
+    it('throws on unknown format naming valid options', () => {
+      expect(() => planEncode({...base, format: 'mov'})).toThrow(
+        /mp4, webm, gif, png-seq/,
+      );
+    });
+  });
+
+  describe('explicit codec override', () => {
+    it('mp4: explicit codec overrides libx264', () => {
+      const plan = planEncode({...base, format: 'mp4', codec: 'libx265'});
+      const vCodecIdx = plan.args.indexOf('-c:v');
+      expect(plan.args[vCodecIdx + 1]).toBe('libx265');
+    });
   });
 });
 
