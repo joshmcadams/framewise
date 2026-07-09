@@ -142,8 +142,9 @@ First run the guard grep from "Current state"; it must be empty.
   assets resolve via the public-dir convention shared by Vite (serving) and
   `render.mjs`'s `assetPath` (mixing) — one sentence each, pointing at the
   source.
-- `docs/code/README.md`: in the source-tree map, annotate `staticFile.ts` and
-  `random.ts` with their chapter references (ch. 6/11).
+- `docs/code/README.md`: in the source-tree map, `staticFile.ts` and `random.ts`
+  already exist (added by plan 006) but lack chapter annotations — add
+  `(ch. 6, 11)` to each entry to match the style of other annotated entries.
 
 **Verify**: `grep -rln "random(" docs/code/06-demo-and-wiring.md docs/code/11-parallel-rendering.md` → both files.
 **Verify**: `grep -n "staticFile" docs/code/11-parallel-rendering.md` → ≥ 1 hit.
@@ -158,7 +159,7 @@ the integration gate where Chrome+ffmpeg exist; otherwise note the limitation.
 
 - [ ] `npm run verify` exits 0
 - [ ] `grep -rn 'src="/' src/compositions/` → empty
-- [ ] `grep -rn "Math.random" src/` → empty
+- [ ] `grep -rn "Math.random" src/ | grep -v "random.ts"` → empty (the only legitimate reference is the doc comment in `random.ts` explaining why NOT to use it)
 - [ ] `grep -n "subscribeToDelayRenders" src/framewise-lite/index.ts` → empty
 - [ ] Both docs chapters teach the respective primitive; map annotated
 - [ ] Only in-scope files modified (`git status`)
