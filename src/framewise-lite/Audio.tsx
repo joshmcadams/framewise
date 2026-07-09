@@ -2,6 +2,7 @@ import {useId, useLayoutEffect, useRef} from 'react';
 import {useCurrentFrame, useVideoConfig} from './VideoConfig';
 import {reportAudio} from './audio-registry';
 import {usePlayback} from './playback';
+import {useMediaSync} from './useMediaSync';
 
 export type AudioProps = {
   src: string;
@@ -39,28 +40,8 @@ export const Audio = ({src, volume = 1, startFrom = 0}: AudioProps) => {
     reportAudio({id, src, mediaTime, volume});
   });
 
-  // --- PREVIEW: keep the element roughly in sync with the clock. Disabled
-  // entirely when there's no Player (i.e. during a headless render).
-  useLayoutEffect(() => {
-    if (!playback) {
-      return; // render mode — never touch the element
-    }
-    const el = ref.current;
-    if (!el) {
-      return;
-    }
-    el.volume = Math.max(0, Math.min(1, volume));
-    if (playback.playing) {
-      // Correct drift only when it's drifted noticeably, to avoid stutter.
-      if (Math.abs(el.currentTime - mediaTime) > 0.3) {
-        el.currentTime = mediaTime;
-      }
-      void el.play().catch(() => {});
-    } else {
-      el.pause();
-      el.currentTime = mediaTime; // scrub to the exact frame
-    }
-  }, [playback, playback?.playing, mediaTime, volume]);
+  // --- PREVIEW: element sync lives in useMediaSync — shared with <Video>.
+  useMediaSync(ref, playback, mediaTime, volume);
 
   return <audio ref={ref} src={src} preload="auto" />;
 };

@@ -4,6 +4,7 @@ import {useCurrentFrame, useVideoConfig} from './VideoConfig';
 import {reportAudio} from './audio-registry';
 import {continueRender, delayRender} from './delay-render';
 import {usePlayback} from './playback';
+import {useMediaSync} from './useMediaSync';
 
 export type VideoProps = {
   src: string;
@@ -133,26 +134,8 @@ export const Video = ({
     };
   });
 
-  // VISUAL — PREVIEW: best-effort sync of the visible element to the clock.
-  useLayoutEffect(() => {
-    if (!playback) {
-      return;
-    }
-    const el = ref.current;
-    if (!el) {
-      return;
-    }
-    el.volume = Math.max(0, Math.min(1, volume));
-    if (playback.playing) {
-      if (Math.abs(el.currentTime - mediaTime) > 0.3) {
-        el.currentTime = mediaTime;
-      }
-      void el.play().catch(() => {});
-    } else {
-      el.pause();
-      el.currentTime = mediaTime;
-    }
-  }, [playback, playback?.playing, mediaTime, volume]);
+  // VISUAL — PREVIEW: element sync lives in useMediaSync — shared with <Audio>.
+  useMediaSync(ref, playback, mediaTime, volume);
 
   return (
     <video
