@@ -95,6 +95,22 @@ forever. Then `interpolate` maps the spring's `0→1` output onto a `-120→120`
 pixel range. This is the two math primitives composing: spring for the *feel*,
 interpolate for the *range*.
 
+The dot also jitters vertically once per cycle:
+
+```tsx
+const cycle = Math.floor(frame / fps);
+const jitter = interpolate(random(`dot:${cycle}`), [0, 1], [-24, 24]);
+```
+
+`random(seed)` is a seeded PRNG — the same seed always returns the same
+pseudo-random number in `[0, 1)`. Seeding by `cycle` (not `frame`) keeps the
+jitter value constant for a full second so the dot doesn't flicker. This is the
+determinism tradeoff: if the dot called `Math.random()` directly, each preview
+playback and each parallel render worker would see a different sequence, and the
+sha256 frame-hash guarantee (chapter 11) would be impossible. Seeded randomness
+gives compositions reproducible variety — in preview, in every render worker,
+and on any machine.
+
 ## `App.tsx` — embedding the Player
 
 This is the host page — the equivalent of dropping `@framewise/player` into your

@@ -15,6 +15,28 @@ not on which machine drew it. That makes rendering *embarrassingly parallel*:
 you can compute any subset of frames independently and the result is identical.
 Stage 6 is just cashing in that property.
 
+## Determinism needs seeded randomness
+
+Parallel rendering's frame-hash guarantee depends on **every** source of
+variation being deterministic. `Math.random()` is not — each call advances a
+hidden global state, so the sequence diverges across workers (and across preview
+replays). The result: frame 75 shows a different pixel in each worker, and the
+sha256 check fails — silently, because nothing logs a warning.
+
+The library ships `random(seed)` for this reason. It's a seeded PRNG: the same
+seed always produces the same pseudo-random number in `[0, 1)`, everywhere and
+always. Compositions call `random('dot:' + cycle)` or `random(frame)` instead of
+`Math.random()`. The only legitimate reference to `Math.random` in the source
+tree is the doc comment in `random.ts` explaining why NOT to use it (proved by
+`grep -rn "Math.random" src/ | grep -v "random.ts"` — empty).
+
+Asset paths also matter for determinism. The `staticFile()` utility
+(`src/framewise-lite/staticFile.ts`) resolves asset names to rooted paths
+(`'photo.png'` → `'/photo.png'`) in the Vite public-dir convention — the same
+convention used by both the dev server (serving) and `render.mjs`'s `assetPath`
+(mixing). Compositions use `staticFile()` instead of hardcoding `src="/…"` so
+that asset resolution stays consistent across all render contexts.
+
 ## The architecture
 
 ```

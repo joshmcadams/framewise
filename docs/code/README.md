@@ -96,8 +96,8 @@ src/
 │   ├── playback.ts          preview-only playback context     (ch. 9)
 │   ├── Audio.tsx            <Audio> primitive                 (ch. 9)
 │   ├── Video.tsx            <Video> primitive (seek + mux)    (ch. 10)
-│   ├── staticFile.ts        asset-path utility
-│   ├── random.ts            seeded random (deterministic render)
+│   ├── staticFile.ts        asset-path utility                 (ch. 6, 11)
+│   ├── random.ts            seeded random (deterministic render) (ch. 6, 11)
 │   ├── index.ts             public barrel export
 │   └── *.test.ts(x)         each core module has a colocated test suite
 ├── compositions/
