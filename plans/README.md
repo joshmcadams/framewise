@@ -19,7 +19,7 @@ plans cite them.
 | 003  | Renderer robustness: signal cleanup, fault-isolated teardown, codec preflight, strict flags | P1 | M | 002 | DONE (merged `4e5541c`, on `review-fixes`) |
 | 004  | Characterization tests: Img, Audio, Video, CompositionHost | P1 | M | 001 | DONE (executed `983ac37` in worktree; test files need merge) |
 | 005  | Fix the Video render-seek race | P1 | M | 004 | DONE (executed `adc82bd` in worktree; Video.tsx + tests merged) |
-| 006  | Docs drift: teach CompositionHost, regenerate the source map | P1 | M | — | TODO |
+| 006  | Docs drift: teach CompositionHost, regenerate the source map | P1 | M | — | DONE (executed, merged; all 4 docs chapters synced) |
 | 007  | ESLint (flat) + Prettier, wired into verify/CI | P2 | M | 001 | TODO |
 | 008  | Author CLAUDE.md | P2 | S | — | TODO |
 | 009  | Gate Chrome's --no-sandbox | P2 | S | 003 | TODO |

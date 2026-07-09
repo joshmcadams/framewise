@@ -54,18 +54,26 @@ seam the docs exist to teach.
   <CompositionHost config={config} frame={frame} playback={playbackValue}>
   ```
 
-- `src/render/main-render.tsx:78-86` — actual render entry:
+- `src/render/main-render.tsx:78-93` — actual render entry (plan 003 added
+  `beginAudioFrame()` at line 81; the CompositionHost call is at lines 86-91):
 
   ```tsx
-  flushSync(() => {
-    root.render(
-      // No `playback` prop: the PlaybackContext stays null, which is how
-      // <Audio>/<Video> know they're rendering and must not drive the element.
-      <CompositionHost config={config} frame={frame}>
-        <Component {...mergedProps} />
-      </CompositionHost>,
-    );
-  });
+  const renderFrame = (frame: number) => {
+    // Arm audio collection BEFORE the render pass, so each <Audio>'s layout effect
+    // reports into a freshly-cleared bucket for this frame.
+    beginAudioFrame();
+    // flushSync forces React to commit synchronously, so the DOM reflects this
+    // frame *before* the renderer takes its screenshot.
+    flushSync(() => {
+      root.render(
+        // No `playback` prop: the PlaybackContext stays null, which is how
+        // <Audio>/<Video> know they're rendering and must not drive the element.
+        <CompositionHost config={config} frame={frame}>
+          <Component {...mergedProps} />
+        </CompositionHost>,
+      );
+    });
+  };
   ```
 
 Drift sites (all verified against the live files):
@@ -82,11 +90,9 @@ Drift sites (all verified against the live files):
    `<PlaybackProvider value={{playing}}>`"; that conditional wrap now lives in
    `CompositionHost.tsx:36-40`.
 4. `docs/code/README.md:81-112` — the "Map of the source tree" omits
-   `CompositionHost.tsx`, `staticFile.ts`, `random.ts`,
-   `delay-render-defaults.mjs`/`.d.mts`, and lists only 2 of the 8 test files
-   (`interpolate.test.ts`, `spring.test.ts`; missing: `Player.test.tsx`,
-   `Sequence.test.tsx`, `delay-render.test.tsx`, `audio-registry.test.ts`,
-   `random.test.ts`, `staticFile.test.ts`).
+    `CompositionHost.tsx`, `staticFile.ts`, `random.ts`,
+    `delay-render-defaults.mjs`/`.d.mts`, and lists only 2 of the test files
+    (`interpolate.test.ts`, `spring.test.ts`).
 
 Pedagogical constraint: chapter 7 teaches the *Stage 2* renderer as it was
 first built, and later chapters layer on audio/props. Do NOT rewrite its
@@ -120,6 +126,10 @@ files, one idea per section, em-dash-heavy explanatory voice.
 - Other chapters (01, 02, 03, 04, 06, 08, 10, 11) — unless you find a literal
   `VideoConfigProvider`-inlining code block in them too; if so, report it,
   don't expand scope silently.
+- `docs/code/06-demo-and-wiring.md:154-155` — shows `VideoConfigProvider`/
+  `FrameProvider` in a conceptual tree diagram ("one frame's journey"). This
+  is a diagram, not source code; updating it would require restructuring the
+  chapter's narrative. Deliberately out of scope.
 - Top-level `README.md`.
 
 ## Git workflow
@@ -177,7 +187,7 @@ both frame sources render through it (ch. 5, 7)"), `staticFile.ts`,
 `random.ts`, `delay-render-defaults.mjs` + `.d.mts` ("shared timeout constants
 for TS and render.mjs"), and `playback.ts` if missing. For tests, replace the
 two-file listing with one line: "`*.test.ts(x)` — each core module has a
-colocated test suite (8 files)." Run `ls src/framewise-lite/ src/render/ src/compositions/`
+colocated test suite." Run `ls src/framewise-lite/ src/render/ src/compositions/`
 first and mirror reality, not this plan.
 
 **Verify**: `grep -c "test" docs/code/README.md` — the map no longer
