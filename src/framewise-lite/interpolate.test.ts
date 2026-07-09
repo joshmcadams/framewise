@@ -73,8 +73,8 @@ describe('interpolate', () => {
 
   it('throws when an easing array has the wrong number of segments', () => {
     // 3-point range = 2 segments, but only one easing function supplied.
-    expect(() =>
-      interpolate(5, [0, 10, 20], [0, 1, 2], {easing: [(t) => t]}),
-    ).toThrow(/one entry per segment/);
+    expect(() => interpolate(5, [0, 10, 20], [0, 1, 2], {easing: [(t) => t]})).toThrow(
+      /one entry per segment/,
+    );
   });
 });

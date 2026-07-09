@@ -29,8 +29,18 @@ import {existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {tmpdir, platform} from 'node:os';
 import {join, dirname, delimiter} from 'node:path';
-import {DEFAULT_DELAY_RENDER_TIMEOUT, RENDERER_TIMEOUT_MARGIN_MS} from '../src/framewise-lite/delay-render-defaults.mjs';
-import {readFlag, assetPath as assetPathIn, aggregateAudioSegments, planChunks, parseRegistryIds, hasEncoderToken} from './render-lib.mjs';
+import {
+  DEFAULT_DELAY_RENDER_TIMEOUT,
+  RENDERER_TIMEOUT_MARGIN_MS,
+} from '../src/framewise-lite/delay-render-defaults.mjs';
+import {
+  readFlag,
+  assetPath as assetPathIn,
+  aggregateAudioSegments,
+  planChunks,
+  parseRegistryIds,
+  hasEncoderToken,
+} from './render-lib.mjs';
 
 // Identical for every browser (workers AND the config probe), so that a
 // sequential-vs-parallel determinism check can't differ for flag reasons.
@@ -96,9 +106,7 @@ if (args.includes('--list')) {
 // rather than letting puppeteer throw a raw spawn ENOENT mid-render.
 function resolveChromePath() {
   const explicit =
-    flag('chrome', '') ||
-    process.env.PUPPETEER_EXECUTABLE_PATH ||
-    process.env.CHROME_PATH;
+    flag('chrome', '') || process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_PATH;
   if (explicit) {
     if (!existsSync(explicit)) {
       throw new Error(`Chrome not found at the path you provided: ${explicit}`);
@@ -125,11 +133,7 @@ function resolveChromePath() {
           '/Applications/Chromium.app/Contents/MacOS/Chromium',
         ]
       : os === 'win32'
-        ? [
-            process.env.PROGRAMFILES,
-            process.env['PROGRAMFILES(X86)'],
-            process.env.LOCALAPPDATA,
-          ]
+        ? [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA]
             .filter(Boolean)
             .map((base) => join(base, 'Google', 'Chrome', 'Application', 'chrome.exe'))
         : // linux & friends: prefer PATH lookups, then common absolute paths.
@@ -164,9 +168,7 @@ function run(cmd, cmdArgs) {
     p.stderr.on('data', (d) => (stderr += d));
     p.on('error', reject);
     p.on('close', (code) =>
-      code === 0
-        ? resolve()
-        : reject(new Error(`${cmd} exited ${code}\n${stderr.slice(-2000)}`)),
+      code === 0 ? resolve() : reject(new Error(`${cmd} exited ${code}\n${stderr.slice(-2000)}`)),
     );
   });
 }
@@ -273,23 +275,33 @@ async function renderChunk(url, startFrame, endFrame, {width, height, fps, frame
 
       if (!noWait) {
         await page
-          .waitForFunction(() => window.framewiseLite.getPending().length === 0, {timeout: DELAY_RENDER_TIMEOUT})
+          .waitForFunction(() => window.framewiseLite.getPending().length === 0, {
+            timeout: DELAY_RENDER_TIMEOUT,
+          })
           .catch(async () => {
             const stuck = await page.evaluate(() => window.framewiseLite.getPending());
             throw new Error(`delayRender timeout at frame ${f}; pending: ${JSON.stringify(stuck)}`);
           });
       }
 
-      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      await page.evaluate(
+        () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+      );
 
-      const pendingAtCapture = await page.evaluate(() => window.framewiseLite.getPending().map((p) => p.label));
+      const pendingAtCapture = await page.evaluate(() =>
+        window.framewiseLite.getPending().map((p) => p.label),
+      );
       const reports = await page.evaluate(() => window.framewiseLite.getAudioFrame());
       if (reports.length) audioByFrame.push({frame: f, reports});
 
-      await rootHandle.screenshot({path: join(framesDir, `frame-${String(f).padStart(5, '0')}.png`)});
+      await rootHandle.screenshot({
+        path: join(framesDir, `frame-${String(f).padStart(5, '0')}.png`),
+      });
 
       if (pendingAtCapture.length) {
-        console.log(`  · [${label}] frame ${f} pending at capture: [${pendingAtCapture.join(', ')}]`);
+        console.log(
+          `  · [${label}] frame ${f} pending at capture: [${pendingAtCapture.join(', ')}]`,
+        );
       }
 
       // Progress: log on the first frame, every 10th, and the last.
@@ -373,7 +385,11 @@ async function cleanup() {
 // terminal/SSH session mid-render would leak the temp dir AND orphan Chrome
 // (Node's default SIGHUP action is an immediate terminate — it runs neither
 // this handler nor puppeteer's disabled one).
-for (const [sig, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
+for (const [sig, code] of [
+  ['SIGINT', 130],
+  ['SIGTERM', 143],
+  ['SIGHUP', 129],
+]) {
   process.on(sig, () => {
     void cleanup().finally(() => process.exit(code));
   });
@@ -395,28 +411,43 @@ try {
   const config = await probeConfig(url);
   const {width, height, fps, durationInFrames} = config;
   console.log(`▶ composition: ${width}x${height} @ ${fps}fps · ${durationInFrames} frames`);
-  console.log(noWait ? '⚠ --no-wait: ignoring delayRender (Stage 2 behaviour)' : '▶ waiting for delayRender handles each frame');
+  console.log(
+    noWait
+      ? '⚠ --no-wait: ignoring delayRender (Stage 2 behaviour)'
+      : '▶ waiting for delayRender handles each frame',
+  );
 
   // Split the frame range into contiguous chunks, one browser each.
   const chunks = planChunks(durationInFrames, requestedConcurrency);
-  console.log(`▶ rendering across ${chunks.length} worker(s): ${chunks.map(([s, e]) => `[${s},${e})`).join(' ')}`);
+  console.log(
+    `▶ rendering across ${chunks.length} worker(s): ${chunks.map(([s, e]) => `[${s},${e})`).join(' ')}`,
+  );
 
   const renderStart = Date.now();
   const results = await Promise.allSettled(
-    chunks.map(([s, e], i) => renderChunk(url, s, e, {width, height, fps, framesDir, label: `w${i}`})),
+    chunks.map(([s, e], i) =>
+      renderChunk(url, s, e, {width, height, fps, framesDir, label: `w${i}`}),
+    ),
   );
   const renderSecs = ((Date.now() - renderStart) / 1000).toFixed(1);
 
   const failures = results.filter((r) => r.status === 'rejected');
   if (failures.length) {
-    throw new Error(`${failures.length} chunk(s) failed:\n` + failures.map((f) => '  ' + f.reason.message).join('\n'));
+    throw new Error(
+      `${failures.length} chunk(s) failed:\n` +
+        failures.map((f) => '  ' + f.reason.message).join('\n'),
+    );
   }
-  console.log(`▶ rendered ${durationInFrames} frames in ${renderSecs}s (concurrency ${chunks.length})`);
+  console.log(
+    `▶ rendered ${durationInFrames} frames in ${renderSecs}s (concurrency ${chunks.length})`,
+  );
 
   // Determinism + integrity: every frame present, and a stable hash of the set.
   const files = (await readdir(framesDir)).filter((f) => f.endsWith('.png')).sort();
   if (files.length !== durationInFrames) {
-    throw new Error(`expected ${durationInFrames} frames but found ${files.length} — chunk range bug?`);
+    throw new Error(
+      `expected ${durationInFrames} frames but found ${files.length} — chunk range bug?`,
+    );
   }
   const hash = createHash('sha256');
   for (const f of files) hash.update(await readFile(join(framesDir, f)));
@@ -436,10 +467,19 @@ try {
 
   // Stitch PNGs -> mp4; mix any audio segments in via filter_complex.
   await mkdir(dirname(out), {recursive: true});
-  const videoInput = ['-framerate', String(fps), '-start_number', '0', '-i', join(framesDir, 'frame-%05d.png')];
+  const videoInput = [
+    '-framerate',
+    String(fps),
+    '-start_number',
+    '0',
+    '-i',
+    join(framesDir, 'frame-%05d.png'),
+  ];
   // Shared encode settings so the two ffmpeg branches stay in sync.
   const videoEncodeArgs = ['-c:v', codec, '-crf', String(crf), '-pix_fmt', 'yuv420p'];
-  console.log(`▶ encode: ${codec} crf ${crf}${segments.length ? ` · audio aac ${audioBitrate}` : ''}`);
+  console.log(
+    `▶ encode: ${codec} crf ${crf}${segments.length ? ` · audio aac ${audioBitrate}` : ''}`,
+  );
 
   if (segments.length === 0) {
     await run('ffmpeg', ['-y', ...videoInput, ...videoEncodeArgs, out]);
@@ -460,14 +500,26 @@ try {
     const outLabel =
       segments.length === 1
         ? '[s0]'
-        : (filters.push(`${segments.map((_, k) => `[s${k}]`).join('')}amix=inputs=${segments.length}:normalize=0[aout]`), '[aout]');
+        : (filters.push(
+            `${segments.map((_, k) => `[s${k}]`).join('')}amix=inputs=${segments.length}:normalize=0[aout]`,
+          ),
+          '[aout]');
 
     await run('ffmpeg', [
-      '-y', ...videoInput, ...inputArgs,
-      '-filter_complex', filters.join(';'),
-      '-map', '0:v', '-map', outLabel,
+      '-y',
+      ...videoInput,
+      ...inputArgs,
+      '-filter_complex',
+      filters.join(';'),
+      '-map',
+      '0:v',
+      '-map',
+      outLabel,
       ...videoEncodeArgs,
-      '-c:a', 'aac', '-b:a', audioBitrate,
+      '-c:a',
+      'aac',
+      '-b:a',
+      audioBitrate,
       out,
     ]);
   }

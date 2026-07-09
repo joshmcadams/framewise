@@ -50,8 +50,8 @@ npm run render -- --comp HelloWorld --props '{"title":"Hi"}' --crf 28 --codec li
 ## The one idea
 
 A composition is a normal React component that calls `useCurrentFrame()` and
-renders differently per frame. To *play* it, something advances the frame and
-re-renders. To *export* it, something would set frame 0 → screenshot → frame 1 →
+renders differently per frame. To _play_ it, something advances the frame and
+re-renders. To _export_ it, something would set frame 0 → screenshot → frame 1 →
 screenshot → … The component is identical in both cases. That equivalence is
 Framewise's whole value proposition, and the architecture here protects it:
 **`useCurrentFrame()` only ever reads the frame from context. It knows nothing
@@ -59,33 +59,33 @@ about clocks.** The `<Player>` is just one possible frame source.
 
 ## What's here, and how it maps to real Framewise
 
-| File | What it is | Real Framewise equivalent |
-|---|---|---|
-| `src/framewise-lite/VideoConfig.tsx` | Frame + config contexts, `useCurrentFrame`, `useVideoConfig`, `AbsoluteFill` | Same hooks; `framewise` core |
-| `src/framewise-lite/interpolate.ts` | Map a value between ranges (extend/clamp/identity/wrap, easing, multi-segment, posterize¹) | Faithful port of `interpolate` (numeric path only); `posterize` is an extension not in upstream |
-| `src/framewise-lite/spring.ts` | Damped-harmonic-oscillator animation | Verbatim math from `spring/spring-utils.ts` |
-| `src/framewise-lite/Sequence.tsx` | Shifts the frame so children start at 0; clips outside the window | `<Sequence>` (Series/transitions build on it) |
-| `src/framewise-lite/Player.tsx` | A wall-clock frame source with controls + scrubber + pending badge | `@framewise/player`'s `<Player>` |
-| `src/framewise-lite/delay-render.ts` | `delayRender`/`continueRender` handle registry | Same API; `framewise` core |
-| `src/framewise-lite/Img.tsx` | `<img>` that blocks the render until loaded | `<Img>` from `framewise` |
-| `src/framewise-lite/Audio.tsx` | `<Audio>` — collected for the mix in render, played in preview | `<Audio>` from `framewise` |
-| `src/framewise-lite/Video.tsx` | `<Video>` — frame-accurate seek gated by delayRender + audio mux | `<Video>`/`<OffthreadVideo>` from `framewise` |
-| `src/framewise-lite/audio-registry.ts` | Per-frame audio collection sink | Framewise's render-time asset collection |
-| `src/framewise-lite/staticFile.ts` | `staticFile('photo.png')` → `'/photo.png'`; keeps public-dir convention explicit | `staticFile()` from `framewise` |
-| `src/framewise-lite/random.ts` | Seeded PRNG (FNV-1a + mulberry32) — identical in preview and all render workers | `random(seed)` from `framewise` |
-| `src/framewise-lite/playback.ts` | Preview-only playback context | Player playback state |
-| `src/compositions/HelloWorld.tsx` | Demo composition exercising every primitive | A composition registered in `Root.tsx` |
-| `src/compositions/AsyncImage.tsx` | Async demo: `<Img>` + a delayRender-gated fetch | A composition that loads assets |
-| `src/compositions/WithAudio.tsx` | Audio demo: bg tone + an offset blip in a `<Sequence>` | A composition with a soundtrack |
-| `src/compositions/WithVideo.tsx` | Embedded-video demo: clip + a React overlay | A composition embedding footage |
-| `src/render/registry.ts` | Composition registry (id → component + metadata) | `<Composition>` declarations in `Root.tsx` |
-| `src/render/main-render.tsx` | Chrome-less render entry exposing `window.framewiseLite.renderFrame` | Framewise's `window.framewise_setFrame` seam |
-| `scripts/render.mjs` | Vite + Puppeteer + ffmpeg → mp4; waits on delayRender; parallel chunks | `@framewise/renderer` + `@framewise/lambda` (concurrency) |
+| File                                   | What it is                                                                                 | Real Framewise equivalent                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `src/framewise-lite/VideoConfig.tsx`   | Frame + config contexts, `useCurrentFrame`, `useVideoConfig`, `AbsoluteFill`               | Same hooks; `framewise` core                                                                    |
+| `src/framewise-lite/interpolate.ts`    | Map a value between ranges (extend/clamp/identity/wrap, easing, multi-segment, posterize¹) | Faithful port of `interpolate` (numeric path only); `posterize` is an extension not in upstream |
+| `src/framewise-lite/spring.ts`         | Damped-harmonic-oscillator animation                                                       | Verbatim math from `spring/spring-utils.ts`                                                     |
+| `src/framewise-lite/Sequence.tsx`      | Shifts the frame so children start at 0; clips outside the window                          | `<Sequence>` (Series/transitions build on it)                                                   |
+| `src/framewise-lite/Player.tsx`        | A wall-clock frame source with controls + scrubber + pending badge                         | `@framewise/player`'s `<Player>`                                                                |
+| `src/framewise-lite/delay-render.ts`   | `delayRender`/`continueRender` handle registry                                             | Same API; `framewise` core                                                                      |
+| `src/framewise-lite/Img.tsx`           | `<img>` that blocks the render until loaded                                                | `<Img>` from `framewise`                                                                        |
+| `src/framewise-lite/Audio.tsx`         | `<Audio>` — collected for the mix in render, played in preview                             | `<Audio>` from `framewise`                                                                      |
+| `src/framewise-lite/Video.tsx`         | `<Video>` — frame-accurate seek gated by delayRender + audio mux                           | `<Video>`/`<OffthreadVideo>` from `framewise`                                                   |
+| `src/framewise-lite/audio-registry.ts` | Per-frame audio collection sink                                                            | Framewise's render-time asset collection                                                        |
+| `src/framewise-lite/staticFile.ts`     | `staticFile('photo.png')` → `'/photo.png'`; keeps public-dir convention explicit           | `staticFile()` from `framewise`                                                                 |
+| `src/framewise-lite/random.ts`         | Seeded PRNG (FNV-1a + mulberry32) — identical in preview and all render workers            | `random(seed)` from `framewise`                                                                 |
+| `src/framewise-lite/playback.ts`       | Preview-only playback context                                                              | Player playback state                                                                           |
+| `src/compositions/HelloWorld.tsx`      | Demo composition exercising every primitive                                                | A composition registered in `Root.tsx`                                                          |
+| `src/compositions/AsyncImage.tsx`      | Async demo: `<Img>` + a delayRender-gated fetch                                            | A composition that loads assets                                                                 |
+| `src/compositions/WithAudio.tsx`       | Audio demo: bg tone + an offset blip in a `<Sequence>`                                     | A composition with a soundtrack                                                                 |
+| `src/compositions/WithVideo.tsx`       | Embedded-video demo: clip + a React overlay                                                | A composition embedding footage                                                                 |
+| `src/render/registry.ts`               | Composition registry (id → component + metadata)                                           | `<Composition>` declarations in `Root.tsx`                                                      |
+| `src/render/main-render.tsx`           | Chrome-less render entry exposing `window.framewiseLite.renderFrame`                       | Framewise's `window.framewise_setFrame` seam                                                    |
+| `scripts/render.mjs`                   | Vite + Puppeteer + ffmpeg → mp4; waits on delayRender; parallel chunks                     | `@framewise/renderer` + `@framewise/lambda` (concurrency)                                       |
 
 ### Notes on fidelity (the parts that are easy to get subtly wrong)
 
 - **`interpolate` defaults to `extend`, not `clamp`.** `interpolate(15, [0,10],
-  [0,100])` is `150`, not `100`. People expect clamping; Framewise extrapolates.
+[0,100])` is `150`, not `100`. People expect clamping; Framewise extrapolates.
   Ported exactly, with the same validation errors (non-monotonic input range
   throws).
 - **`spring` is copied math, not reconstructed.** The analytical underdamped /
@@ -104,7 +104,7 @@ about clocks.** The `<Player>` is just one possible frame source.
 
 ## Deliberately omitted (and why)
 
-These are real, but they're not the *core idea* — adding them is the next stage:
+These are real, but they're not the _core idea_ — adding them is the next stage:
 
 - **`<OffthreadVideo>`-style frame extraction.** Our `<Video>` seeks a live
   `<video>` element (spike-verified frame-accurate here); the more robust
@@ -114,7 +114,7 @@ These are real, but they're not the *core idea* — adding them is the next stag
   constant per-segment volume and best-effort preview sync; sample-accuracy is a
   deeper problem.
 - **Distributed rendering.** Stage 6 parallelizes across local browsers into a
-  shared frames dir. Framewise Lambda goes further — workers on *separate machines*
+  shared frames dir. Framewise Lambda goes further — workers on _separate machines_
   encode chunk videos and concatenate them, because they can't share a filesystem.
   Same idea, plus a network. See [chapter 11](docs/code/11-parallel-rendering.md).
 - **`interpolate` string/tuple outputs** (`"scale(2)"`), **`Series`,

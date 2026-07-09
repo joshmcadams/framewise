@@ -23,10 +23,9 @@ export default function App() {
     >
       <h2 style={{marginBottom: 4}}>framewise-lite</h2>
       <p style={{marginTop: 0, color: '#666'}}>
-        A minimal Framewise core: frame-as-state, <code>interpolate</code>,{' '}
-        <code>spring</code>, <code>&lt;Sequence&gt;</code>,{' '}
-        <code>delayRender</code>, and a player clock. Space = play/pause, ← / →
-        = step a frame.
+        A minimal Framewise core: frame-as-state, <code>interpolate</code>, <code>spring</code>,{' '}
+        <code>&lt;Sequence&gt;</code>, <code>delayRender</code>, and a player clock. Space =
+        play/pause, ← / → = step a frame.
       </p>
 
       <label style={{display: 'block', margin: '12px 0', color: '#444'}}>

@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import type {ComponentType} from 'react';
 import {type VideoConfig} from './VideoConfig';
 import {useDelayRenderPending} from './delay-render';
@@ -19,8 +12,7 @@ export type PlayerProps<P extends Record<string, unknown>> = VideoConfig & {
   controls?: boolean;
 };
 
-const clamp = (n: number, min: number, max: number) =>
-  Math.min(Math.max(n, min), max);
+const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min), max);
 
 const formatTime = (frame: number, fps: number) => {
   const totalSeconds = frame / fps;

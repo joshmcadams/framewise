@@ -44,7 +44,7 @@ export const FrameProvider = FrameContext.Provider;
 export const VideoConfigProvider = VideoConfigContext.Provider;
 ```
 
-## The hooks — note what they *don't* do
+## The hooks — note what they _don't_ do
 
 ```tsx
 export const useCurrentFrame = (): number => {
@@ -54,18 +54,18 @@ export const useCurrentFrame = (): number => {
 
 That's the entire implementation. Read it carefully and notice everything
 that's **absent**: there's no `requestAnimationFrame`, no `useState`, no timer,
-no subscription to a clock. `useCurrentFrame()` is a pure *reader*. It returns
+no subscription to a clock. `useCurrentFrame()` is a pure _reader_. It returns
 whatever number the nearest `FrameProvider` above it is currently providing.
 
 This is the seam the whole architecture pivots on. Because the hook only reads:
 
 - The **Player** can drive it from a wall clock (chapter 5).
-- A `<Sequence>` can drive its children from a *shifted* number (chapter 4).
+- A `<Sequence>` can drive its children from a _shifted_ number (chapter 4).
 - A future **renderer** could drive it by setting frame 0, screenshotting,
   setting frame 1, screenshotting — with zero changes to any composition.
 
 If `useCurrentFrame` had instead contained its own `requestAnimationFrame`
-loop, you'd have built an *animation player*, not a Framewise clone — there'd be
+loop, you'd have built an _animation player_, not a Framewise clone — there'd be
 no way for an exporter to step the frames deterministically. The decoupling
 costs nothing and preserves the entire value proposition.
 
@@ -75,9 +75,7 @@ costs nothing and preserves the entire value proposition.
 export const useVideoConfig = (): VideoConfig => {
   const config = useContext(VideoConfigContext);
   if (config === null) {
-    throw new Error(
-      'useVideoConfig() was called outside of a composition…',
-    );
+    throw new Error('useVideoConfig() was called outside of a composition…');
   }
   return config;
 };
@@ -104,8 +102,12 @@ The last export is a convenience component, used constantly in compositions:
 ```tsx
 const absoluteFillStyle: CSSProperties = {
   position: 'absolute',
-  top: 0, left: 0, right: 0, bottom: 0,
-  width: '100%', height: '100%',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  width: '100%',
+  height: '100%',
   display: 'flex',
   flexDirection: 'column',
 };
@@ -116,11 +118,11 @@ export const AbsoluteFill = ({children, style}) => {
 ```
 
 It's a `<div>` that fills its positioned parent. Video work is almost entirely
-*absolute layering* — a background fills the frame, text sits on top, a logo in
+_absolute layering_ — a background fills the frame, text sits on top, a logo in
 the corner — so a "fill the whole frame, stack children in a column by default,
 let me override with `style`" primitive removes a huge amount of repetitive
 positioning. Note the `flexDirection: 'column'` default matches Framewise's, and
-that user `style` spreads *after* the defaults so it can override any of them.
+that user `style` spreads _after_ the defaults so it can override any of them.
 
 ## Why this file has no tests
 

@@ -100,9 +100,7 @@ function checkValidInputRange(arr: readonly number[]): void {
   for (let i = 1; i < arr.length; ++i) {
     if (!(arr[i] > arr[i - 1])) {
       throw new Error(
-        `inputRange must be strictly monotonically increasing but got [${arr.join(
-          ',',
-        )}]`,
+        `inputRange must be strictly monotonically increasing but got [${arr.join(',')}]`,
       );
     }
   }
@@ -115,9 +113,7 @@ function checkFiniteRange(name: string, arr: readonly number[]): void {
 
   for (const element of arr) {
     if (typeof element !== 'number' || !Number.isFinite(element)) {
-      throw new Error(
-        `${name} must contain only finite numbers, but got [${arr.join(',')}]`,
-      );
+      throw new Error(`${name} must contain only finite numbers, but got [${arr.join(',')}]`);
     }
   }
 }

@@ -25,8 +25,7 @@ let root: Root;
 let now: number;
 let rafQueue: FrameRequestCallback[];
 
-const frame = () =>
-  Number(container.querySelector('[data-testid="frame"]')?.textContent);
+const frame = () => Number(container.querySelector('[data-testid="frame"]')?.textContent);
 
 // Drive the rAF loop the way a real display would: run `ticks` animation
 // frames while wall-clock time moves linearly from `fromMs` to `toMs`. The

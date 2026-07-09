@@ -71,9 +71,7 @@ export const getComposition = (id?: string | null): Composition => {
     const found = compositions.find((c) => c.id === id);
     if (!found) {
       throw new Error(
-        `No composition with id "${id}". Available: ${compositions
-          .map((c) => c.id)
-          .join(', ')}`,
+        `No composition with id "${id}". Available: ${compositions.map((c) => c.id).join(', ')}`,
       );
     }
     return found;

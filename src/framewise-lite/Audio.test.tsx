@@ -27,22 +27,35 @@ afterEach(() => {
 });
 
 const renderAt = (frame: number, children: ReactNode) =>
-  act(() => root.render(
-    <CompositionHost config={{width: 100, height: 100, fps: 30, durationInFrames: 150}} frame={frame}>
-      {children}
-    </CompositionHost>,
-  ));
+  act(() =>
+    root.render(
+      <CompositionHost
+        config={{width: 100, height: 100, fps: 30, durationInFrames: 150}}
+        frame={frame}
+      >
+        {children}
+      </CompositionHost>,
+    ),
+  );
 
 describe('Audio', () => {
   it('in preview mode, reportAudio is a no-op because beginAudioFrame was never called', async () => {
     const pauseStub = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
-    const playStub = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+    const playStub = vi
+      .spyOn(HTMLMediaElement.prototype, 'play')
+      .mockImplementation(() => Promise.resolve());
 
-    act(() => root.render(
-      <CompositionHost config={{width: 100, height: 100, fps: 30, durationInFrames: 150}} frame={0} playback={{playing: false}}>
-        <Audio src="/bg.wav" />
-      </CompositionHost>,
-    ));
+    act(() =>
+      root.render(
+        <CompositionHost
+          config={{width: 100, height: 100, fps: 30, durationInFrames: 150}}
+          frame={0}
+          playback={{playing: false}}
+        >
+          <Audio src="/bg.wav" />
+        </CompositionHost>,
+      ),
+    );
 
     expect(readAudioFrame()).toEqual([]);
 
@@ -70,29 +83,32 @@ describe('Audio', () => {
 
   it('only reports when the Sequence window is active', async () => {
     beginAudioFrame();
-    await renderAt(59, (
+    await renderAt(
+      59,
       <Sequence from={60} durationInFrames={15} layout="none">
         <Audio src="/bg.wav" />
-      </Sequence>
-    ));
+      </Sequence>,
+    );
     expect(readAudioFrame()).toHaveLength(0);
 
     beginAudioFrame();
-    await renderAt(60, (
+    await renderAt(
+      60,
       <Sequence from={60} durationInFrames={15} layout="none">
         <Audio src="/bg.wav" />
-      </Sequence>
-    ));
+      </Sequence>,
+    );
     let reports = readAudioFrame();
     expect(reports).toHaveLength(1);
     expect(reports[0].mediaTime).toBeCloseTo(0.0, 5);
 
     beginAudioFrame();
-    await renderAt(74, (
+    await renderAt(
+      74,
       <Sequence from={60} durationInFrames={15} layout="none">
         <Audio src="/bg.wav" />
-      </Sequence>
-    ));
+      </Sequence>,
+    );
     reports = readAudioFrame();
     expect(reports).toHaveLength(1);
     expect(reports[0].mediaTime).toBeCloseTo(14 / 30, 5);

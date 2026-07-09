@@ -33,9 +33,5 @@ export function CompositionHost({
     </VideoConfigProvider>
   );
 
-  return playback ? (
-    <PlaybackProvider value={playback}>{tree}</PlaybackProvider>
-  ) : (
-    tree
-  );
+  return playback ? <PlaybackProvider value={playback}>{tree}</PlaybackProvider> : tree;
 }

@@ -7,7 +7,7 @@ Embedding a video is the hardest primitive in the project, and it's a good one
 to end the "hard half" on because it doesn't introduce a new rendering mechanism
 — it **combines the two you already built**. A `<Video>` is simultaneously:
 
-- a **visual source** that must show the *exact right frame* in every screenshot
+- a **visual source** that must show the _exact right frame_ in every screenshot
   (gated through `delayRender`, Stage 3), and
 - an **audio source** whose track must be mixed into the output (reported to the
   audio-registry, Stage 4).
@@ -28,7 +28,7 @@ Before building anything, a one-capture spike answered the three unknowns:
 load a `<video src="/clip.mp4">` in headless Chrome, seek to ~frame 75, screenshot,
 and **read the number off the frame**. Results:
 
-- ✅ **Headless system Chrome paints a *seeked* video frame** into screenshots —
+- ✅ **Headless system Chrome paints a _seeked_ video frame** into screenshots —
   no special GPU flags needed. (System Chrome has the proprietary H.264/AAC
   codecs that bare Chromium lacks — that's why this works here.)
 - ✅ **Seeking is frame-accurate** with a half-frame nudge (below).
@@ -43,8 +43,8 @@ component code existed.
 ## The half-frame nudge
 
 ```ts
-const mediaTime  = (frame + startFrom) / fps;   // where in the file this frame is
-const seekTarget = mediaTime + 0.5 / fps;        // seek to the MIDDLE of the interval
+const mediaTime = (frame + startFrom) / fps; // where in the file this frame is
+const seekTarget = mediaTime + 0.5 / fps; // seek to the MIDDLE of the interval
 ```
 
 Seeking to exactly `N/fps` is ambiguous — it sits on the boundary between frame
@@ -62,19 +62,27 @@ useLayoutEffect(() => {
 
 // 2. VISUAL (render): seek + block the capture until `seeked` fires.
 useLayoutEffect(() => {
-  if (playback) return;                 // not in render mode
-  const el = ref.current; if (!el) return;
+  if (playback) return; // not in render mode
+  const el = ref.current;
+  if (!el) return;
   if (el.readyState >= 2 && Math.abs(el.currentTime - seekTarget) < 0.5 / fps) return; // guard
   const handle = delayRender(`<Video> seek ${src} @${mediaTime}s`);
   const finish = once(() => continueRender(handle));
-  const seekNow = () => { el.addEventListener('seeked', finish, {once: true}); el.currentTime = seekTarget; };
-  if (el.readyState >= 1) seekNow(); else el.addEventListener('loadedmetadata', seekNow, {once: true});
-  return () => { /* remove listeners */ finish(); };
+  const seekNow = () => {
+    el.addEventListener('seeked', finish, {once: true});
+    el.currentTime = seekTarget;
+  };
+  if (el.readyState >= 1) seekNow();
+  else el.addEventListener('loadedmetadata', seekNow, {once: true});
+  return () => {
+    /* remove listeners */ finish();
+  };
 });
 
 // 3. VISUAL (preview): best-effort sync of the visible element to the clock.
-useLayoutEffect(() => { if (!playback) return; /* seek/play/pause like <Audio> */ },
-  [playback, playback?.playing, mediaTime, volume]);
+useLayoutEffect(() => {
+  if (!playback) return; /* seek/play/pause like <Audio> */
+}, [playback, playback?.playing, mediaTime, volume]);
 ```
 
 The render-visual effect is the crux:
@@ -120,7 +128,7 @@ This `<Video>` works, and the spike proved it's frame-accurate here. But relying
 on a live `<video>` element's seeking is fragile in general — it depends on the
 browser's compositor painting the seeked frame, which broke historically and is
 why Framewise built **`<OffthreadVideo>`**: instead of seeking an element, it
-asks ffmpeg to **extract the exact frame as an image** and renders *that* through
+asks ffmpeg to **extract the exact frame as an image** and renders _that_ through
 the same `<Img>` + `delayRender` path from Stage 3. That's more robust (no
 compositor dependency, frame-accurate by construction) and reuses Stages 3+4
 even more directly. Had the spike come back black, that was the planned pivot —
@@ -140,7 +148,7 @@ worth knowing as the production-grade approach.
 The last item on the roadmap is **parallel chunked rendering** — splitting the
 frame range across worker processes / browser tabs and concatenating, which is
 what makes real renders fast. That's a renderer-architecture change rather than a
-new primitive. With `<Video>` done, every *content* primitive (visuals, timing,
+new primitive. With `<Video>` done, every _content_ primitive (visuals, timing,
 async assets, audio, video) is in place.
 
 ---

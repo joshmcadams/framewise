@@ -2,34 +2,39 @@
 
 **File:** `src/framewise-lite/Sequence.tsx`
 
-`<Sequence>` is the most important *compositional* primitive in Framewise, and
+`<Sequence>` is the most important _compositional_ primitive in Framewise, and
 it's almost suspiciously small. Its entire job is to **shift the frame number**
 for its children. From that one trick, whole timelines emerge.
 
 ## The problem it solves
 
 Every animation in a composition is written as a function of `frame`, starting
-at frame 0. But a real video has many elements that start at *different* times:
+at frame 0. But a real video has many elements that start at _different_ times:
 a title at frame 0, a subtitle at frame 25, a logo at frame 60. You don't want
 to litter every component with `frame - 25` offsets. `<Sequence from={25}>`
-lets a child be written as if *it* starts at 0, and places it in time from the
+lets a child be written as if _it_ starts at 0, and places it in time from the
 outside.
 
 ## The whole implementation
 
 ```tsx
-export const Sequence = ({from = 0, durationInFrames = Infinity, layout = 'absolute-fill', style, children}) => {
-  const frame = useCurrentFrame();      // the OUTER timeline's frame
-  const shifted = frame - from;          // re-based to this sequence's start
+export const Sequence = ({
+  from = 0,
+  durationInFrames = Infinity,
+  layout = 'absolute-fill',
+  style,
+  children,
+}) => {
+  const frame = useCurrentFrame(); // the OUTER timeline's frame
+  const shifted = frame - from; // re-based to this sequence's start
 
   const isActive = shifted >= 0 && shifted < durationInFrames;
   if (!isActive) {
-    return null;                          // outside the window → unmount
+    return null; // outside the window → unmount
   }
 
-  const content = layout === 'none'
-    ? <>{children}</>
-    : <AbsoluteFill style={style}>{children}</AbsoluteFill>;
+  const content =
+    layout === 'none' ? <>{children}</> : <AbsoluteFill style={style}>{children}</AbsoluteFill>;
 
   return <FrameProvider value={shifted}>{content}</FrameProvider>;
 };
@@ -42,7 +47,7 @@ That's it. Walk it:
 2. **Shift it.** `shifted = frame - from`. When the outer timeline is at frame
    25 and `from = 25`, `shifted` is 0.
 3. **Re-provide it.** `<FrameProvider value={shifted}>` wraps the children. Now
-   *inside* this sequence, `useCurrentFrame()` returns `shifted`. The child
+   _inside_ this sequence, `useCurrentFrame()` returns `shifted`. The child
    genuinely believes time starts at 0 — it has no idea it's been placed later
    on a bigger timeline.
 
@@ -74,9 +79,8 @@ keeps things simple.
 ## The `layout` prop
 
 ```tsx
-const content = layout === 'none'
-  ? <>{children}</>
-  : <AbsoluteFill style={style}>{children}</AbsoluteFill>;
+const content =
+  layout === 'none' ? <>{children}</> : <AbsoluteFill style={style}>{children}</AbsoluteFill>;
 ```
 
 By default (`'absolute-fill'`), a Sequence wraps its children in an
@@ -95,7 +99,7 @@ Almost every higher-level timing API in Framewise is built on `Sequence`:
 - **Transitions** are overlapping `Sequence`s with interpolated cross-fades.
 - **Nested timing** works for free: a `Sequence` inside a `Sequence` shifts an
   already-shifted frame, so you can build sub-timelines arbitrarily deep. In the
-  demo, the looping dot lives in `<Sequence from={40}>` *inside* the main
+  demo, the looping dot lives in `<Sequence from={40}>` _inside_ the main
   composition — it sees a frame re-based to the parent's frame 40.
 
 Twenty lines, because all the heavy lifting was already done by making the
@@ -104,4 +108,4 @@ frame a context value.
 ---
 
 Next: [Chapter 5 — the Player](05-player.md), the one component that actually
-*creates* a changing frame.
+_creates_ a changing frame.

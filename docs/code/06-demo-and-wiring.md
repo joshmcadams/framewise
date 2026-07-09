@@ -29,10 +29,10 @@ export const HelloWorld = ({title, subtitle}: HelloWorldProps) => {
 
 Read what each line is doing, mapping back to the chapters:
 
-| Animation | Primitive | What it does |
-|---|---|---|
-| `scale` | `spring` (ch. 3) | The title pops in — overshoots past full size, settles back. Starts at 0 (so the title is invisible at frame 0). |
-| `hue` | `interpolate` (ch. 2) | Sweeps the background gradient from blue (220°) to magenta (320°) across the whole video. Uses the **default `extend`**, fine here since the input never leaves the range. |
+| Animation      | Primitive                         | What it does                                                                                                                                                                  |
+| -------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scale`        | `spring` (ch. 3)                  | The title pops in — overshoots past full size, settles back. Starts at 0 (so the title is invisible at frame 0).                                                              |
+| `hue`          | `interpolate` (ch. 2)             | Sweeps the background gradient from blue (220°) to magenta (320°) across the whole video. Uses the **default `extend`**, fine here since the input never leaves the range.    |
 | `titleOpacity` | `interpolate`, 4-keyframe (ch. 2) | Fade in over frames 0→15, hold, fade out over the last 20. Note the explicit `clamp` on both ends — without it, opacity would extrapolate to absurd values outside the range. |
 
 These computed values are then just dropped into ordinary inline styles:
@@ -92,8 +92,8 @@ const LoopingDot = () => {
 Feeding `frame % fps` into the spring **restarts it every second** (every `fps`
 frames the input resets to 0), so the dot springs left-to-right once per second
 forever. Then `interpolate` maps the spring's `0→1` output onto a `-120→120`
-pixel range. This is the two math primitives composing: spring for the *feel*,
-interpolate for the *range*.
+pixel range. This is the two math primitives composing: spring for the _feel_,
+interpolate for the _range_.
 
 The dot also jitters vertically once per cycle:
 
@@ -139,7 +139,7 @@ export default function App() {
 The `Player` is handed the composition (`HelloWorld`), its props, and the video
 metadata (`1280×720`, `30fps`, `150` frames = 5 seconds). Because `inputProps`
 is type-checked against `HelloWorldProps`, getting the shape wrong is a compile
-error. In full Framewise you'd *also* register this in a `Root.tsx` via
+error. In full Framewise you'd _also_ register this in a `Root.tsx` via
 `<Composition>` so the Studio and the server renderer could discover it; here
 the Player is the only consumer, so that registry isn't needed yet.
 

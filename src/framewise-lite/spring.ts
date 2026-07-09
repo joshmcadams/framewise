@@ -75,14 +75,12 @@ function advance({
   // Under-damped (zeta < 1): oscillates while decaying.
   const underDampedEnvelope = Math.exp(-zeta * omega0 * t);
   const underDampedFrag1 =
-    underDampedEnvelope *
-    (sin1 * ((v0 + zeta * omega0 * x0) / omega1) + x0 * cos1);
+    underDampedEnvelope * (sin1 * ((v0 + zeta * omega0 * x0) / omega1) + x0 * cos1);
 
   const underDampedPosition = toValue - underDampedFrag1;
   const underDampedVelocity =
     zeta * omega0 * underDampedFrag1 -
-    underDampedEnvelope *
-      (cos1 * (v0 + zeta * omega0 * x0) - omega1 * x0 * sin1);
+    underDampedEnvelope * (cos1 * (v0 + zeta * omega0 * x0) - omega1 * x0 * sin1);
 
   // Critically damped (zeta >= 1): approaches without oscillating.
   const criticallyDampedEnvelope = Math.exp(-omega0 * t);
@@ -90,8 +88,7 @@ function advance({
     toValue - criticallyDampedEnvelope * (x0 + (v0 + omega0 * x0) * t);
 
   const criticallyDampedVelocity =
-    criticallyDampedEnvelope *
-    (v0 * (t * omega0 - 1) + t * x0 * omega0 * omega0);
+    criticallyDampedEnvelope * (v0 * (t * omega0 - 1) + t * x0 * omega0 * omega0);
 
   return {
     toValue,
@@ -206,9 +203,7 @@ export function spring({
   // works when to === 1; for any other target it compares a 0..1 quantity to an
   // output-space value and never clamps.
   const mapped =
-    from === 0 && to === 1
-      ? spr.current
-      : interpolate(spr.current, [0, 1], [from, to]);
+    from === 0 && to === 1 ? spr.current : interpolate(spr.current, [0, 1], [from, to]);
 
   if (!config.overshootClamping) {
     return mapped;

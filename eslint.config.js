@@ -13,7 +13,17 @@ export default tseslint.config(
   },
   {
     files: ['scripts/**/*.mjs'],
-    languageOptions: {globals: {process: 'readonly', console: 'readonly', URL: 'readonly', URLSearchParams: 'readonly', window: 'readonly', document: 'readonly', requestAnimationFrame: 'readonly'}},
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        requestAnimationFrame: 'readonly',
+      },
+    },
   },
   {linterOptions: {reportUnusedDisableDirectives: 'error'}},
 );

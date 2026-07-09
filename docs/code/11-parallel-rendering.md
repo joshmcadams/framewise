@@ -3,7 +3,7 @@
 **File:** `scripts/render.mjs`
 
 The last stage isn't a new primitive — it's a renderer-architecture change that
-makes renders *fast*. Every stage before this rendered frames one at a time in a
+makes renders _fast_. Every stage before this rendered frames one at a time in a
 single browser. Stage 6 splits the frame range into chunks and renders them
 **concurrently across separate browsers**, then reassembles.
 
@@ -11,7 +11,7 @@ single browser. Stage 6 splits the frame range into chunks and renders them
 
 Recall the founding idea: **a frame is a pure function of its number.** Frame 75
 depends on nothing except the number 75 — not on frame 74, not on render order,
-not on which machine drew it. That makes rendering *embarrassingly parallel*:
+not on which machine drew it. That makes rendering _embarrassingly parallel_:
 you can compute any subset of frames independently and the result is identical.
 Stage 6 is just cashing in that property.
 
@@ -59,7 +59,7 @@ that asset resolution stays consistent across all render contexts.
   locally and separate Lambda functions in the cloud; separate browsers here give
   the cleanest speedup with the least shared-state subtlety.)
 - **Shared frames dir.** Every worker writes `frame-NNNNN.png` keyed by its
-  *absolute* frame number into one directory. Because the ranges are disjoint,
+  _absolute_ frame number into one directory. Because the ranges are disjoint,
   there are no collisions, and the existing single ffmpeg pass reads the complete
   `frame-%05d.png` sequence — **no video concatenation needed.** The chunking
   parallelizes the slow part (screenshotting); the fast part (stitching) stays
@@ -86,7 +86,9 @@ a single failure would leak the sibling Chrome processes (the Stage-2 leak, ×N)
 
 ```js
 if (files.length !== durationInFrames)
-  throw new Error(`expected ${durationInFrames} frames but found ${files.length} — chunk range bug?`);
+  throw new Error(
+    `expected ${durationInFrames} frames but found ${files.length} — chunk range bug?`,
+  );
 ```
 
 A chunk-boundary off-by-one (a gap or overlap) is the most likely bug in this
@@ -100,7 +102,7 @@ sequential-vs-parallel determinism check could differ for a flag reason
 
 ## Proving parallelism is transparent
 
-The headline claim — *concurrency changes speed, not output* — is checked with a
+The headline claim — _concurrency changes speed, not output_ — is checked with a
 content hash of the rendered PNGs:
 
 ```js
@@ -111,7 +113,7 @@ console.log(`▶ frames: ${files.length} · sha256 ${hash.digest('hex').slice(0,
 
 Rendering **HelloWorld** (pure CSS/math, so byte-determinism is unambiguous) at
 concurrency 1 and 4 produced the **identical** hash `2e0775f6c750f877`. So the
-rendered *frames* are byte-for-byte identical regardless of concurrency. (The
+rendered _frames_ are byte-for-byte identical regardless of concurrency. (The
 final mp4s may still differ bit-wise — libx264 is multithreaded, so identical
 input frames can encode to slightly different bitstreams — but the pixels going
 in are provably the same, which is the property that matters.)
@@ -127,31 +129,31 @@ in are provably the same, which is the property that matters.)
 means each chunk's browser **independently** waited on its own `delayRender`
 handles (the simulated fetch) and produced the same fully-resolved frames — with
 no "pending at capture" leaks. That's the "fresh context per chunk" idea from
-[chapter 8](08-delay-render.md) shown working: in this model, *every* chunk's
+[chapter 8](08-delay-render.md) shown working: in this model, _every_ chunk's
 first frames re-wait for assets, exactly like real Framewise's per-chunk contexts.
 
 ## The speedup (and why it's sublinear)
 
 Render-phase wall-clock, this machine:
 
-| composition | concurrency 1 | concurrency 4 | speedup |
-|---|---|---|---|
-| HelloWorld | 18.7s | 7.2s | **2.6×** |
-| WithVideo | 14.6s | 5.8s | ~2.5× |
-| AsyncImage | 12.3s | 6.8s | ~1.8× |
+| composition | concurrency 1 | concurrency 4 | speedup  |
+| ----------- | ------------- | ------------- | -------- |
+| HelloWorld  | 18.7s         | 7.2s          | **2.6×** |
+| WithVideo   | 14.6s         | 5.8s          | ~2.5×    |
+| AsyncImage  | 12.3s         | 6.8s          | ~1.8×    |
 
 It's **sublinear**, and honestly so — three things cap it: physical core count,
 the fixed cost of launching N browsers, and the serial ffmpeg stitch at the end
 (Amdahl's law). `AsyncImage` gains least because its ~3s `delayRender` floor is
-paid by *every* chunk's browser in parallel — that latency doesn't parallelize
+paid by _every_ chunk's browser in parallel — that latency doesn't parallelize
 away, it just stops being paid 150 times.
 
 ## Audio across chunk boundaries
 
 Audio is collected per chunk and merged before aggregation. A subtle question:
 `bg.wav` spans all four chunks — does it become one segment or four? Each chunk is
-a separate page, but they render the *identical* React tree, so React's `useId`
-assigns the *same* instance id in every page. Aggregating by id therefore merges
+a separate page, but they render the _identical_ React tree, so React's `useId`
+assigns the _same_ instance id in every page. Aggregating by id therefore merges
 the four chunks' reports back into **one** `bg` segment `[0,149]` — verified in
 the log (`audio: 2 segment(s)` for `WithAudio`, same as sequential). Even had it
 split into adjacent per-chunk segments, the output would still be correct

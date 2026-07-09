@@ -32,13 +32,7 @@ export type VideoProps = {
  *    extracts and mixes the video's audio track — no renderer changes needed.
  *  - PREVIEW: drive a visible <video>, best-effort synced to the clock.
  */
-export const Video = ({
-  src,
-  volume = 1,
-  startFrom = 0,
-  muted = false,
-  style,
-}: VideoProps) => {
+export const Video = ({src, volume = 1, startFrom = 0, muted = false, style}: VideoProps) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const playback = usePlayback();

@@ -1,20 +1,20 @@
 # framewise-lite — Code Walkthrough
 
 This is a guided tour of the codebase, written to be read top-to-bottom as a
-way of *understanding how Framewise works*, not just how this clone is wired.
+way of _understanding how Framewise works_, not just how this clone is wired.
 Each chapter takes one module, explains the idea it implements, then walks the
 code and calls out the parts that are subtle or easy to get wrong.
 
 > **What this is:** a complete, working, verified educational reimplementation of
-> Framewise's *core* — the frame-as-state engine, the animation primitives
+> Framewise's _core_ — the frame-as-state engine, the animation primitives
 > (`interpolate`, `spring`, `<Sequence>`), a `<Player>`, a headless-Chrome +
 > ffmpeg renderer, deterministic async assets (`delayRender`), audio, embedded
 > video, and parallel rendering. All eleven chapters below are implemented and
 > tested.
 >
-> **What it deliberately isn't:** production Framewise. It keeps the *numeric* path
-> of `interpolate`, *constant* per-segment volume, *best-effort* preview A/V sync,
-> a *live-element* `<Video>` (not ffmpeg frame-extraction), and *single-machine*
+> **What it deliberately isn't:** production Framewise. It keeps the _numeric_ path
+> of `interpolate`, _constant_ per-segment volume, _best-effort_ preview A/V sync,
+> a _live-element_ `<Video>` (not ffmpeg frame-extraction), and _single-machine_
 > parallelism (not cross-machine encode+concat). Each chapter names its own
 > simplifications and points at the production-grade version.
 
@@ -24,7 +24,7 @@ code and calls out the parts that are subtle or easy to get wrong.
 
 A composition is an ordinary React component. It asks "what frame are we on?"
 and renders accordingly. Nothing in a composition knows whether it's being
-*played* (frames advanced by a clock) or *rendered* (frames advanced by an
+_played_ (frames advanced by a clock) or _rendered_ (frames advanced by an
 exporter taking screenshots). That indifference is the whole point — the
 preview and the final export run the identical code. Every design choice in
 this repo exists to protect that property.
@@ -54,7 +54,7 @@ this repo exists to protect that property.
                      └──────────────────────────────────────────┘
 ```
 
-The arrow only points **down**. The composition *reads* the frame; it never
+The arrow only points **down**. The composition _reads_ the frame; it never
 sets it. The `Player` is just one thing that writes it. Swap the `Player` for a
 "render driver" that sets frame 0 → screenshot → frame 1 → screenshot, and the
 exact same composition becomes an exporter. That seam is the most important
@@ -62,19 +62,19 @@ line in the codebase, and it lives in `VideoConfig.tsx`.
 
 ## Reading order
 
-| # | Chapter | File covered | What you'll learn |
-|---|---|---|---|
-| 1 | [The frame engine](01-frame-engine.md) | `src/framewise-lite/VideoConfig.tsx` | The contexts, `useCurrentFrame`/`useVideoConfig`, why the seam matters |
-| 2 | [interpolate](02-interpolate.md) | `src/framewise-lite/interpolate.ts` | Range mapping, the surprising `extend` default, multi-segment keyframes, easing |
-| 3 | [spring](03-spring.md) | `src/framewise-lite/spring.ts` | The damped-oscillator physics, why it's iterated, the public wrapper |
-| 4 | [Sequence](04-sequence.md) | `src/framewise-lite/Sequence.tsx` | Time-shifting via context, how 20 lines power timelines |
-| 5 | [The Player](05-player.md) | `src/framewise-lite/Player.tsx` | The wall-clock loop, seeking, the #1 playback bug, responsive scaling |
-| 6 | [Demo & wiring](06-demo-and-wiring.md) | `HelloWorld.tsx`, `App.tsx`, `main.tsx` | How the primitives combine into a real animation |
-| 7 | [The Renderer](07-renderer.md) | `scripts/render.mjs`, `render.html`, `src/render/*` | Stage 2: Puppeteer screenshots + ffmpeg → mp4, and why it's naive |
-| 8 | [delayRender](08-delay-render.md) | `delay-render.ts`, `Img.tsx`, `AsyncImage.tsx` | Stage 3: making async assets block the capture, proved with a before/after experiment |
-| 9 | [Audio](09-audio.md) | `audio-registry.ts`, `playback.ts`, `Audio.tsx`, `WithAudio.tsx` | Stage 4: collecting audio per frame and mixing/muxing it with ffmpeg |
-| 10 | [Embedded Video](10-video.md) | `Video.tsx`, `WithVideo.tsx` | Stage 5: frame-accurate `<Video>` via delayRender-gated seeking + audio mux |
-| 11 | [Parallel Rendering](11-parallel-rendering.md) | `scripts/render.mjs` | Stage 6: render chunks across browsers concurrently, deterministically |
+| #   | Chapter                                        | File covered                                                     | What you'll learn                                                                     |
+| --- | ---------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 1   | [The frame engine](01-frame-engine.md)         | `src/framewise-lite/VideoConfig.tsx`                             | The contexts, `useCurrentFrame`/`useVideoConfig`, why the seam matters                |
+| 2   | [interpolate](02-interpolate.md)               | `src/framewise-lite/interpolate.ts`                              | Range mapping, the surprising `extend` default, multi-segment keyframes, easing       |
+| 3   | [spring](03-spring.md)                         | `src/framewise-lite/spring.ts`                                   | The damped-oscillator physics, why it's iterated, the public wrapper                  |
+| 4   | [Sequence](04-sequence.md)                     | `src/framewise-lite/Sequence.tsx`                                | Time-shifting via context, how 20 lines power timelines                               |
+| 5   | [The Player](05-player.md)                     | `src/framewise-lite/Player.tsx`                                  | The wall-clock loop, seeking, the #1 playback bug, responsive scaling                 |
+| 6   | [Demo & wiring](06-demo-and-wiring.md)         | `HelloWorld.tsx`, `App.tsx`, `main.tsx`                          | How the primitives combine into a real animation                                      |
+| 7   | [The Renderer](07-renderer.md)                 | `scripts/render.mjs`, `render.html`, `src/render/*`              | Stage 2: Puppeteer screenshots + ffmpeg → mp4, and why it's naive                     |
+| 8   | [delayRender](08-delay-render.md)              | `delay-render.ts`, `Img.tsx`, `AsyncImage.tsx`                   | Stage 3: making async assets block the capture, proved with a before/after experiment |
+| 9   | [Audio](09-audio.md)                           | `audio-registry.ts`, `playback.ts`, `Audio.tsx`, `WithAudio.tsx` | Stage 4: collecting audio per frame and mixing/muxing it with ffmpeg                  |
+| 10  | [Embedded Video](10-video.md)                  | `Video.tsx`, `WithVideo.tsx`                                     | Stage 5: frame-accurate `<Video>` via delayRender-gated seeking + audio mux           |
+| 11  | [Parallel Rendering](11-parallel-rendering.md) | `scripts/render.mjs`                                             | Stage 6: render chunks across browsers concurrently, deterministically                |
 
 ## Map of the source tree
 
@@ -121,6 +121,6 @@ public/                     static assets (photo.png, bg/blip.wav, clip.mp4)
 Everything here is a faithful (if reduced) version of a real Framewise API. The
 [top-level README](../../README.md#whats-here-and-how-it-maps-to-real-framewise)
 has the full mapping table and the list of deliberate omissions. The short
-version: this is Framewise's *core* (`framewise` + `@framewise/player`). The hard
+version: this is Framewise's _core_ (`framewise` + `@framewise/player`). The hard
 half — the headless-browser **renderer** that turns frames into an mp4 — is not
 here; see the [Roadmap](../../README.md#roadmap).

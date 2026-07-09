@@ -10,7 +10,7 @@ accelerates, overshoots the target, and oscillates to a stop.
 > **This module's math is copied verbatim from Framewise's source, not
 > reconstructed.** The analytical damped-harmonic-oscillator solution is a
 > classic "looks right, is subtly wrong" trap — a sign error in the velocity
-> term gives motion that's *almost* correct. So `advance()` and
+> term gives motion that's _almost_ correct. So `advance()` and
 > `springCalculation()` are a faithful copy of Framewise's `spring/spring-utils.ts`.
 > We dropped only its memoization caches (pure performance, no effect on output).
 
@@ -20,8 +20,8 @@ A spring has three physical parameters, which are the defaults:
 
 ```ts
 const defaultSpringConfig: SpringConfig = {
-  damping: 10,    // friction — higher = settles faster, less bounce
-  mass: 1,        // inertia — higher = slower, heavier feel
+  damping: 10, // friction — higher = settles faster, less bounce
+  mass: 1, // inertia — higher = slower, heavier feel
   stiffness: 100, // spring strength — higher = snappier
   overshootClamping: false,
 };
@@ -31,12 +31,12 @@ With the defaults the spring is **underdamped**: it overshoots its target and
 oscillates a little before settling. That's the lively Framewise feel. Crank
 `damping` up and it stops overshooting (critically/over-damped).
 
-## Why it's *iterated*, not a single formula
+## Why it's _iterated_, not a single formula
 
 You might expect `spring(frame)` to plug `frame` into one closed-form equation.
 It doesn't. Instead it simulates the spring **one frame-step at a time** from
-frame 0 up to the requested frame. The reason: a spring's position at time *t*
-depends on its position *and velocity* an instant earlier — it's a stateful
+frame 0 up to the requested frame. The reason: a spring's position at time _t_
+depends on its position _and velocity_ an instant earlier — it's a stateful
 physical system. Each step computes the new position and the new velocity, and
 the velocity carries into the next step.
 
@@ -44,15 +44,18 @@ the velocity carries into the next step.
 
 ```ts
 let animation: AnimationNode = {
-  lastTimestamp: 0, current: from /*0*/, toValue: to /*1*/, velocity: 0,
+  lastTimestamp: 0,
+  current: from /*0*/,
+  toValue: to /*1*/,
+  velocity: 0,
 };
 const frameClamped = Math.max(0, frame);
 const unevenRest = frameClamped % 1;
 for (let f = 0; f <= Math.floor(frameClamped); f++) {
   if (f === Math.floor(frameClamped)) {
-    f += unevenRest;          // final partial step for fractional frames
+    f += unevenRest; // final partial step for fractional frames
   }
-  const time = (f / fps) * 1000;          // ms
+  const time = (f / fps) * 1000; // ms
   animation = advance({animation, now: time, config: {...defaults, ...config}});
 }
 return animation;
@@ -73,14 +76,16 @@ makes the caching and the math simpler.
 This is the verbatim oscillator solution. The shape of it:
 
 ```ts
-const deltaTime = Math.min(now - lastTimestamp, 64);   // clamp dt for stability
-const c = config.damping, m = config.mass, k = config.stiffness;
+const deltaTime = Math.min(now - lastTimestamp, 64); // clamp dt for stability
+const c = config.damping,
+  m = config.mass,
+  k = config.stiffness;
 
-const v0 = -velocity;        // initial velocity for this step
+const v0 = -velocity; // initial velocity for this step
 const x0 = toValue - current; // displacement remaining to target
 
-const zeta   = c / (2 * Math.sqrt(k * m));   // damping ratio
-const omega0 = Math.sqrt(k / m);             // undamped angular frequency
+const zeta = c / (2 * Math.sqrt(k * m)); // damping ratio
+const omega0 = Math.sqrt(k / m); // undamped angular frequency
 const omega1 = omega0 * Math.sqrt(1 - zeta ** 2); // damped angular frequency
 const t = deltaTime / 1000;
 ```
@@ -98,7 +103,7 @@ return {
   toValue,
   prevPosition: current,
   lastTimestamp: now,
-  current:  zeta < 1 ? underDampedPosition : criticallyDampedPosition,
+  current: zeta < 1 ? underDampedPosition : criticallyDampedPosition,
   velocity: zeta < 1 ? underDampedVelocity : criticallyDampedVelocity,
 };
 ```
@@ -106,8 +111,8 @@ return {
 The two things to take away without re-deriving the calculus:
 
 1. **It returns both `current` and `velocity`.** The velocity is the whole
-   reason this is iterative — it's the hidden state that makes frame *N+1*
-   depend on frame *N*.
+   reason this is iterative — it's the hidden state that makes frame _N+1_
+   depend on frame _N_.
 2. **`deltaTime` is clamped to 64ms.** If a step were ever huge (a hitch, a
    tab waking from sleep), an un-clamped exponential could explode. Clamping
    keeps the simulation stable. In our fixed `f/fps` stepping this rarely binds,
@@ -131,14 +136,16 @@ ergonomics:
 export function spring({frame: passedFrame, fps, config = {}, from = 0, to = 1, delay = 0}) {
   if (!Number.isFinite(fps) || fps <= 0) throw new Error(`fps must be positive…`);
 
-  const delayProcessed = passedFrame - delay;                     // 1. delay
+  const delayProcessed = passedFrame - delay; // 1. delay
   const spr = springCalculation({fps, frame: delayProcessed, config});
 
-  const inner = config.overshootClamping                          // 2. clamp overshoot
-    ? (to >= from ? Math.min(spr.current, to) : Math.max(spr.current, to))
+  const inner = config.overshootClamping // 2. clamp overshoot
+    ? to >= from
+      ? Math.min(spr.current, to)
+      : Math.max(spr.current, to)
     : spr.current;
 
-  return from === 0 && to === 1                                   // 3. remap to from..to
+  return from === 0 && to === 1 // 3. remap to from..to
     ? inner
     : interpolate(inner, [0, 1], [from, to]);
 }
@@ -174,15 +181,15 @@ math is a verbatim port (so the risk is "did I wire it up right," not "is the
 formula right"):
 
 ```ts
-expect(spring({frame: 0, fps})).toBe(0);                  // starts at `from`
-expect(spring({frame: 300, fps})).toBeCloseTo(1, 4);      // settles at `to`
+expect(spring({frame: 0, fps})).toBe(0); // starts at `from`
+expect(spring({frame: 300, fps})).toBeCloseTo(1, 4); // settles at `to`
 // overshoots past 1 with the default underdamped config:
-expect(Math.max(...frames.map(f => spring({frame: f, fps})))).toBeGreaterThan(1);
+expect(Math.max(...frames.map((f) => spring({frame: f, fps})))).toBeGreaterThan(1);
 // …but never exceeds 1 when overshootClamping is on:
 expect(maxWithClamping).toBeLessThanOrEqual(1);
 ```
 
-> A note carried over from the build review: if you ever *touch* the spring
+> A note carried over from the build review: if you ever _touch_ the spring
 > math, add one exact numeric assertion pinned against real Framewise output.
 > "Starts at 0 / overshoots / settles at 1" would survive a subtle magnitude
 > error; an exact value wouldn't.

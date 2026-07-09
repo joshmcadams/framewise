@@ -25,9 +25,7 @@ export const WithAudio = () => {
   // Visual: a disc that pulses when the blip plays, so preview shows the sync.
   const blipLocal = frame - 60;
   const blipPulse =
-    blipLocal >= 0 && blipLocal < 15
-      ? spring({frame: blipLocal, fps, config: {damping: 8}})
-      : 0;
+    blipLocal >= 0 && blipLocal < 15 ? spring({frame: blipLocal, fps, config: {damping: 8}}) : 0;
   const discScale = 1 + interpolate(blipPulse, [0, 1], [0, 0.4]);
 
   return (

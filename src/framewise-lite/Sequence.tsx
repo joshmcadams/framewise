@@ -36,11 +36,7 @@ export const Sequence = ({
   }
 
   const content =
-    layout === 'none' ? (
-      <>{children}</>
-    ) : (
-      <AbsoluteFill style={style}>{children}</AbsoluteFill>
-    );
+    layout === 'none' ? <>{children}</> : <AbsoluteFill style={style}>{children}</AbsoluteFill>;
 
   return <FrameProvider value={shifted}>{content}</FrameProvider>;
 };

@@ -5,7 +5,7 @@
 `src/render/main-render.tsx`, `src/framewise-lite/Player.tsx`, `src/App.tsx`
 
 [Chapter 7](07-renderer.md) ended with the naive renderer's fatal flaw: it
-screenshots *immediately*, so any frame that depends on something loading
+screenshots _immediately_, so any frame that depends on something loading
 asynchronously (an image, a font, fetched data) gets captured too early. Stage 3
 fixes that with the single mechanism that does it: `delayRender` /
 `continueRender`.
@@ -13,7 +13,7 @@ fixes that with the single mechanism that does it: `delayRender` /
 ## The idea
 
 A composition that needs to load something says: **"don't capture this frame
-yet."** It calls `delayRender()` to register a *handle*, does its async work,
+yet."** It calls `delayRender()` to register a _handle_, does its async work,
 then calls `continueRender(handle)` when ready. The renderer waits until **every
 outstanding handle is cleared** before screenshotting each frame.
 
@@ -52,7 +52,7 @@ Two details worth noting:
 - **The timeout.** A forgotten `continueRender()` would otherwise hang the render
   forever. Each handle self-destructs after 30s (Framewise's default) with a loud
   error naming the label — so "my render is stuck" becomes "handle X (`<Img>
-  /photo.png`) never cleared." The renderer's own `waitForFunction` timeout is
+/photo.png`) never cleared." The renderer's own `waitForFunction` timeout is
   the hard backstop.
 - **`notify()` / `subscribeToDelayRenders`.** A listener set lets the Player show
   a live "pending" badge. `useDelayRenderPending()` wraps it in
@@ -90,8 +90,8 @@ Three non-obvious choices, each load-bearing:
 
 1. **`useLayoutEffect`, not `useEffect`.** The renderer checks for pending
    handles right after a synchronous `flushSync` render (chapter 7). `flushSync`
-   runs *layout* effects synchronously but defers *passive* (`useEffect`)
-   effects — a `useEffect` handle would register *after* the capture, defeating
+   runs _layout_ effects synchronously but defers _passive_ (`useEffect`)
+   effects — a `useEffect` handle would register _after_ the capture, defeating
    the point. And it can't be a `useState(() => delayRender())` initializer
    either: that double-fires under StrictMode and orphans a handle (which the
    Player's new badge would surface as a permanently stuck "1 pending").
@@ -108,7 +108,7 @@ mount/unmount/mount net out to a single cleared handle.
 
 ## The deterministic discriminator: `SlowData`
 
-`<Img>` is the *real* use, but it's a bad *demo* — a local image often loads
+`<Img>` is the _real_ use, but it's a bad _demo_ — a local image often loads
 within the renderer's paint-wait, so you can't reliably see the bug. So
 `AsyncImage.tsx` also includes `SlowData`, a simulated fetch with a controllable
 delay:
@@ -123,14 +123,17 @@ const SlowData = ({fetchDelayMs}) => {
       flushSync(() => setHeadline('Fetched headline ✨'));
       continueRender(handle);
     }, fetchDelayMs);
-    return () => { clearTimeout(timer); continueRender(handle); };
+    return () => {
+      clearTimeout(timer);
+      continueRender(handle);
+    };
   }, [fetchDelayMs]);
   return <h1>{headline ?? 'Loading…'}</h1>;
 };
 ```
 
 **The `flushSync` is the subtlest correctness point in all of Stage 3.** Without
-it, `setHeadline` commits *asynchronously* — so `continueRender` on the next line
+it, `setHeadline` commits _asynchronously_ — so `continueRender` on the next line
 clears the handle while the DOM still says "Loading…", and the renderer
 screenshots the stale frame even in wait mode. `flushSync` forces the commit
 first, so "pending === 0" genuinely implies "the DOM is final." (`<Img>` doesn't
@@ -139,7 +142,7 @@ post-pending paint-wait covers it.)
 
 The delay defaults to **3000ms** — deliberately longer than the renderer's
 cold-start latency (Vite boot + Chrome launch + page load). If it were shorter,
-the timer might fire *during* renderer setup, and even the `--no-wait` render
+the timer might fire _during_ renderer setup, and even the `--no-wait` render
 would capture the resolved state — the experiment would falsely report "nothing
 broke."
 
@@ -149,19 +152,28 @@ The render loop gains one step, in a specific position:
 
 ```js
 for (let f = 0; f < durationInFrames; f++) {
-  await page.evaluate((frame) => window.framewiseLite.renderFrame(frame), f);  // 1. commit frame
+  await page.evaluate((frame) => window.framewiseLite.renderFrame(frame), f); // 1. commit frame
 
-  if (!noWait) {                                                              // 2. WAIT
-    await page.waitForFunction(() => window.framewiseLite.getPending().length === 0,
-      {timeout: 30_000}).catch(/* report stuck labels */);
+  if (!noWait) {
+    // 2. WAIT
+    await page
+      .waitForFunction(() => window.framewiseLite.getPending().length === 0, {timeout: 30_000})
+      .catch(/* report stuck labels */);
   }
 
-  await page.evaluate(() => new Promise(r =>                                  // 3. paint
-    requestAnimationFrame(() => requestAnimationFrame(r))));
+  await page.evaluate(
+    () =>
+      new Promise((r) =>
+        // 3. paint
+        requestAnimationFrame(() => requestAnimationFrame(r)),
+      ),
+  );
 
-  const pendingAtCapture = await page.evaluate(() =>                          // evidence
-    window.framewiseLite.getPending().map(p => p.label));
-  await rootHandle.screenshot({path: file});                                  // 4. capture
+  const pendingAtCapture = await page.evaluate(() =>
+    // evidence
+    window.framewiseLite.getPending().map((p) => p.label),
+  );
+  await rootHandle.screenshot({path: file}); // 4. capture
 }
 ```
 
@@ -182,12 +194,12 @@ npm run render -- --comp AsyncImage           --out out/async-fixed.mp4
 
 The result, verified:
 
-| | `--no-wait` (broken) | wait (fixed) |
-|---|---|---|
-| **frame 0 shows** | `Loading…` | `Fetched headline ✨` |
-| **pending-at-capture log** | `[SlowData fetch]` on frames 0–~17 | `[]` everywhere |
+|                            | `--no-wait` (broken)               | wait (fixed)          |
+| -------------------------- | ---------------------------------- | --------------------- |
+| **frame 0 shows**          | `Loading…`                         | `Fetched headline ✨` |
+| **pending-at-capture log** | `[SlowData fetch]` on frames 0–~17 | `[]` everywhere       |
 
-The pending-at-capture log is the *timing-robust* evidence: it directly shows the
+The pending-at-capture log is the _timing-robust_ evidence: it directly shows the
 broken renderer screenshotting while `SlowData fetch` is still outstanding, and
 the fixed renderer never doing so — regardless of paint timing. (Verified
 separately that `HelloWorld`, which has no async work, renders the same scene
@@ -199,7 +211,7 @@ no-op for synchronous compositions.)
 In this clone the renderer reuses **one** page for the whole render, so an asset
 loads **once** and stays loaded — only the early frames (before it resolved)
 differ between broken and fixed. Real Framewise renders chunks in **fresh browser
-contexts** (for parallelism), so *every* chunk's first frame must wait for its
+contexts** (for parallelism), so _every_ chunk's first frame must wait for its
 assets independently. Same mechanism, bigger blast radius. The lesson — async work
 must gate the capture — is identical; our single-page setup just concentrates the
 visible damage at the start.

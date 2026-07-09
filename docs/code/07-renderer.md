@@ -3,10 +3,10 @@
 **Files:** `scripts/render.mjs`, `render.html`, `src/render/main-render.tsx`,
 `src/render/registry.ts`
 
-Everything in chapters 1–6 was the *easy, elegant* half of Framewise. This
+Everything in chapters 1–6 was the _easy, elegant_ half of Framewise. This
 chapter is the start of the hard half: turning the in-browser animation into an
 actual `.mp4` file. The Stage 2 renderer is deliberately **naive** — it works,
-and understanding exactly *where* it would break is the whole lesson.
+and understanding exactly _where_ it would break is the whole lesson.
 
 ## The pipeline
 
@@ -22,8 +22,8 @@ and understanding exactly *where* it would break is the whole lesson.
    ffmpeg  ─stitch PNGs at fps─▶  out/video.mp4
 ```
 
-There is no magic export format. A video file is just *screenshots of the same
-React app, one per frame, glued together at the right rate*. Run it with:
+There is no magic export format. A video file is just _screenshots of the same
+React app, one per frame, glued together at the right rate_. Run it with:
 
 ```bash
 npm run render -- --out out/hello.mp4        # default composition
@@ -33,7 +33,7 @@ npm run render -- --comp HelloWorld --out out/hello.mp4
 ## The seam: driving frames from outside
 
 This is where Stage 2 cashes in the Stage 1 design. The Player advances frames
-with a clock. The renderer needs to advance them *manually*, deterministically,
+with a clock. The renderer needs to advance them _manually_, deterministically,
 one screenshot at a time. Because `useCurrentFrame()` is a pure context reader
 (chapter 1), both are possible without the composition knowing which is in play.
 
@@ -42,7 +42,7 @@ exposes a hook on `window`:
 
 ```tsx
 const renderFrame = (frame: number) => {
-  beginAudioFrame();                          // arm audio collection (ch. 9)
+  beginAudioFrame(); // arm audio collection (ch. 9)
   flushSync(() => {
     root.render(
       // No `playback` prop: the PlaybackContext stays null, which is how
@@ -58,8 +58,8 @@ renderFrame(0);
 window.framewiseLite = {
   config,
   renderFrame,
-  getPending: getPendingDelayRenders,        // delayRender handles (ch. 8)
-  getAudioFrame: readAudioFrame,             // per-frame audio reports (ch. 9)
+  getPending: getPendingDelayRenders, // delayRender handles (ch. 8)
+  getAudioFrame: readAudioFrame, // per-frame audio reports (ch. 9)
   compositionIds: compositions.map((c) => c.id),
 };
 ```
@@ -79,7 +79,7 @@ CLI pass per-render prop overrides (`--props '{"text": "hello"}'`).
 Two things make this correct:
 
 - **`flushSync`** forces React to commit the new frame to the DOM
-  *synchronously*. A normal `setState` could be batched or deferred, and the
+  _synchronously_. A normal `setState` could be batched or deferred, and the
   renderer might screenshot a stale frame. `flushSync` guarantees "by the time
   this call returns, the DOM shows frame N."
 - **`window.framewiseLite`** is the external handle. The Node script reaches into
@@ -87,7 +87,7 @@ Two things make this correct:
   exactly the mechanism real Framewise uses (`window.framewise_setFrame`).
 
 `registry.ts` is the minimal `<Composition>` registry — the renderer is told
-*which* composition to render by id (`?comp=HelloWorld`), and the page looks up
+_which_ composition to render by id (`?comp=HelloWorld`), and the page looks up
 its component + metadata there. This is the piece Stage 1 didn't need (the
 Player took config as props) but a renderer does.
 
@@ -98,7 +98,7 @@ Vite, launch Chrome, loop, ffmpeg — but four details separate "works" from
 "intermittently wrong," and each is handled deliberately:
 
 **1. Layout (the most likely wrong-first-render bug).** `AbsoluteFill` is
-`position:absolute; inset:0`, so it fills its nearest *positioned, sized*
+`position:absolute; inset:0`, so it fills its nearest _positioned, sized_
 ancestor. In `render.html` the body margin is zeroed (`body{margin:0}` —
 otherwise the browser's default 8px shifts and clips the whole frame) and
 `#render-root` is `position:relative; overflow:hidden`, sized to the composition
@@ -140,12 +140,13 @@ try { … } finally {
 `requestAnimationFrame`) before screenshotting:
 
 ```js
-for (let f = 0; f < durationInFrames; f++) {     // [0, durationInFrames)
+for (let f = 0; f < durationInFrames; f++) {
+  // [0, durationInFrames)
   await page.evaluate((frame) => {
     window.framewiseLite.renderFrame(frame);
-    return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   }, f);
-  await rootHandle.screenshot({path: join(framesDir, `frame-${String(f).padStart(5,'0')}.png`)});
+  await rootHandle.screenshot({path: join(framesDir, `frame-${String(f).padStart(5, '0')}.png`)});
 }
 ```
 
@@ -155,9 +156,18 @@ trips up many first renders:
 
 ```js
 await run('ffmpeg', [
-  '-y', '-framerate', String(fps), '-start_number', '0',
-  '-i', join(framesDir, 'frame-%05d.png'),
-  '-c:v', 'libx264', '-pix_fmt', 'yuv420p', out,
+  '-y',
+  '-framerate',
+  String(fps),
+  '-start_number',
+  '0',
+  '-i',
+  join(framesDir, 'frame-%05d.png'),
+  '-c:v',
+  'libx264',
+  '-pix_fmt',
+  'yuv420p',
+  out,
 ]);
 ```
 
@@ -165,7 +175,7 @@ await run('ffmpeg', [
 
 The script uses `puppeteer-core` (no bundled Chromium download) pointed at the
 installed Google Chrome via `executablePath`. Real Framewise goes further and
-ships its *own* patched Chromium build — partly for H.264 codec support stock
+ships its _own_ patched Chromium build — partly for H.264 codec support stock
 headless Chrome lacks, partly so renders are reproducible across machines
 regardless of the user's local browser. Managing that browser binary is a real
 chunk of Framewise's surface area; we sidestep it by borrowing the system Chrome,
@@ -174,32 +184,32 @@ which is fine for learning.
 ## This works — and here's exactly where it stops working
 
 The renderer produces a correct mp4 for `HelloWorld`, **verified** by extracting
-frame 45 from the output and confirming it shows the *identical scene* — title
+frame 45 from the output and confirming it shows the _identical scene_ — title
 scale, subtitle position, dot position, gradient hue — as the Stage 1 Player's
 frame 45. (Not a literal bit-for-bit comparison: the Player capture is scaled
 inside the page and the mp4 frame went through lossy h264/yuv420p encoding. The
-match that matters is that the *same animation state* renders under both frame
+match that matters is that the _same animation state_ renders under both frame
 sources.) Same component, two frame sources, same result — the thesis of the
 whole project.
 
 But it only works because `HelloWorld` is **pure CSS**: gradients, system fonts,
-math-driven transforms. There is nothing that loads *asynchronously*, so every
+math-driven transforms. There is nothing that loads _asynchronously_, so every
 screenshot captures a fully-settled frame.
 
 The moment a composition does this:
 
 ```tsx
-<img src="/some-photo.jpg" />        // loads over the network
+<img src="/some-photo.jpg" /> // loads over the network
 // or a custom @font-face that isn't ready yet
 // or data fetched in a useEffect
 ```
 
 …the naive renderer **screenshots too early**. `flushSync` commits the React
-tree synchronously, but it can't make a network image *arrive* synchronously.
+tree synchronously, but it can't make a network image _arrive_ synchronously.
 You'd get frames with missing images, fallback fonts, or empty data — and worse,
-*non-deterministically*, depending on cache and timing.
+_non-deterministically_, depending on cache and timing.
 
-The `await page.evaluate(() => document.fonts.ready)` in the script is a *gesture*
+The `await page.evaluate(() => document.fonts.ready)` in the script is a _gesture_
 toward fixing this — it waits for fonts once before the loop. But it's
 deliberately insufficient: it does nothing for per-frame images or data. **That
 gap is the entire motivation for Stage 3.**
@@ -209,7 +219,7 @@ gap is the entire motivation for Stage 3.**
 Framewise's answer is `delayRender()` / `continueRender()`. A composition that
 loads something async calls `delayRender()` to say "don't screenshot yet," does
 its loading, then calls `continueRender(handle)` when ready. The renderer waits
-for *all outstanding handles* to clear before capturing each frame. That single
+for _all outstanding handles_ to clear before capturing each frame. That single
 mechanism — making asynchronous work block the deterministic capture — is what
 turns a toy screenshotter into a real renderer. Add to that audio extraction +
 muxing and frame-accurate embedded `<Video>`, and you have the hard half of

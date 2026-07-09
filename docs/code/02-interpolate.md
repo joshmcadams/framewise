@@ -20,7 +20,7 @@ interpolate(
 ```
 
 ```ts
-interpolate(5, [0, 10], [0, 100]) // => 50
+interpolate(5, [0, 10], [0, 100]); // => 50
 ```
 
 Read it as: "`input` is currently 5; it lives on a scale from 0 to 10; map that
@@ -34,13 +34,13 @@ const extrapolateLeft = options?.extrapolateLeft ?? 'extend';
 const extrapolateRight = options?.extrapolateRight ?? 'extend';
 ```
 
-What happens for inputs *outside* `inputRange`? Most people assume it clamps to
+What happens for inputs _outside_ `inputRange`? Most people assume it clamps to
 the output bounds. It does **not**. The default is `extend`, which keeps
 extrapolating the line:
 
 ```ts
-interpolate(15, [0, 10], [0, 100])  // => 150  (NOT 100!)
-interpolate(-5, [0, 10], [0, 100])  // => -50  (NOT 0!)
+interpolate(15, [0, 10], [0, 100]); // => 150  (NOT 100!)
+interpolate(-5, [0, 10], [0, 100]); // => -50  (NOT 0!)
 ```
 
 This is the single most common Framewise footgun, which is exactly why the demo
@@ -48,21 +48,21 @@ composition and the tests both pin it down. When you want clamping — which for
 opacity/position you almost always do — you ask for it explicitly:
 
 ```ts
-interpolate(15, [0, 10], [0, 100], {extrapolateRight: 'clamp'}) // => 100
+interpolate(15, [0, 10], [0, 100], {extrapolateRight: 'clamp'}); // => 100
 ```
 
 The four modes (`ExtrapolateType`) and how each treats an out-of-range input:
 
-| Mode | Behavior outside the range |
-|---|---|
-| `extend` (default) | Keep going linearly past the edge |
-| `clamp` | Pin to the nearest edge value |
-| `identity` | Return the raw input unchanged |
-| `wrap` | Modulo back into the range (loops) |
+| Mode               | Behavior outside the range         |
+| ------------------ | ---------------------------------- |
+| `extend` (default) | Keep going linearly past the edge  |
+| `clamp`            | Pin to the nearest edge value      |
+| `identity`         | Return the raw input unchanged     |
+| `wrap`             | Modulo back into the range (loops) |
 
 ## The core: `interpolateFunction`
 
-This private function does the actual mapping for a *single* segment (a pair of
+This private function does the actual mapping for a _single_ segment (a pair of
 input/output endpoints). The flow:
 
 ```ts
@@ -84,12 +84,12 @@ Two details worth pausing on:
 
 - **`identity` returns early** (`return result`) before normalization, because
   "return the raw input" means exactly that — it bypasses the output range
-  entirely. `clamp` and `wrap` instead *adjust* `result` and then fall through
+  entirely. `clamp` and `wrap` instead _adjust_ `result` and then fall through
   to the normal math.
-- **Easing is applied to the normalized `[0,1]` value** (step 5), *between*
+- **Easing is applied to the normalized `[0,1]` value** (step 5), _between_
   normalization and scaling. That's why an easing function is always written
   against a 0→1 domain regardless of your actual ranges — it shapes the
-  *progress*, then the result is scaled to wherever your output lives. The
+  _progress_, then the result is scaled to wherever your output lives. The
   `wrap` formula `((((result - inputMin) % range) + range) % range) + inputMin`
   is the standard "positive modulo" — the double `% + range %` dance makes it
   work for negative inputs too.
@@ -100,7 +100,7 @@ Real animations have more than two points: "0 → fade in → hold → fade out.
 express that with longer ranges:
 
 ```ts
-interpolate(frame, [0, 15, 130, 150], [0, 1, 1, 0]) // a fade-in/hold/fade-out
+interpolate(frame, [0, 15, 130, 150], [0, 1, 1, 0]); // a fade-in/hold/fade-out
 ```
 
 `interpolate` finds which segment the input falls into and maps within it. That
@@ -130,14 +130,16 @@ return interpolateFunction(
 ```
 
 So multi-segment interpolation is just "pick the segment, then do the
-two-point math." Easing can even be *per-segment* — `options.easing` may be an
+two-point math." Easing can even be _per-segment_ — `options.easing` may be an
 array with one function per segment, resolved here:
 
 ```ts
 const easing =
-  easingOption === undefined        ? defaultEasing
-  : typeof easingOption === 'function' ? easingOption
-  : easingOption[range];   // array → the easing for THIS segment
+  easingOption === undefined
+    ? defaultEasing
+    : typeof easingOption === 'function'
+      ? easingOption
+      : easingOption[range]; // array → the easing for THIS segment
 ```
 
 ## Validation — failing loud and early
@@ -169,7 +171,7 @@ propagating.
 
 Framewise's `interpolate` also accepts **string** output ranges (`['scale(1)',
 'scale(2)']`) and **tuple** ranges (`[[0,0],[100,100]]`), with a whole CSS
-transform parser. That's a big chunk of code and not core to the *idea*, so this
+transform parser. That's a big chunk of code and not core to the _idea_, so this
 port keeps only the numeric path. The numeric semantics — extrapolation modes,
 multi-segment dispatch, easing, validation — match exactly.
 
@@ -179,11 +181,11 @@ multi-segment dispatch, easing, validation — match exactly.
 pure math (a structural test would let an off-by-one slip through):
 
 ```ts
-expect(interpolate(5, [0, 10], [0, 100])).toBe(50);          // linear
-expect(interpolate(15, [0, 10], [0, 100])).toBe(150);        // extend default!
+expect(interpolate(5, [0, 10], [0, 100])).toBe(50); // linear
+expect(interpolate(15, [0, 10], [0, 100])).toBe(150); // extend default!
 expect(interpolate(15, [0, 10], [0, 100], {extrapolateRight: 'clamp'})).toBe(100);
-expect(interpolate(5, [0, 10], [0, 100], {easing: t => t*t})).toBe(25); // eased
-expect(() => interpolate(5, [0, 0], [0, 100])).toThrow(/monotonic/);    // guard
+expect(interpolate(5, [0, 10], [0, 100], {easing: (t) => t * t})).toBe(25); // eased
+expect(() => interpolate(5, [0, 0], [0, 100])).toThrow(/monotonic/); // guard
 ```
 
 ---

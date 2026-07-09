@@ -26,18 +26,28 @@ afterEach(() => {
 });
 
 const renderAt = (frame: number, playback: {playing: boolean} | undefined, children: ReactNode) =>
-  act(() => root.render(
-    <CompositionHost config={{width: 100, height: 100, fps: 30, durationInFrames: 150}} frame={frame} playback={playback}>
-      {children}
-    </CompositionHost>,
-  ));
+  act(() =>
+    root.render(
+      <CompositionHost
+        config={{width: 100, height: 100, fps: 30, durationInFrames: 150}}
+        frame={frame}
+        playback={playback}
+      >
+        {children}
+      </CompositionHost>,
+    ),
+  );
 
 const FrameProbe = ({expectedFrame}: {expectedFrame: number}) => {
   const frame = useCurrentFrame();
   return <span data-testid="frame">{frame === expectedFrame ? 'OK' : 'WRONG'}</span>;
 };
 
-const ConfigProbe = ({expectedConfig}: {expectedConfig: {width: number; height: number; fps: number; durationInFrames: number}}) => {
+const ConfigProbe = ({
+  expectedConfig,
+}: {
+  expectedConfig: {width: number; height: number; fps: number; durationInFrames: number};
+}) => {
   const config = useVideoConfig();
   const match =
     config.width === expectedConfig.width &&
@@ -49,17 +59,23 @@ const ConfigProbe = ({expectedConfig}: {expectedConfig: {width: number; height: 
 
 const PlaybackProbe = ({expectsNull}: {expectsNull: boolean}) => {
   const playback = usePlayback();
-  return <span data-testid="playback">{((expectsNull && playback === null) || (!expectsNull && playback !== null)) ? 'OK' : 'WRONG'}</span>;
+  return (
+    <span data-testid="playback">
+      {(expectsNull && playback === null) || (!expectsNull && playback !== null) ? 'OK' : 'WRONG'}
+    </span>
+  );
 };
 
 describe('CompositionHost', () => {
   it('provides the frame and config to children', async () => {
-    await renderAt(42, undefined, (
+    await renderAt(
+      42,
+      undefined,
       <>
         <FrameProbe expectedFrame={42} />
         <ConfigProbe expectedConfig={{width: 100, height: 100, fps: 30, durationInFrames: 150}} />
-      </>
-    ));
+      </>,
+    );
 
     expect(container.querySelector('[data-testid="frame"]')!.textContent).toBe('OK');
     expect(container.querySelector('[data-testid="config"]')!.textContent).toBe('OK');

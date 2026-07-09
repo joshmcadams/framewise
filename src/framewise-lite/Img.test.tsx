@@ -25,11 +25,16 @@ afterEach(() => {
 });
 
 const renderAt = (frame: number, children: ReactNode) =>
-  act(() => root.render(
-    <CompositionHost config={{width: 100, height: 100, fps: 30, durationInFrames: 150}} frame={frame}>
-      {children}
-    </CompositionHost>,
-  ));
+  act(() =>
+    root.render(
+      <CompositionHost
+        config={{width: 100, height: 100, fps: 30, durationInFrames: 150}}
+        frame={frame}
+      >
+        {children}
+      </CompositionHost>,
+    ),
+  );
 
 describe('Img', () => {
   it('registers a pending handle with the src label on mount', async () => {
@@ -66,13 +71,18 @@ describe('Img', () => {
   });
 
   it('does not orphan a handle under StrictMode double-mount', async () => {
-    act(() => root.render(
-      <StrictMode>
-        <CompositionHost config={{width: 100, height: 100, fps: 30, durationInFrames: 150}} frame={0}>
-          <Img src="/photo.png" />
-        </CompositionHost>
-      </StrictMode>,
-    ));
+    act(() =>
+      root.render(
+        <StrictMode>
+          <CompositionHost
+            config={{width: 100, height: 100, fps: 30, durationInFrames: 150}}
+            frame={0}
+          >
+            <Img src="/photo.png" />
+          </CompositionHost>
+        </StrictMode>,
+      ),
+    );
 
     expect(getPendingDelayRenders()).toHaveLength(1);
 

@@ -26,14 +26,21 @@ afterEach(() => {
 });
 
 const renderAt = (frame: number, children: ReactNode) =>
-  act(() => root.render(
-    <CompositionHost config={{width: 100, height: 100, fps: 30, durationInFrames: 150}} frame={frame}>
-      {children}
-    </CompositionHost>,
-  ));
+  act(() =>
+    root.render(
+      <CompositionHost
+        config={{width: 100, height: 100, fps: 30, durationInFrames: 150}}
+        frame={frame}
+      >
+        {children}
+      </CompositionHost>,
+    ),
+  );
 
 const pauseStub = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
-const playStub = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+const playStub = vi
+  .spyOn(HTMLMediaElement.prototype, 'play')
+  .mockImplementation(() => Promise.resolve());
 
 describe('Video', () => {
   afterAll(() => {

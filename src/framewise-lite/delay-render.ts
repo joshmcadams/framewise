@@ -38,8 +38,7 @@ export function delayRender(
   options?: {timeoutInMilliseconds?: number},
 ): DelayRenderHandle {
   const handle = nextHandle++;
-  const timeoutMs =
-    options?.timeoutInMilliseconds ?? DEFAULT_DELAY_RENDER_TIMEOUT;
+  const timeoutMs = options?.timeoutInMilliseconds ?? DEFAULT_DELAY_RENDER_TIMEOUT;
 
   const timeout = setTimeout(() => {
     // In real Framewise this throws and fails the render. We log loudly with

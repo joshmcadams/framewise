@@ -7,19 +7,19 @@
 Up to now the renderer has been all video: set a frame, screenshot, repeat.
 Audio breaks that model, because **audio is not a property of any single frame** —
 it's a continuous signal that spans many frames. You can't screenshot sound. So
-audio takes a completely different path: the renderer *collects* which audio is
+audio takes a completely different path: the renderer _collects_ which audio is
 playing (and from where, and how loud) at each frame, aggregates that into
 timeline segments, and hands them to ffmpeg to mix and mux onto the silent video.
 
 ## The core realization
 
-A screenshot captures the visual state *at* frame `f`. There is no equivalent
+A screenshot captures the visual state _at_ frame `f`. There is no equivalent
 for audio — "the sound at frame f" isn't a thing you can capture; sound only
 exists over a span. So the rendering strategy splits in two:
 
-- **Video:** rendered *per frame* (screenshots), as before.
-- **Audio:** *collected* per frame as metadata (`{which file, position, volume}`),
-  then reconstructed *as continuous segments* and mixed by ffmpeg afterward.
+- **Video:** rendered _per frame_ (screenshots), as before.
+- **Audio:** _collected_ per frame as metadata (`{which file, position, volume}`),
+  then reconstructed _as continuous segments_ and mixed by ffmpeg afterward.
 
 Everything in this chapter is plumbing around that split.
 
@@ -54,7 +54,7 @@ frame-shifting from [chapter 4](04-sequence.md) does all the work.
 const id = useId();
 useLayoutEffect(() => {
   reportAudio({id, src, mediaTime, volume});
-});  // ← intentionally NO dependency array
+}); // ← intentionally NO dependency array
 ```
 
 Each frame, the component reports its state into a per-frame sink. Three
@@ -62,13 +62,13 @@ subtleties:
 
 - **`useLayoutEffect`, not `useEffect`** — same reason as `<Img>` (chapter 8):
   the renderer reads the reports right after a synchronous `flushSync`, which
-  flushes *layout* effects but defers passive ones.
-- **No dependency array** — the effect runs after *every* commit. This matters
+  flushes _layout_ effects but defers passive ones.
+- **No dependency array** — the effect runs after _every_ commit. This matters
   because the renderer can render the same frame number twice (the render entry
   renders frame 0 on load, then the loop renders frame 0 again). A `[mediaTime]`
   dependency wouldn't re-fire for the repeated frame 0, and that frame's audio
   would silently vanish. Running every commit is bulletproof.
-- **`useId()` as the key** — reports are aggregated by *instance*, not by `src`.
+- **`useId()` as the key** — reports are aggregated by _instance_, not by `src`.
   Two `<Audio src="/same.wav">` (a looped background, or the same SFX in two
   places) must become two segments; keying by `src` would wrongly merge them.
 
@@ -78,17 +78,18 @@ below), so in preview this effect does nothing.
 ### Job 2 (preview): drive a real `<audio>` element
 
 ```tsx
-const playback = usePlayback();   // null during a render
+const playback = usePlayback(); // null during a render
 useLayoutEffect(() => {
-  if (!playback) return;          // render mode: never touch the element
-  const el = ref.current; if (!el) return;
+  if (!playback) return; // render mode: never touch the element
+  const el = ref.current;
+  if (!el) return;
   el.volume = clamp(volume);
   if (playback.playing) {
     if (Math.abs(el.currentTime - mediaTime) > 0.3) el.currentTime = mediaTime;
     void el.play().catch(() => {});
   } else {
     el.pause();
-    el.currentTime = mediaTime;   // scrub to the exact frame
+    el.currentTime = mediaTime; // scrub to the exact frame
   }
 }, [playback, playback?.playing, mediaTime, volume]);
 ```
@@ -106,21 +107,28 @@ A tiny module-level bucket, armed only during rendering:
 
 ```ts
 let collecting = false;
-let currentFrame = new Map<string, AudioReport>();   // keyed by instance id
+let currentFrame = new Map<string, AudioReport>(); // keyed by instance id
 
-export function beginAudioFrame() { collecting = true; currentFrame = new Map(); }
-export function reportAudio(r)    { if (collecting) currentFrame.set(r.id, r); }
-export function readAudioFrame()  { return [...currentFrame.values()]; }
+export function beginAudioFrame() {
+  collecting = true;
+  currentFrame = new Map();
+}
+export function reportAudio(r) {
+  if (collecting) currentFrame.set(r.id, r);
+}
+export function readAudioFrame() {
+  return [...currentFrame.values()];
+}
 ```
 
-`beginAudioFrame()` is called by the render entry *before* each frame's render,
+`beginAudioFrame()` is called by the render entry _before_ each frame's render,
 so the `<Audio>` layout effects push into a freshly-cleared bucket. After
 `flushSync` returns, `readAudioFrame()` holds exactly the audio active in that
 frame. In the Player, `beginAudioFrame()` is never called, so `collecting` stays
 `false` and the sink is inert.
 
 The bucket is a **`Map` keyed by instance id, not an array** — and that's
-load-bearing. The report effect has no dependency array, so it fires on *every*
+load-bearing. The report effect has no dependency array, so it fires on _every_
 commit, but `beginAudioFrame()` only clears inside `renderFrame()`. If a
 composition with an `<Audio>` also commits mid-frame for another reason (say a
 `delayRender`-gated `flushSync(setState)` resolving between `renderFrame(f)` and
@@ -198,9 +206,9 @@ then, if there's more than one, mix them:
 
 Three deliberate choices:
 
-- **`adelay=…:all=1`** delays *all* channels — without `:all=1`, only channel 1
+- **`adelay=…:all=1`** delays _all_ channels — without `:all=1`, only channel 1
   is delayed, which silently desyncs stereo files.
-- **`normalize=0`** makes amix *sum* rather than average. Averaging would duck the
+- **`normalize=0`** makes amix _sum_ rather than average. Averaging would duck the
   background every time the blip plays (the classic amix "the music gets quieter
   when other sounds happen" bug). Summing keeps levels stable — at the cost that
   you must keep volumes from summing past 1.0 (here 0.3 + 0.7 = 1.0, no clip).
@@ -218,17 +226,18 @@ Rendering `WithAudio` and probing the output:
 - **Streams** — `ffprobe` shows an `aac` audio stream, 5.0s, alongside the video.
 - **Offset + mix** — `volumedetect` on three 0.2s windows:
 
-  | window | content | mean_volume |
-  |---|---|---|
-  | 0.5s | background only | −31.5 dB |
-  | 2.1s | background + blip | **−23.4 dB** |
-  | 3.5s | background only | −31.5 dB |
+  | window | content           | mean_volume  |
+  | ------ | ----------------- | ------------ |
+  | 0.5s   | background only   | −31.5 dB     |
+  | 2.1s   | background + blip | **−23.4 dB** |
+  | 3.5s   | background only   | −31.5 dB     |
 
   The 2.1s window is ~8 dB louder (the blip landed at 2.0s and summed with the
-  background), and the two background-only windows are *identical* (the
+  background), and the two background-only windows are _identical_ (the
   background plays continuously with no amix ducking or gap). This supports
   "audio present, correct offset to within the window resolution, sources mixed
   by summing" — it does **not** claim sample-accuracy.
+
 - **Preview** — selecting `WithAudio` and pressing play, the `<audio>` element's
   `currentTime` advanced with the clock and no errors fired; the blip's element
   was correctly absent at frame 0 (its `<Sequence>` hadn't started).
@@ -236,7 +245,7 @@ Rendering `WithAudio` and probing the output:
 ## What's intentionally simplified
 
 - **Constant volume per segment.** Per-frame volume (a `volume={(f) => …}`
-  function, for fades) would need ffmpeg volume *automation* — real, but a big
+  function, for fades) would need ffmpeg volume _automation_ — real, but a big
   step up in complexity, and orthogonal to the core "collect-then-mux" idea.
 - **No media-duration `delayRender`.** Real Framewise delays the render until it
   has read each media file's true duration. We compute timing purely from frames,
@@ -244,7 +253,7 @@ Rendering `WithAudio` and probing the output:
   audio is shorter than its placement" (ffmpeg just runs out of samples).
 - **Best-effort preview sync**, as above.
 
-Embedded **`<Video>`** (which is *both* a video frame source to composite *and* an
+Embedded **`<Video>`** (which is _both_ a video frame source to composite _and_ an
 audio source to mix, decoded frame-accurately) is the natural next step — and the
 last big piece of the hard half.
 

@@ -26,13 +26,23 @@ describe('planChunks', () => {
 
   it('splits 150 frames across 4 workers into even 38-frame chunks', () => {
     const chunks = planChunks(150, 4);
-    expect(chunks).toEqual([[0, 38], [38, 76], [76, 114], [114, 150]]);
+    expect(chunks).toEqual([
+      [0, 38],
+      [38, 76],
+      [76, 114],
+      [114, 150],
+    ]);
     assertInvariants(chunks, 150);
   });
 
   it('splits 10 frames across 4 workers', () => {
     const chunks = planChunks(10, 4);
-    expect(chunks).toEqual([[0, 3], [3, 6], [6, 9], [9, 10]]);
+    expect(chunks).toEqual([
+      [0, 3],
+      [3, 6],
+      [6, 9],
+      [9, 10],
+    ]);
     assertInvariants(chunks, 10);
   });
 
@@ -50,7 +60,11 @@ describe('planChunks', () => {
 
   it('caps concurrency at durationInFrames (one frame per chunk)', () => {
     const chunks = planChunks(3, 8);
-    expect(chunks).toEqual([[0, 1], [1, 2], [2, 3]]);
+    expect(chunks).toEqual([
+      [0, 1],
+      [1, 2],
+      [2, 3],
+    ]);
     assertInvariants(chunks, 3);
   });
 });
@@ -193,8 +207,16 @@ describe('assetPath', () => {
 
 describe('parseRegistryIds', () => {
   it('extracts the four real composition ids in order from src/render/registry.ts', async () => {
-    const registrySource = await readFile(new URL('../src/render/registry.ts', import.meta.url), 'utf8');
-    expect(parseRegistryIds(registrySource)).toEqual(['HelloWorld', 'AsyncImage', 'WithAudio', 'WithVideo']);
+    const registrySource = await readFile(
+      new URL('../src/render/registry.ts', import.meta.url),
+      'utf8',
+    );
+    expect(parseRegistryIds(registrySource)).toEqual([
+      'HelloWorld',
+      'AsyncImage',
+      'WithAudio',
+      'WithVideo',
+    ]);
   });
 
   it('returns [] when there is no id: field', () => {
@@ -203,7 +225,10 @@ describe('parseRegistryIds', () => {
 
   it('does not warn when the id count matches the component count (real registry)', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const registrySource = await readFile(new URL('../src/render/registry.ts', import.meta.url), 'utf8');
+    const registrySource = await readFile(
+      new URL('../src/render/registry.ts', import.meta.url),
+      'utf8',
+    );
     parseRegistryIds(registrySource);
     expect(warnSpy).not.toHaveBeenCalled();
     warnSpy.mockRestore();

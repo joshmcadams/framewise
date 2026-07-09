@@ -90,9 +90,5 @@ const SlowData = ({fetchDelayMs}: {fetchDelayMs: number}) => {
     };
   }, [fetchDelayMs]);
 
-  return (
-    <h1 style={{margin: 0, fontSize: 56, fontWeight: 800}}>
-      {headline ?? 'Loading…'}
-    </h1>
-  );
+  return <h1 style={{margin: 0, fontSize: 56, fontWeight: 800}}>{headline ?? 'Loading…'}</h1>;
 };

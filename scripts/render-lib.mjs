@@ -47,7 +47,8 @@ export const parseRegistryIds = (registrySource) => {
 // Check whether `codec` appears as a whitespace-delimited token in `ffmpeg
 // -encoders` output, so a substring like "libx26" doesn't false-positive
 // against "libx264".
-export const hasEncoderToken = (encodersOutput, codec) => encodersOutput.split(/\s+/).includes(codec);
+export const hasEncoderToken = (encodersOutput, codec) =>
+  encodersOutput.split(/\s+/).includes(codec);
 
 // Turn per-frame audio reports into contiguous segments. Keyed by the <Audio>'s
 // stable instance id (so the same file used twice yields two segments), and

@@ -35,7 +35,9 @@ describe('spring', () => {
     );
     expect(Math.max(...values)).toBeLessThanOrEqual(100);
     // And it still actually reaches the target.
-    expect(spring({frame: 300, fps, from: 0, to: 100, config: {overshootClamping: true}})).toBeCloseTo(100, 3);
+    expect(
+      spring({frame: 300, fps, from: 0, to: 100, config: {overshootClamping: true}}),
+    ).toBeCloseTo(100, 3);
   });
 
   it('clamps undershoot for a descending spring (from > to)', () => {

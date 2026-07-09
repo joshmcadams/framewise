@@ -1,10 +1,5 @@
 // framewise-lite — a minimal, educational reimplementation of Framewise's core.
-export {
-  AbsoluteFill,
-  useCurrentFrame,
-  useVideoConfig,
-  type VideoConfig,
-} from './VideoConfig';
+export {AbsoluteFill, useCurrentFrame, useVideoConfig, type VideoConfig} from './VideoConfig';
 export {interpolate, type InterpolateOptions, type ExtrapolateType} from './interpolate';
 export {spring, type SpringConfig} from './spring';
 export {Sequence} from './Sequence';

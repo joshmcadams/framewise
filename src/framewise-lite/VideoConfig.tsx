@@ -67,12 +67,6 @@ const absoluteFillStyle: CSSProperties = {
  * A `<div>` that fills its positioned parent. The default building block for
  * full-screen layers, exactly like Framewise's `<AbsoluteFill>`.
  */
-export const AbsoluteFill = ({
-  children,
-  style,
-}: {
-  children?: ReactNode;
-  style?: CSSProperties;
-}) => {
+export const AbsoluteFill = ({children, style}: {children?: ReactNode; style?: CSSProperties}) => {
   return <div style={{...absoluteFillStyle, ...style}}>{children}</div>;
 };
