@@ -9,11 +9,20 @@ import {Player} from './Player';
 (globalThis as {IS_REACT_ACT_ENVIRONMENT?: boolean}).IS_REACT_ACT_ENVIRONMENT = true;
 
 // jsdom has no ResizeObserver, which the Player uses for responsive scaling.
+let resizeCallback: (() => void) | null = null;
+
 class ResizeObserverStub {
+  constructor(cb: () => void) {
+    resizeCallback = cb;
+  }
   observe() {}
   unobserve() {}
   disconnect() {}
 }
+
+const triggerResize = () => {
+  if (resizeCallback) resizeCallback();
+};
 
 const Probe = (() => {
   const frame = useCurrentFrame();
@@ -50,6 +59,7 @@ beforeEach(() => {
   rafQueue = [];
   nextRafId = 0;
   cancelledIds = new Set();
+  resizeCallback = null;
   vi.stubGlobal('ResizeObserver', ResizeObserverStub);
   vi.spyOn(performance, 'now').mockImplementation(() => now);
   vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => {
@@ -73,18 +83,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const mount = (props: Partial<{durationInFrames: number; loop: boolean; autoPlay: boolean; controls: boolean}> = {}) => {
+const mount = (props: Partial<{durationInFrames: number; loop: boolean; autoPlay: boolean; controls: boolean; width: number; height: number; maxHeight: number}> = {}) => {
   act(() => {
     root.render(
       <Player
         component={Probe}
-        width={100}
-        height={100}
+        width={props.width ?? 100}
+        height={props.height ?? 100}
         fps={30}
         durationInFrames={props.durationInFrames ?? 300}
         loop={props.loop ?? false}
         autoPlay={props.autoPlay ?? true}
         controls={props.controls ?? true}
+        maxHeight={props.maxHeight}
       />,
     );
   });
@@ -215,5 +226,34 @@ describe('Player controls', () => {
     const f = frame();
     expect(f).toBeGreaterThan(0);
     expect(f).toBeLessThan(9);
+  });
+});
+
+describe('Player scale', () => {
+  it('scales by width only when no maxHeight is set', () => {
+    mount({width: 1280, height: 720, autoPlay: false, controls: false});
+
+    const outerDiv = container.firstChild as HTMLDivElement;
+    Object.defineProperty(outerDiv, 'clientWidth', {value: 1000, configurable: true});
+    act(() => {
+      triggerResize();
+    });
+
+    const stageDiv = outerDiv.firstChild as HTMLDivElement;
+    expect(stageDiv.style.width).toBe('1000px');
+  });
+
+  it('scales by min of width and maxHeight when maxHeight is set', () => {
+    mount({width: 1280, height: 720, maxHeight: 360, autoPlay: false, controls: false});
+
+    const outerDiv = container.firstChild as HTMLDivElement;
+    Object.defineProperty(outerDiv, 'clientWidth', {value: 1000, configurable: true});
+    act(() => {
+      triggerResize();
+    });
+
+    const stageDiv = outerDiv.firstChild as HTMLDivElement;
+    expect(stageDiv.style.width).toBe('640px');
+    expect(stageDiv.style.height).toBe('360px');
   });
 });

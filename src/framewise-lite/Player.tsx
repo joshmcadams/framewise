@@ -10,6 +10,7 @@ export type PlayerProps<P extends Record<string, unknown>> = VideoConfig & {
   loop?: boolean;
   autoPlay?: boolean;
   controls?: boolean;
+  maxHeight?: number;
 };
 
 const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min), max);
@@ -37,6 +38,7 @@ export function Player<P extends Record<string, unknown>>({
   loop = false,
   autoPlay = false,
   controls = true,
+  maxHeight,
 }: PlayerProps<P>) {
   const [frame, setFrameState] = useState(0);
   const [playing, setPlaying] = useState(autoPlay);
@@ -140,11 +142,13 @@ export function Player<P extends Record<string, unknown>>({
 
     const observer = new ResizeObserver(() => {
       const available = el.clientWidth;
-      setScale(Math.min(available / width, 1));
+      const widthScale = available / width;
+      const heightScale = maxHeight !== undefined ? maxHeight / height : 1;
+      setScale(Math.min(widthScale, heightScale, 1));
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [width]);
+  }, [width, height, maxHeight]);
 
   // Reflect outstanding delayRender handles in the preview, just as the renderer
   // waits on them. The composition shows its own loading UI; this is a badge so
