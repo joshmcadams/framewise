@@ -159,24 +159,59 @@ the render closure — another reason the ref mirror exists.
 
 ## Rendering the composition (the context handoff)
 
-This is where the Player connects back to chapter 1:
+This is where the Player connects back to chapter 1 — but it no longer inlines
+the provider stack itself. Instead it delegates to a single shared wrapper:
 
 ```tsx
-<VideoConfigProvider value={config}>
-  <FrameProvider value={frame}>
-    <Component {...((inputProps ?? {}) as P)} />
-  </FrameProvider>
-</VideoConfigProvider>
+<CompositionHost config={config} frame={frame} playback={playbackValue}>
+  {/* The composition. It sees only the frame + config. */}
+  <Component {...((inputProps ?? {}) as P)} />
+</CompositionHost>
 ```
 
-The Player wraps the user's `component` in both providers. So *this* is the
-thing that "writes" the frame the whole architecture reads. `config` is
-memoized so the static-metadata context doesn't churn every frame:
+The Player still owns `config` (memoized so the static-metadata context doesn't
+churn every frame) and `playbackValue` (memoized on `[playing]` so it only
+changes on play/pause, not every tick):
 
 ```tsx
 const config = useMemo(() => ({width, height, fps, durationInFrames}),
   [width, height, fps, durationInFrames]);
+
+const playbackValue = useMemo(() => ({playing}), [playing]);
 ```
+
+But the actual context wiring — `<VideoConfigProvider>`, `<FrameProvider>`, and
+the conditional `<PlaybackProvider>` — lives in `CompositionHost.tsx`. The
+Player is just a frame source; it hands data across and trusts the host to
+plumb it.
+
+### One wrapper, two frame sources
+
+`CompositionHost` is the single canonical component that puts a composition under
+the contexts it needs. Both frame sources — the `<Player>` (preview) and the
+render entry (export) — render through it, so the two paths can't drift. The
+return from `CompositionHost.tsx`:
+
+```tsx
+const tree = (
+  <VideoConfigProvider value={config}>
+    <FrameProvider value={frame}>{children}</FrameProvider>
+  </VideoConfigProvider>
+);
+
+return playback ? (
+  <PlaybackProvider value={playback}>{tree}</PlaybackProvider>
+) : (
+  tree
+);
+```
+
+The ONE deliberate difference between the two modes lives here: preview passes a
+`playback` value, render omits it. When `playback` is undefined the
+`PlaybackContext` stays null — which is exactly how `<Audio>` and `<Video>`
+detect "we're rendering, don't touch the live element" (see chapter 9). This
+null-context contract means no boolean `isRendering` flag is threaded anywhere;
+the *absence* of a playback context *is* the render-mode signal.
 
 ## Responsive scaling
 

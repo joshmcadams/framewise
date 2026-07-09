@@ -146,8 +146,10 @@ const renderFrame = (frame) => {
 window.framewiseLite = {…, getAudioFrame: readAudioFrame};
 ```
 
-`Player.tsx` wraps the composition in `<PlaybackProvider value={{playing}}>`
-(memoized so it only changes on play/pause), enabling Job 2 in preview.
+`CompositionHost` (called by the Player with `playback` set) wraps the
+composition in `<PlaybackProvider>` — the Player passes down `playbackValue`
+(memoized on `[playing]` so it only changes on play/pause), enabling Job 2
+in preview.
 
 ## The renderer: collect → aggregate → mix
 

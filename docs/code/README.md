@@ -86,15 +86,20 @@ src/
 │   ├── spring.ts            physics-based animation           (ch. 3)
 │   ├── Sequence.tsx         the time-shifter                  (ch. 4)
 │   ├── Player.tsx           the playback clock + UI + badge   (ch. 5, 8)
+│   ├── CompositionHost.tsx  shared provider stack — both frame sources
+│   │                         render through it               (ch. 5, 7)
 │   ├── delay-render.ts      delayRender/continueRender registry (ch. 8)
+│   ├── delay-render-defaults.mjs + .d.mts  shared timeout constants
+│   │                         for TS and render.mjs
 │   ├── Img.tsx              delayRender-aware <img>           (ch. 8)
 │   ├── audio-registry.ts    per-frame audio collection sink   (ch. 9)
 │   ├── playback.ts          preview-only playback context     (ch. 9)
 │   ├── Audio.tsx            <Audio> primitive                 (ch. 9)
 │   ├── Video.tsx            <Video> primitive (seek + mux)    (ch. 10)
+│   ├── staticFile.ts        asset-path utility
+│   ├── random.ts            seeded random (deterministic render)
 │   ├── index.ts             public barrel export
-│   ├── interpolate.test.ts  exact-output unit tests
-│   └── spring.test.ts       structural physics tests
+│   └── *.test.ts(x)         each core module has a colocated test suite
 ├── compositions/
 │   ├── HelloWorld.tsx       the demo video                    (ch. 6)
 │   ├── AsyncImage.tsx       async demo (<Img> + simulated fetch) (ch. 8)

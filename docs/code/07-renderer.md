@@ -42,20 +42,39 @@ exposes a hook on `window`:
 
 ```tsx
 const renderFrame = (frame: number) => {
+  beginAudioFrame();                          // arm audio collection (ch. 9)
   flushSync(() => {
     root.render(
-      <VideoConfigProvider value={config}>
-        <FrameProvider value={frame}>
-          <Component {...comp.defaultProps} />
-        </FrameProvider>
-      </VideoConfigProvider>,
+      // No `playback` prop: the PlaybackContext stays null, which is how
+      // <Audio>/<Video> know they're rendering and must not drive the element.
+      <CompositionHost config={config} frame={frame}>
+        <Component {...mergedProps} />
+      </CompositionHost>,
     );
   });
 };
 
 renderFrame(0);
-window.framewiseLite = {config, renderFrame};
+window.framewiseLite = {
+  config,
+  renderFrame,
+  getPending: getPendingDelayRenders,        // delayRender handles (ch. 8)
+  getAudioFrame: readAudioFrame,             // per-frame audio reports (ch. 9)
+  compositionIds: compositions.map((c) => c.id),
+};
 ```
+
+At Stage 2 this object held only `config` and `renderFrame`; audio collection
+(ch. 9), delayRender-pending queries (ch. 8), and the composition-id list
+(ch. 11/README) widened it later. The file has also adopted `CompositionHost` —
+the same shared provider wrapper the Player uses (ch. 5) — making explicit that
+both frame sources render through identical context plumbing. The render entry
+passes **no `playback`** prop; that absence is how `<Audio>` and `<Video>` know
+they're rendering (see "One wrapper, two frame sources" in chapter 5).
+
+Where Stage 2 used `comp.defaultProps` directly, the code now builds
+`mergedProps` — a shallow merge with `?props=<json>` from the URL, letting the
+CLI pass per-render prop overrides (`--props '{"text": "hello"}'`).
 
 Two things make this correct:
 
