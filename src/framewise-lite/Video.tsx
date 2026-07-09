@@ -59,37 +59,64 @@ export const Video = ({
   });
 
   // VISUAL — RENDER: seek and block the capture until the frame is ready.
-  // No deps: runs every commit, so a re-rendered same frame is handled too.
+  // No deps: runs every commit so a re-rendered same frame is handled.
+  //
+  // In-flight seek state survives re-commits via refs (not closure state):
+  // a same-frame recommit must NOT resolve the handle — the capture would
+  // unblock before `seeked`. A target change resolves the old handle and
+  // starts a fresh seek. Unmount cleanup is handled by an empty-deps effect.
+
+  // In-flight seek state survives re-commits; a same-frame recommit must NOT
+  // resolve the handle (the capture would unblock before `seeked`).
+  const seekStateRef = useRef<{handle: number; target: number; el: HTMLVideoElement} | null>(null);
+  const lastSeekedTargetRef = useRef<number | null>(null);
+
+  // Unmount-only: never leave a handle pending after the element is gone.
+  useLayoutEffect(() => {
+    return () => {
+      if (seekStateRef.current) {
+        continueRender(seekStateRef.current.handle);
+        seekStateRef.current = null;
+      }
+    };
+  }, []);
+
   useLayoutEffect(() => {
     if (playback) {
-      return; // preview is handled by the effect below
+      return;
     }
     const el = ref.current;
     if (!el) {
       return;
     }
 
-    // Already parked on this frame (e.g. the duplicate frame-0 render)? Don't
-    // create a handle that would never get a fresh `seeked`.
-    if (el.readyState >= 2 && Math.abs(el.currentTime - seekTarget) < 0.5 / fps) {
-      return;
+    const inFlight = seekStateRef.current;
+    if (inFlight && inFlight.target === seekTarget && inFlight.el === el) {
+      return; // same-frame recommit mid-seek: keep blocking the capture
+    }
+    if (inFlight) {
+      // Target (or element) changed: the old seek no longer matters.
+      continueRender(inFlight.handle);
+      seekStateRef.current = null;
+    }
+    if (lastSeekedTargetRef.current === seekTarget && el.readyState >= 2) {
+      return; // genuinely parked: a seek to THIS target already completed
     }
 
     const handle = delayRender(`<Video> seek ${src} @${mediaTime.toFixed(3)}s`);
-    let cleared = false;
-    const finish = () => {
-      if (!cleared) {
-        cleared = true;
-        continueRender(handle);
-      }
-    };
+    seekStateRef.current = {handle, target: seekTarget, el};
 
-    const onSeeked = () => finish();
+    const onSeeked = () => {
+      lastSeekedTargetRef.current = seekTarget;
+      if (seekStateRef.current?.handle === handle) {
+        seekStateRef.current = null;
+      }
+      continueRender(handle); // idempotent — safe even if superseded
+    };
     const seekNow = () => {
       el.addEventListener('seeked', onSeeked, {once: true});
       el.currentTime = seekTarget;
     };
-
     if (el.readyState >= 1) {
       seekNow();
     } else {
@@ -97,9 +124,12 @@ export const Video = ({
     }
 
     return () => {
-      el.removeEventListener('seeked', onSeeked);
-      el.removeEventListener('loadedmetadata', seekNow);
-      finish();
+      // Deliberately do NOT remove the seeked/loadedmetadata listeners and do
+      // NOT resolve the handle here: on a same-frame recommit the next effect
+      // run keeps this seek, and its {once:true} listeners must stay armed.
+      // Stale listeners are harmless: continueRender is idempotent, and a
+      // superseded seek's late `seeked` only marks lastSeekedTarget stale for
+      // one commit. Unmount cleanup is handled by the []-deps effect above.
     };
   });
 

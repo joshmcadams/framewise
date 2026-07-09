@@ -84,7 +84,7 @@ describe('Video', () => {
     expect(reports).toHaveLength(0);
   });
 
-  it('characterization of the plan-005 race: same-frame recommit mid-seek clears handle without registering replacement', async () => {
+  it('same-frame recommit mid-seek keeps the pending handle (plan-005 fix)', async () => {
     const fps = 30;
 
     await renderAt(30, <Video src="/clip.mp4" />);
@@ -103,9 +103,61 @@ describe('Video', () => {
     Object.defineProperty(el, 'readyState', {value: 2, configurable: true});
 
     await renderAt(31, <Video src="/clip.mp4" />);
-    // BUG (documented): a same-frame recommit mid-seek clears the
-    // handle and registers no replacement — the renderer could capture early.
-    // Plan 005 fixes this; it will flip this assertion.
+    // Plan 005: the same-frame recommit no longer clears the handle mid-seek.
+    expect(getPendingDelayRenders()).toHaveLength(1);
+
+    await act(() => el.dispatchEvent(new Event('seeked')));
+    expect(getPendingDelayRenders()).toHaveLength(0);
+  });
+
+  it('target change mid-seek resolves the old handle and registers a new one', async () => {
+    await renderAt(30, <Video src="/clip.mp4" />);
+    const el = container.querySelector('video')!;
+
+    Object.defineProperty(el, 'readyState', {value: 1, configurable: true});
+    await act(() => el.dispatchEvent(new Event('loadedmetadata')));
+    expect(getPendingDelayRenders()).toHaveLength(1);
+    const handle30 = getPendingDelayRenders()[0].handle;
+
+    await renderAt(31, <Video src="/clip.mp4" />);
+    const pending = getPendingDelayRenders();
+    expect(pending).toHaveLength(1);
+    expect(pending[0].handle).not.toBe(handle30);
+
+    await act(() => el.dispatchEvent(new Event('seeked')));
+    expect(getPendingDelayRenders()).toHaveLength(0);
+  });
+
+  it('parked bail requires a completed seek, not just currentTime equality', async () => {
+    await renderAt(30, <Video src="/clip.mp4" />);
+    const el = container.querySelector('video')!;
+
+    Object.defineProperty(el, 'readyState', {value: 1, configurable: true});
+    await act(() => el.dispatchEvent(new Event('loadedmetadata')));
+    await act(() => el.dispatchEvent(new Event('seeked')));
+    expect(getPendingDelayRenders()).toHaveLength(0);
+
+    Object.defineProperty(el, 'readyState', {value: 2, configurable: true});
+
+    await renderAt(30, <Video src="/clip.mp4" />);
+    expect(getPendingDelayRenders()).toHaveLength(0);
+
+    await renderAt(31, <Video src="/clip.mp4" />);
+    expect(getPendingDelayRenders()).toHaveLength(1);
+
+    await act(() => el.dispatchEvent(new Event('seeked')));
+    expect(getPendingDelayRenders()).toHaveLength(0);
+  });
+
+  it('unmount mid-seek resolves the pending handle via the unmount-only effect', async () => {
+    await renderAt(30, <Video src="/clip.mp4" />);
+    const el = container.querySelector('video')!;
+
+    Object.defineProperty(el, 'readyState', {value: 1, configurable: true});
+    await act(() => el.dispatchEvent(new Event('loadedmetadata')));
+    expect(getPendingDelayRenders()).toHaveLength(1);
+
+    await act(() => root.unmount());
     expect(getPendingDelayRenders()).toHaveLength(0);
   });
 });
