@@ -22,7 +22,7 @@ plans cite them.
 | 006  | Docs drift: teach CompositionHost, regenerate the source map | P1 | M | — | DONE (executed, merged; all 4 docs chapters synced) |
 | 007  | ESLint (flat) + Prettier, wired into verify/CI | P2 | M | 001 | DONE (executed, merged; lint + format gates active) |
 | 008  | Author CLAUDE.md | P2 | S | — | DONE (executed, merged; agent guidance with invariants, commands, conventions) |
-| 009  | Gate Chrome's --no-sandbox | P2 | S | 003 | TODO |
+| 009  | Gate Chrome's --no-sandbox | P2 | S | 003 | DONE (executed, merged; sandbox on by default, explicit opt-in) |
 | 010  | staticFile()/random(): demo usage, walkthrough coverage, barrel hygiene | P2 | M | 006 | DONE (executed, merged; all 4 compositions wired, docs updated) |
 | 011  | Extract shared preview media-sync into useMediaSync() | P2 | S | 004, 005 | DONE (executed, merged; Audio + Video now share one hook) |
 | 012  | Player: interactive-surface tests + opt-in maxHeight fitting | P2 | S | 001 | TODO |
