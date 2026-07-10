@@ -186,7 +186,9 @@ The library ships a set of standard curves and combinators in `easing.ts`
 - **Primitive curves**: `linear`, `quad`, `cubic`, `poly(n)`, `sin`, `circle`,
   `exp` (note: `exp(0)` is 2⁻¹⁰ — near-zero, not zero, matching upstream).
 - **Custom**: `bezier(x1, y1, x2, y2)` — cubic bezier with a Newton-Raphson
-  solver. `Easing.ease` is the CSS `ease` curve (`bezier(0.42, 0, 1, 1)`).
+  solver. `Easing.ease` is `bezier(0.42, 0, 1, 1)` — the CSS `ease-in` curve
+  (upstream React Native/Framewise name it `ease`; CSS `ease` proper is
+  `(0.25, 0.1, 0.25, 1)`).
 - **Combinators**: `in(fn)`, `out(fn)`, `inOut(fn)`. `out` mirrors a curve so
   it decelerates: `out(fn)(t) = 1 - fn(1 - t)`. `inOut` splices ease-in on the
   first half and ease-out on the second.

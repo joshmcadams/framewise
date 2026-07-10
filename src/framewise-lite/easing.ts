@@ -163,7 +163,7 @@ const exp: EasingFunction = (t) => 2 ** (10 * (t - 1));
  * are unconstrained.
  *
  * @example
- * // CSS "ease" curve
+ * // CSS "ease-in" curve (upstream RN/Framewise call it Easing.ease)
  * interpolate(frame, [0, 30], [0, 1], {easing: Easing.ease});
  * // Equivalent explicit form
  * const myEase = Easing.bezier(0.42, 0, 1, 1);
