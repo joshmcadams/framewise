@@ -176,7 +176,7 @@ the segment then scales to the output range. You can pass a single function or a
 array with one function per segment:
 
 ```ts
-interpolate(frame, [0, 30], [0, 100], {easing: (t) => t * t});      // single
+interpolate(frame, [0, 30], [0, 100], {easing: (t) => t * t}); // single
 interpolate(frame, [0, 30, 60], [0, 100, 200], {easing: [quad, linear]}); // per-segment
 ```
 

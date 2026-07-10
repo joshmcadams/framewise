@@ -81,9 +81,7 @@ const format = formatRaw ?? 'mp4';
 const formatExplicit = formatRaw !== undefined;
 const VALID_FORMATS = ['mp4', 'webm', 'gif', 'png-seq'];
 if (!VALID_FORMATS.includes(format)) {
-  throw new Error(
-    `Unknown format: ${format}. Valid formats: ${VALID_FORMATS.join(', ')}.`,
-  );
+  throw new Error(`Unknown format: ${format}. Valid formats: ${VALID_FORMATS.join(', ')}.`);
 }
 
 // --still: integer frame number
@@ -91,9 +89,7 @@ const stillRaw = flag('still', undefined);
 const stillFrame = stillRaw !== undefined ? parseInt(stillRaw, 10) : null;
 const stillExplicit = stillRaw !== undefined;
 if (stillExplicit && (Number.isNaN(stillFrame) || stillFrame < 0)) {
-  throw new Error(
-    `--still must be a non-negative integer frame number, got: ${stillRaw}`,
-  );
+  throw new Error(`--still must be a non-negative integer frame number, got: ${stillRaw}`);
 }
 
 // --still is mutually exclusive with explicit --format and --concurrency
@@ -317,7 +313,7 @@ async function probeConfig(url) {
     if (!disableSandbox) {
       throw new Error(
         `Chrome failed to launch: ${e.message}\n` +
-        `If you are in a container or otherwise cannot use Chrome's sandbox, retry with --no-sandbox.`,
+          `If you are in a container or otherwise cannot use Chrome's sandbox, retry with --no-sandbox.`,
         {cause: e},
       );
     }
@@ -486,8 +482,7 @@ try {
   // For mp4/webm, verify the effective codec. For gif, verify ffmpeg exists
   // but don't check a specific codec (gif uses the palette filter).
   if (!stillExplicit && format !== 'png-seq') {
-    const effectiveCodec =
-      codec ?? {mp4: 'libx264', webm: 'libvpx-vp9', gif: null}[format];
+    const effectiveCodec = codec ?? {mp4: 'libx264', webm: 'libvpx-vp9', gif: null}[format];
     if (effectiveCodec) {
       await assertFfmpeg(effectiveCodec);
     } else {

@@ -101,14 +101,7 @@ export function planEncode({
 }) {
   if (format === 'png-seq') return null;
 
-  const videoInput = [
-    '-framerate',
-    String(fps),
-    '-start_number',
-    '0',
-    '-i',
-    framesPattern,
-  ];
+  const videoInput = ['-framerate', String(fps), '-start_number', '0', '-i', framesPattern];
 
   if (format === 'gif') {
     const filterGraph = `fps=${fps},split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse`;
@@ -178,9 +171,7 @@ export function planEncode({
     };
   }
 
-  throw new Error(
-    `Unknown format: ${format}. Valid formats: mp4, webm, gif, png-seq.`,
-  );
+  throw new Error(`Unknown format: ${format}. Valid formats: mp4, webm, gif, png-seq.`);
 }
 
 // Split the frame range into contiguous chunks, one browser each.

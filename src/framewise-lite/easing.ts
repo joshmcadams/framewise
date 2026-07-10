@@ -33,9 +33,7 @@ function getSlope(aT: number, aA1: number, aA2: number): number {
 
 function bezier(mX1: number, mY1: number, mX2: number, mY2: number): EasingFunction {
   if (mX1 < 0 || mX1 > 1 || mX2 < 0 || mX2 > 1) {
-    throw new Error(
-      `bezier: x1 and x2 must be between 0 and 1, but got x1=${mX1}, x2=${mX2}`,
-    );
+    throw new Error(`bezier: x1 and x2 must be between 0 and 1, but got x1=${mX1}, x2=${mX2}`);
   }
 
   const sampleValues: number[] = new Array(kSplineTableSize);
@@ -130,7 +128,10 @@ const cubic: EasingFunction = (t) => t * t * t;
  * @example
  * const eased = interpolate(frame, [0, 30], [0, 1], {easing: Easing.poly(4)});
  */
-const poly = (n: number): EasingFunction => (t) => t ** n;
+const poly =
+  (n: number): EasingFunction =>
+  (t) =>
+    t ** n;
 
 /**
  * Sinusoidal ease-in: 1 - cos(t * PI / 2). Smooth start, gentle deceleration.

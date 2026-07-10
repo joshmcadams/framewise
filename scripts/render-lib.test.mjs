@@ -272,17 +272,23 @@ describe('planEncode', () => {
   };
 
   describe('mp4', () => {
-    it('no audio: args match today\'s exactly', () => {
+    it("no audio: args match today's exactly", () => {
       const plan = planEncode({...base, format: 'mp4'});
       expect(plan).toEqual({
         args: [
           '-y',
-          '-framerate', '30',
-          '-start_number', '0',
-          '-i', '/tmp/foo/frame-%05d.png',
-          '-c:v', 'libx264',
-          '-crf', '18',
-          '-pix_fmt', 'yuv420p',
+          '-framerate',
+          '30',
+          '-start_number',
+          '0',
+          '-i',
+          '/tmp/foo/frame-%05d.png',
+          '-c:v',
+          'libx264',
+          '-crf',
+          '18',
+          '-pix_fmt',
+          'yuv420p',
           'out/video.mp4',
         ],
         dropsAudio: false,
@@ -315,9 +321,7 @@ describe('planEncode', () => {
     });
 
     it('with 1 segment: no amix, uses [s0] label', () => {
-      const segments = [
-        {src: 'a.wav', startFrame: 0, endFrame: 149, trimStart: 0, volume: 1},
-      ];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 149, trimStart: 0, volume: 1}];
       const plan = planEncode({
         ...base,
         format: 'mp4',
@@ -333,9 +337,7 @@ describe('planEncode', () => {
     });
 
     it('includes -c:a aac when audio is present', () => {
-      const segments = [
-        {src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1},
-      ];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}];
       const plan = planEncode({
         ...base,
         format: 'mp4',
@@ -348,9 +350,7 @@ describe('planEncode', () => {
     });
 
     it('delay in filter matches (startFrame / fps) * 1000 rounded', () => {
-      const segments = [
-        {src: 'a.wav', startFrame: 60, endFrame: 120, trimStart: 1.5, volume: 0.8},
-      ];
+      const segments = [{src: 'a.wav', startFrame: 60, endFrame: 120, trimStart: 1.5, volume: 0.8}];
       const plan = planEncode({
         ...base,
         format: 'mp4',
@@ -379,9 +379,7 @@ describe('planEncode', () => {
     });
 
     it('with audio: uses libopus not aac', () => {
-      const segments = [
-        {src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1},
-      ];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}];
       const plan = planEncode({
         ...base,
         format: 'webm',
@@ -393,9 +391,7 @@ describe('planEncode', () => {
     });
 
     it('explicit codec overrides libvpx-vp9 but keeps libopus for audio', () => {
-      const segments = [
-        {src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1},
-      ];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}];
       const plan = planEncode({
         ...base,
         format: 'webm',
@@ -460,9 +456,7 @@ describe('planEncode', () => {
     });
 
     it('with segments: dropsAudio is true but audio args omitted', () => {
-      const segments = [
-        {src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1},
-      ];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}];
       const plan = planEncode({
         ...base,
         format: 'gif',
@@ -498,9 +492,7 @@ describe('planEncode', () => {
     });
 
     it('returns null even with segments', () => {
-      const segments = [
-        {src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1},
-      ];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}];
       const plan = planEncode({
         ...base,
         format: 'png-seq',
@@ -513,15 +505,11 @@ describe('planEncode', () => {
 
   describe('validation', () => {
     it('throws on unknown format', () => {
-      expect(() => planEncode({...base, format: 'avi'})).toThrow(
-        'Unknown format: avi',
-      );
+      expect(() => planEncode({...base, format: 'avi'})).toThrow('Unknown format: avi');
     });
 
     it('throws on unknown format naming valid options', () => {
-      expect(() => planEncode({...base, format: 'mov'})).toThrow(
-        /mp4, webm, gif, png-seq/,
-      );
+      expect(() => planEncode({...base, format: 'mov'})).toThrow(/mp4, webm, gif, png-seq/);
     });
   });
 

@@ -83,7 +83,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const mount = (props: Partial<{durationInFrames: number; loop: boolean; autoPlay: boolean; controls: boolean; width: number; height: number; maxHeight: number}> = {}) => {
+const mount = (
+  props: Partial<{
+    durationInFrames: number;
+    loop: boolean;
+    autoPlay: boolean;
+    controls: boolean;
+    width: number;
+    height: number;
+    maxHeight: number;
+  }> = {},
+) => {
   act(() => {
     root.render(
       <Player
@@ -147,10 +157,7 @@ describe('Player controls', () => {
 
   const scrubTo = (val: number) => {
     const input = container.querySelector('input[type="range"]')!;
-    const setValue = Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      'value',
-    )!.set!;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
     act(() => {
       setValue.call(input, String(val));
       input.dispatchEvent(new Event('input', {bubbles: true}));
