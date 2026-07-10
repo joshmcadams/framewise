@@ -98,6 +98,7 @@ src/
 │   ├── Video.tsx            <Video> primitive (seek + mux)    (ch. 10)
 │   ├── staticFile.ts        asset-path utility                 (ch. 6, 11)
 │   ├── random.ts            seeded random (deterministic render) (ch. 6, 11)
+│   ├── easing.ts            easing curves and combinators       (ch. 2)
 │   ├── index.ts             public barrel export
 │   └── *.test.ts(x)         each core module has a colocated test suite
 ├── compositions/

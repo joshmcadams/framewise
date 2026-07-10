@@ -1,5 +1,6 @@
 import {
   AbsoluteFill,
+  Easing,
   interpolate,
   random,
   spring,
@@ -81,9 +82,11 @@ const Subtitle = ({text}: {text: string}) => {
   const frame = useCurrentFrame();
   const y = interpolate(frame, [0, 20], [40, 0], {
     extrapolateRight: 'clamp',
+    easing: Easing.out(Easing.cubic),
   });
   const opacity = interpolate(frame, [0, 20], [0, 1], {
     extrapolateRight: 'clamp',
+    easing: Easing.out(Easing.cubic),
   });
 
   return (

@@ -167,6 +167,33 @@ number into a clear error at the call site. There are also finite-number checks
 (`checkFiniteRange`) so a stray `NaN`/`Infinity` is rejected rather than
 propagating.
 
+## Easing
+
+`interpolate` accepts an `EasingFunction` — a function `(t: number) => number` that
+shapes the progress through a segment. It receives the normalized `[0,1]` value
+(step 4 inside `interpolateFunction`) and returns a reshaped `[0,1]` value that
+the segment then scales to the output range. You can pass a single function or an
+array with one function per segment:
+
+```ts
+interpolate(frame, [0, 30], [0, 100], {easing: (t) => t * t});      // single
+interpolate(frame, [0, 30, 60], [0, 100, 200], {easing: [quad, linear]}); // per-segment
+```
+
+The library ships a set of standard curves and combinators in `easing.ts`
+(ported from Framewise / React Native `Easing`):
+
+- **Primitive curves**: `linear`, `quad`, `cubic`, `poly(n)`, `sin`, `circle`,
+  `exp` (note: `exp(0)` is 2⁻¹⁰ — near-zero, not zero, matching upstream).
+- **Custom**: `bezier(x1, y1, x2, y2)` — cubic bezier with a Newton-Raphson
+  solver. `Easing.ease` is the CSS `ease` curve (`bezier(0.42, 0, 1, 1)`).
+- **Combinators**: `in(fn)`, `out(fn)`, `inOut(fn)`. `out` mirrors a curve so
+  it decelerates: `out(fn)(t) = 1 - fn(1 - t)`. `inOut` splices ease-in on the
+  first half and ease-out on the second.
+
+The HelloWorld demo uses `Easing.out(Easing.cubic)` on the subtitle slide-up so
+it decelerates into place rather than sliding linearly.
+
 ## What was left out (vs. real Framewise)
 
 Framewise's `interpolate` also accepts **string** output ranges (`['scale(1)',
