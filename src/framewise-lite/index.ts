@@ -16,3 +16,4 @@ export {
 } from './delay-render';
 export {staticFile} from './staticFile';
 export {random} from './random';
+export {Easing} from './easing';
