@@ -18,7 +18,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "tsc -b && eslint . && vitest run && vite build"
+    "verify": "tsc -b && eslint . && prettier --check . && vitest run && vite build"
   },
   "dependencies": {
     "react": "^19.2.7",

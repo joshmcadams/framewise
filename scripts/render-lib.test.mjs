@@ -8,6 +8,7 @@ import {
   parseRegistryIds,
   planChunks,
   planEncode,
+  planOutput,
   readFlag,
 } from './render-lib.mjs';
 
@@ -289,10 +290,27 @@ describe('planEncode', () => {
           '18',
           '-pix_fmt',
           'yuv420p',
+          '-movflags',
+          '+faststart',
           'out/video.mp4',
         ],
         dropsAudio: false,
       });
+    });
+
+    it('includes -movflags +faststart (progressive playback), with and without audio', () => {
+      const noAudio = planEncode({...base, format: 'mp4'});
+      const withAudio = planEncode({
+        ...base,
+        format: 'mp4',
+        segments: [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}],
+        assetPaths: ['/tmp/a.wav'],
+      });
+      for (const plan of [noAudio, withAudio]) {
+        const i = plan.args.indexOf('-movflags');
+        expect(i).not.toBe(-1);
+        expect(plan.args[i + 1]).toBe('+faststart');
+      }
     });
 
     it('no audio: dropsAudio is false', () => {
@@ -375,6 +393,8 @@ describe('planEncode', () => {
       expect(plan.args).toContain('0');
       expect(plan.args).toContain('-pix_fmt');
       expect(plan.args).toContain('yuv420p');
+      // +faststart is an mp4 container concept; webm must not get it.
+      expect(plan.args).not.toContain('-movflags');
       expect(plan.dropsAudio).toBe(false);
     });
 
@@ -542,5 +562,88 @@ describe('hasEncoderToken', () => {
 
   it('does not match a codec absent from the output', () => {
     expect(hasEncoderToken(encoders, 'libx999')).toBe(false);
+  });
+});
+
+describe('planOutput', () => {
+  describe('default out paths (no --out)', () => {
+    it('mp4 → out/video.mp4, mkdir parent', () => {
+      expect(planOutput({format: 'mp4'})).toEqual({
+        out: 'out/video.mp4',
+        mkdirTarget: 'out',
+        warning: null,
+      });
+    });
+
+    it('webm → out/video.webm', () => {
+      expect(planOutput({format: 'webm'}).out).toBe('out/video.webm');
+    });
+
+    it('gif → out/video.gif', () => {
+      expect(planOutput({format: 'gif'}).out).toBe('out/video.gif');
+    });
+
+    it('png-seq → out/frames, and mkdirTarget is the out dir ITSELF', () => {
+      // Regression: mkdir(dirname(out)) only created out/, not out/frames/,
+      // and every png-seq copyFile then failed with ENOENT.
+      expect(planOutput({format: 'png-seq'})).toEqual({
+        out: 'out/frames',
+        mkdirTarget: 'out/frames',
+        warning: null,
+      });
+    });
+
+    it('still → out/still-<N>.png, mkdir parent', () => {
+      expect(planOutput({format: 'mp4', stillFrame: 75})).toEqual({
+        out: 'out/still-75.png',
+        mkdirTarget: 'out',
+        warning: null,
+      });
+    });
+
+    it('still frame 0 is a still, not a video default', () => {
+      expect(planOutput({format: 'mp4', stillFrame: 0}).out).toBe('out/still-0.png');
+    });
+  });
+
+  describe('explicit --out', () => {
+    it('matching extension: no warning', () => {
+      expect(planOutput({format: 'webm', out: 'movie.webm'})).toEqual({
+        out: 'movie.webm',
+        mkdirTarget: '.',
+        warning: null,
+      });
+    });
+
+    it('mismatched extension: warning names both format and path', () => {
+      const plan = planOutput({format: 'webm', out: 'movie.mp4'});
+      expect(plan.out).toBe('movie.mp4');
+      expect(plan.warning).toContain('webm');
+      expect(plan.warning).toContain('movie.mp4');
+    });
+
+    it('png-seq: explicit --out is the directory, no extension warning', () => {
+      expect(planOutput({format: 'png-seq', out: 'renders/seq'})).toEqual({
+        out: 'renders/seq',
+        mkdirTarget: 'renders/seq',
+        warning: null,
+      });
+    });
+
+    it('still with .png out: no warning (format default mp4 must not leak in)', () => {
+      // Regression: --still 5 --out shot.png used to warn "writing mp4
+      // content to shot.png" because format stayed at its mp4 default.
+      expect(planOutput({format: 'mp4', stillFrame: 5, out: 'shot.png'}).warning).toBeNull();
+    });
+
+    it('still with non-.png out: warns about PNG content', () => {
+      const plan = planOutput({format: 'mp4', stillFrame: 5, out: 'shot.jpg'});
+      expect(plan.warning).toContain('PNG');
+      expect(plan.warning).toContain('shot.jpg');
+    });
+
+    it('nested explicit out: mkdirTarget is the parent dir', () => {
+      expect(planOutput({format: 'mp4', out: 'a/b/c.mp4'}).mkdirTarget).toBe('a/b');
+    });
   });
 });

@@ -11,17 +11,17 @@ in preview and export.
 
 ## Commands
 
-| Purpose      | Command                                      | Notes                                                |
-| ------------ | -------------------------------------------- | ---------------------------------------------------- |
-| dev          | `npm run dev`                                | Vite preview app                                     |
-| test         | `npm test`                                   | vitest run                                           |
-| typecheck    | `npm run typecheck`                          | tsc -b                                               |
-| build        | `npm run build`                              | tsc -b && vite build                                 |
-| render       | `npm run render -- --comp <id> --out <path>` | Needs system Chrome + ffmpeg; `--list` needs neither |
-| verify       | `npm run verify`                             | tsc -b && eslint . && vitest run && vite build       |
-| lint         | `npm run lint`                               | eslint .                                             |
-| format       | `npm run format`                             | prettier --write .                                   |
-| format:check | `npm run format:check`                       | prettier --check .                                   |
+| Purpose      | Command                                      | Notes                                                                |
+| ------------ | -------------------------------------------- | -------------------------------------------------------------------- |
+| dev          | `npm run dev`                                | Vite preview app                                                     |
+| test         | `npm test`                                   | vitest run                                                           |
+| typecheck    | `npm run typecheck`                          | tsc -b                                                               |
+| build        | `npm run build`                              | tsc -b && vite build                                                 |
+| render       | `npm run render -- --comp <id> --out <path>` | Needs system Chrome + ffmpeg; `--list` needs neither                 |
+| verify       | `npm run verify`                             | tsc -b && eslint . && prettier --check . && vitest run && vite build |
+| lint         | `npm run lint`                               | eslint .                                                             |
+| format       | `npm run format`                             | prettier --write .                                                   |
+| format:check | `npm run format:check`                       | prettier --check .                                                   |
 
 ## Architecture invariants — do not break these
 

@@ -1,6 +1,6 @@
 // Pure logic for scripts/render.mjs, extracted so it can be unit-tested.
 // No side effects, no imports from puppeteer/vite — keep it that way.
-import {join} from 'node:path';
+import {join, dirname} from 'node:path';
 
 // Read a `--name value` flag out of an argv-style array. Returns `fallback`
 // when the flag is absent. When the flag IS present, a missing or
@@ -119,10 +119,12 @@ export function planEncode({
     const vc = codec ?? defaults[format].vc;
     const ac = defaults[format].ac;
 
+    // mp4: +faststart moves the moov atom to the front so the file can start
+    // playing before it has fully downloaded (progressive playback).
     const encodeArgs =
       format === 'webm'
         ? ['-c:v', vc, '-crf', String(crf), '-b:v', '0', '-pix_fmt', 'yuv420p']
-        : ['-c:v', vc, '-crf', String(crf), '-pix_fmt', 'yuv420p'];
+        : ['-c:v', vc, '-crf', String(crf), '-pix_fmt', 'yuv420p', '-movflags', '+faststart'];
 
     if (segments.length === 0) {
       return {args: ['-y', ...videoInput, ...encodeArgs, out], dropsAudio: false};
@@ -172,6 +174,47 @@ export function planEncode({
   }
 
   throw new Error(`Unknown format: ${format}. Valid formats: mp4, webm, gif, png-seq.`);
+}
+
+// Resolve the output path for a render. Pure: the caller passes the parsed
+// flags, this returns where to write, what directory must exist first, and an
+// optional warning to print. `stillFrame` is null unless --still was passed.
+//
+// The mkdirTarget distinction is the subtle part: for png-seq, `out` IS the
+// directory the PNGs land in and must itself exist; for every other mode
+// `out` is a file and only its parent must exist.
+export function planOutput({format, stillFrame = null, out = undefined}) {
+  const still = stillFrame !== null;
+  const extensions = {mp4: '.mp4', webm: '.webm', gif: '.gif'};
+
+  let resolvedOut;
+  let warning = null;
+  if (out !== undefined) {
+    resolvedOut = out;
+    // --still writes a PNG regardless of `format` (which stays at its default —
+    // --still and --format are mutually exclusive), so the format-extension
+    // check only applies to real encode runs.
+    if (still) {
+      if (!out.endsWith('.png')) {
+        warning = `--out extension is not .png: writing PNG content to ${out}`;
+      }
+    } else if (extensions[format] && !out.endsWith(extensions[format])) {
+      warning = `--out extension does not match --format ${format}: writing ${format} content to ${out}`;
+    }
+  } else if (still) {
+    resolvedOut = `out/still-${stillFrame}.png`;
+  } else if (format === 'png-seq') {
+    resolvedOut = 'out/frames';
+  } else {
+    resolvedOut = `out/video.${format}`;
+  }
+
+  const outIsDirectory = !still && format === 'png-seq';
+  return {
+    out: resolvedOut,
+    mkdirTarget: outIsDirectory ? resolvedOut : dirname(resolvedOut),
+    warning,
+  };
 }
 
 // Split the frame range into contiguous chunks, one browser each.

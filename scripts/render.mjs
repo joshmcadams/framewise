@@ -32,7 +32,7 @@ import {mkdtemp, rm, mkdir, readFile, readdir, copyFile} from 'node:fs/promises'
 import {existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {tmpdir, platform} from 'node:os';
-import {join, dirname, delimiter} from 'node:path';
+import {join, delimiter} from 'node:path';
 import {
   DEFAULT_DELAY_RENDER_TIMEOUT,
   RENDERER_TIMEOUT_MARGIN_MS,
@@ -45,6 +45,7 @@ import {
   parseRegistryIds,
   hasEncoderToken,
   planEncode,
+  planOutput,
 } from './render-lib.mjs';
 
 // Sandbox policy: keep Chrome's OS sandbox ON by default. It only has to be
@@ -103,37 +104,26 @@ if (stillExplicit && concurrencyExplicit) {
 }
 const requestedConcurrency = Math.max(1, parseInt(concurrencyRaw ?? '4', 10) || 4);
 
-// Encode settings
-const crf = flag('crf', '18');
+// Encode settings. gif has neither a CRF knob nor a codec choice (palette
+// filter encode), so passing them there is a mistake worth flagging.
+const crfRaw = flag('crf', undefined);
+const crf = crfRaw ?? '18';
 const codec = flag('codec', undefined);
 const audioBitrate = flag('audio-bitrate', '192k');
-
-// Default out path: format-aware when user didn't pass --out
-const outRaw = flag('out', undefined);
-const outExplicit = outRaw !== undefined;
-let out;
-const FORMAT_EXTENSIONS = {mp4: '.mp4', webm: '.webm', gif: '.gif'};
-if (outExplicit) {
-  out = outRaw;
-  // --still writes a PNG regardless of `format` (which stays at its default —
-  // --still and --format are mutually exclusive), so the format-extension
-  // check only applies to real encode runs.
-  if (stillExplicit) {
-    if (!out.endsWith('.png')) {
-      console.warn(`--out extension is not .png: writing PNG content to ${out}`);
-    }
-  } else if (FORMAT_EXTENSIONS[format] && !out.endsWith(FORMAT_EXTENSIONS[format])) {
-    console.warn(
-      `--out extension does not match --format ${format}: writing ${format} content to ${out}`,
-    );
-  }
-} else if (stillExplicit) {
-  out = `out/still-${stillFrame}.png`;
-} else if (format === 'png-seq') {
-  out = 'out/frames';
-} else {
-  out = `out/video.${format}`;
+if (format === 'gif' && (crfRaw !== undefined || codec !== undefined)) {
+  console.warn('⚠ --crf/--codec have no effect with --format gif (palette encode); ignoring');
 }
+
+// Output path: format-aware default, extension sanity warning, and the
+// mkdir target (png-seq's --out is a directory). Pure + unit-tested in
+// render-lib.mjs.
+const outputPlan = planOutput({
+  format,
+  stillFrame: stillExplicit ? stillFrame : null,
+  out: flag('out', undefined),
+});
+if (outputPlan.warning) console.warn(`⚠ ${outputPlan.warning}`);
+const out = outputPlan.out;
 
 // Where composition asset URLs (e.g. "/bg.wav") resolve on disk. One place, so
 // the renderer and any future staticFile() helper agree.
@@ -559,11 +549,7 @@ try {
   console.log(`▶ frames: ${files.length} · sha256 ${hash.digest('hex').slice(0, 16)}`);
 
   // --- output --------------------------------------------------------------
-  // png-seq: `out` IS the directory the PNGs land in; otherwise `out` is a
-  // file and only its parent must exist.
-  await mkdir(format === 'png-seq' && !stillExplicit ? out : dirname(out), {
-    recursive: true,
-  });
+  await mkdir(outputPlan.mkdirTarget, {recursive: true});
 
   if (stillExplicit) {
     // Copy the single rendered PNG to the output path.

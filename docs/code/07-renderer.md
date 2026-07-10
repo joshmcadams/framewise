@@ -197,11 +197,13 @@ Per-format notes:
 
 - **mp4 / webm** share the encode path; only codecs differ (libx264+aac vs
   libvpx-vp9+libopus, `--codec` overrides the video side). The ffmpeg preflight
-  checks the _effective_ codec for the chosen format.
+  checks the _effective_ codec for the chosen format. mp4 additionally gets
+  `-movflags +faststart` — the moov atom moves to the front so the file can
+  start playing while still downloading.
 - **gif** uses the two-stream palette filter (`split → palettegen → paletteuse`)
   in a single pass. GIF has no audio: if the composition reported audio
   segments, the renderer warns that they're dropped (`dropsAudio`). `--crf` and
-  `--codec` don't apply.
+  `--codec` don't apply, and passing them with `--format gif` warns.
 - **png-seq** skips ffmpeg entirely — `--out` is treated as a _directory_ and
   the verified frames are copied into it. The preflight is skipped too, so this
   path needs Chrome but not ffmpeg.
@@ -214,7 +216,10 @@ Per-format notes:
 When `--out` is omitted, the default output path follows the format
 (`out/video.<ext>`, `out/frames/`, `out/still-<N>.png`). An explicit `--out`
 whose extension contradicts the format is obeyed but warned about — the flag,
-not the filename, decides the content.
+not the filename, decides the content. This path/mkdir/warning matrix lives in
+`planOutput()` (`scripts/render-lib.mjs`), pure and unit-tested like
+`planEncode()` — including the subtle bit that png-seq's `--out` is itself the
+directory that must exist, while every other mode only needs its parent.
 
 ## Why "Puppeteer + system Chrome"?
 
