@@ -185,6 +185,12 @@ The library ships a set of standard curves and combinators in `easing.ts`
 
 - **Primitive curves**: `linear`, `quad`, `cubic`, `poly(n)`, `sin`, `circle`,
   `exp` (note: `exp(0)` is 2⁻¹⁰ — near-zero, not zero, matching upstream).
+- **Character curves**: `back(s)` (wind-up below 0 before accelerating;
+  `s` defaults to 1.70158 ≈ 10% overshoot when mirrored with `out`),
+  `bounce` (Penner's four-bounce piecewise parabola), and `elastic(b)`
+  (damped spring wiggle; `b` half-oscillations, values > 1 overshoot past 1).
+  All three are ease-IN shapes — wrap in `Easing.out(...)` for the familiar
+  "settle into place" versions.
 - **Custom**: `bezier(x1, y1, x2, y2)` — cubic bezier with a Newton-Raphson
   solver. `Easing.ease` is `bezier(0.42, 0, 1, 1)` — the CSS `ease-in` curve
   (upstream React Native/Framewise name it `ease`; CSS `ease` proper is

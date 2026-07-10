@@ -1,6 +1,5 @@
 // Ported from Framewise's Easing module (itself React Native's Easing), which
-// wraps the classic bezier-easing Newton-Raphson/bisection solver. Faithful
-// port of the members we ship; bounce/elastic/back are deferred (backlog 09-C).
+// wraps the classic bezier-easing Newton-Raphson/bisection solver.
 
 import type {EasingFunction} from './interpolate';
 
@@ -159,6 +158,58 @@ const circle: EasingFunction = (t) => 1 - Math.sqrt(1 - t * t);
 const exp: EasingFunction = (t) => 2 ** (10 * (t - 1));
 
 /**
+ * Back ease-in: pulls slightly backward (below 0) before accelerating
+ * forward, like a wind-up. `s` controls the overshoot amount (upstream
+ * default 1.70158 ≈ 10% overshoot). Use with Easing.out for the common
+ * "overshoot the target then settle" effect.
+ *
+ * @example
+ * interpolate(frame, [0, 30], [0, 1], {easing: Easing.out(Easing.back(1.70158))})
+ */
+const back =
+  (s: number = 1.70158): EasingFunction =>
+  (t) =>
+    t * t * ((s + 1) * t - s);
+
+/**
+ * Bounce ease-in: the classic four-bounce piecewise parabola (Robert
+ * Penner's easeInBounce, as shipped by RN/Framewise). As an ease-IN it
+ * bounces at the start; wrap in Easing.out for a ball-drop landing.
+ *
+ * @example
+ * interpolate(frame, [0, 30], [0, 1], {easing: Easing.out(Easing.bounce)})
+ */
+const bounce: EasingFunction = (t) => {
+  if (t < 1 / 2.75) {
+    return 7.5625 * t * t;
+  }
+  if (t < 2 / 2.75) {
+    const t2 = t - 1.5 / 2.75;
+    return 7.5625 * t2 * t2 + 0.75;
+  }
+  if (t < 2.5 / 2.75) {
+    const t2 = t - 2.25 / 2.75;
+    return 7.5625 * t2 * t2 + 0.9375;
+  }
+  const t2 = t - 2.625 / 2.75;
+  return 7.5625 * t2 * t2 + 0.984375;
+};
+
+/**
+ * Elastic ease-in: a damped spring-like wiggle into the motion.
+ * `bounciness` is the number of half-oscillations (upstream default 1);
+ * 0 gives a plain sin-like ease-in with no wiggle at all, higher values
+ * overshoot past 1 mid-curve before settling.
+ *
+ * @example
+ * interpolate(frame, [0, 30], [0, 1], {easing: Easing.elastic(2)})
+ */
+const elastic = (bounciness: number = 1): EasingFunction => {
+  const p = bounciness * Math.PI;
+  return (t) => 1 - Math.cos((t * Math.PI) / 2) ** 3 * Math.cos(t * p);
+};
+
+/**
  * Cubic bezier easing. Port of the standard bezier-easing Newton-Raphson
  * solver with bisection fallback. x1 and x2 must be in [0, 1]; y1 and y2
  * are unconstrained.
@@ -212,6 +263,9 @@ export const Easing = {
   sin,
   circle,
   exp,
+  back,
+  bounce,
+  elastic,
   bezier,
   ease: bezier(0.42, 0, 1, 1),
   in: easeIn,
