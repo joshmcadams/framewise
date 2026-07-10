@@ -28,7 +28,7 @@ plans cite them.
 | 012  | Player: interactive-surface tests + opt-in maxHeight fitting | P2 | S | 001 | DONE (executed, merged; 8 new tests, maxHeight prop) |
 | 013  | Test spring()'s fractional-frame branch | P2 | S | 001 | DONE (executed, merged; 7 new tests, toBeCloseTo(1) for known ODE divergence) |
 | 014  | React 18.3 → 19 upgrade | P3 | M | 004 | DONE (executed, merged; clean upgrade, zero type fixes needed) |
-| 015  | Output formats: --format webm/gif/png-seq + --still | P2 | M | 002, 003 | TODO |
+| 015  | Output formats: --format webm/gif/png-seq + --still | P2 | M | 002, 003 | DONE (executed, merged; planEncode, 5 formats, 21 new tests) |
 | 016  | Easing library (backlog item C) | P2 | M | 001 (order after 006, 010) | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
