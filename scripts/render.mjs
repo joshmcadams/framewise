@@ -119,7 +119,14 @@ let out;
 const FORMAT_EXTENSIONS = {mp4: '.mp4', webm: '.webm', gif: '.gif'};
 if (outExplicit) {
   out = outRaw;
-  if (FORMAT_EXTENSIONS[format] && !out.endsWith(FORMAT_EXTENSIONS[format])) {
+  // --still writes a PNG regardless of `format` (which stays at its default —
+  // --still and --format are mutually exclusive), so the format-extension
+  // check only applies to real encode runs.
+  if (stillExplicit) {
+    if (!out.endsWith('.png')) {
+      console.warn(`--out extension is not .png: writing PNG content to ${out}`);
+    }
+  } else if (FORMAT_EXTENSIONS[format] && !out.endsWith(FORMAT_EXTENSIONS[format])) {
     console.warn(
       `--out extension does not match --format ${format}: writing ${format} content to ${out}`,
     );
@@ -557,7 +564,11 @@ try {
   console.log(`▶ frames: ${files.length} · sha256 ${hash.digest('hex').slice(0, 16)}`);
 
   // --- output --------------------------------------------------------------
-  await mkdir(dirname(out), {recursive: true});
+  // png-seq: `out` IS the directory the PNGs land in; otherwise `out` is a
+  // file and only its parent must exist.
+  await mkdir(format === 'png-seq' && !stillExplicit ? out : dirname(out), {
+    recursive: true,
+  });
 
   if (stillExplicit) {
     // Copy the single rendered PNG to the output path.
@@ -608,7 +619,9 @@ try {
 
     console.log(
       `▶ encode: ${format}${
-        segments.length ? ` · audio ${{mp4: 'aac', webm: 'libopus'}[format] || 'aac'} ${audioBitrate}` : ''
+        segments.length && !plan.dropsAudio
+          ? ` · audio ${{mp4: 'aac', webm: 'libopus'}[format]} ${audioBitrate}`
+          : ''
       }`,
     );
     await run('ffmpeg', plan.args);
