@@ -1,7 +1,7 @@
 # Chapter 7 — The Renderer (Stage 2)
 
-**Files:** `scripts/render.mjs`, `render.html`, `src/render/main-render.tsx`,
-`src/render/registry.ts`
+**Files:** `scripts/render.mjs`, `scripts/render-lib.mjs`, `render.html`,
+`src/render/main-render.tsx`, `src/render/registry.ts`
 
 Everything in chapters 1–6 was the _easy, elegant_ half of Framewise. This
 chapter is the start of the hard half: turning the in-browser animation into an
@@ -170,6 +170,51 @@ await run('ffmpeg', [
   out,
 ]);
 ```
+
+## Beyond mp4: `--format` and `--still`
+
+Stage 2 hardcoded that final ffmpeg invocation (libx264, mp4). The renderer has
+since grown format-aware output paths — and the shape of the change is the
+lesson: because the capture pipeline is format-agnostic (it only ever produces
+the shared, sha256-verified PNG frames dir), "output format" is purely an
+**encode-time decision**. Nothing upstream of the frames dir changes.
+
+```bash
+npm run render -- --comp HelloWorld --format webm     # VP9 + Opus
+npm run render -- --comp HelloWorld --format gif      # palette GIF (drops audio)
+npm run render -- --comp HelloWorld --format png-seq  # raw frames, no ffmpeg
+npm run render -- --comp WithVideo  --still 75        # one frame → PNG
+```
+
+The ffmpeg command is built by `planEncode()` in `scripts/render-lib.mjs` — a
+**pure function** from settings (format, crf, codec, fps, audio segments) to
+`{args, dropsAudio}`, with no fs access and no spawning. That's what makes the
+format matrix testable without ffmpeg installed: the unit tests assert on the
+planned argument lists for mp4/webm/gif/png-seq, audio and no-audio, the same
+way `planChunks` is tested without Chrome.
+
+Per-format notes:
+
+- **mp4 / webm** share the encode path; only codecs differ (libx264+aac vs
+  libvpx-vp9+libopus, `--codec` overrides the video side). The ffmpeg preflight
+  checks the _effective_ codec for the chosen format.
+- **gif** uses the two-stream palette filter (`split → palettegen → paletteuse`)
+  in a single pass. GIF has no audio: if the composition reported audio
+  segments, the renderer warns that they're dropped (`dropsAudio`). `--crf` and
+  `--codec` don't apply.
+- **png-seq** skips ffmpeg entirely — `--out` is treated as a _directory_ and
+  the verified frames are copied into it. The preflight is skipped too, so this
+  path needs Chrome but not ffmpeg.
+- **`--still <frame>`** renders exactly one frame — the chunk plan collapses to
+  `[N, N+1)` — and copies the single PNG to `--out`. It's mutually exclusive
+  with `--format` and `--concurrency` (there's nothing to encode and nothing to
+  parallelize), and validated against the composition's frame range after the
+  config probe.
+
+When `--out` is omitted, the default output path follows the format
+(`out/video.<ext>`, `out/frames/`, `out/still-<N>.png`). An explicit `--out`
+whose extension contradicts the format is obeyed but warned about — the flag,
+not the filename, decides the content.
 
 ## Why "Puppeteer + system Chrome"?
 

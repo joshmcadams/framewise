@@ -62,19 +62,19 @@ line in the codebase, and it lives in `VideoConfig.tsx`.
 
 ## Reading order
 
-| #   | Chapter                                        | File covered                                                     | What you'll learn                                                                     |
-| --- | ---------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| 1   | [The frame engine](01-frame-engine.md)         | `src/framewise-lite/VideoConfig.tsx`                             | The contexts, `useCurrentFrame`/`useVideoConfig`, why the seam matters                |
-| 2   | [interpolate](02-interpolate.md)               | `src/framewise-lite/interpolate.ts`                              | Range mapping, the surprising `extend` default, multi-segment keyframes, easing       |
-| 3   | [spring](03-spring.md)                         | `src/framewise-lite/spring.ts`                                   | The damped-oscillator physics, why it's iterated, the public wrapper                  |
-| 4   | [Sequence](04-sequence.md)                     | `src/framewise-lite/Sequence.tsx`                                | Time-shifting via context, how 20 lines power timelines                               |
-| 5   | [The Player](05-player.md)                     | `src/framewise-lite/Player.tsx`                                  | The wall-clock loop, seeking, the #1 playback bug, responsive scaling                 |
-| 6   | [Demo & wiring](06-demo-and-wiring.md)         | `HelloWorld.tsx`, `App.tsx`, `main.tsx`                          | How the primitives combine into a real animation                                      |
-| 7   | [The Renderer](07-renderer.md)                 | `scripts/render.mjs`, `render.html`, `src/render/*`              | Stage 2: Puppeteer screenshots + ffmpeg → mp4, and why it's naive                     |
-| 8   | [delayRender](08-delay-render.md)              | `delay-render.ts`, `Img.tsx`, `AsyncImage.tsx`                   | Stage 3: making async assets block the capture, proved with a before/after experiment |
-| 9   | [Audio](09-audio.md)                           | `audio-registry.ts`, `playback.ts`, `Audio.tsx`, `WithAudio.tsx` | Stage 4: collecting audio per frame and mixing/muxing it with ffmpeg                  |
-| 10  | [Embedded Video](10-video.md)                  | `Video.tsx`, `WithVideo.tsx`                                     | Stage 5: frame-accurate `<Video>` via delayRender-gated seeking + audio mux           |
-| 11  | [Parallel Rendering](11-parallel-rendering.md) | `scripts/render.mjs`                                             | Stage 6: render chunks across browsers concurrently, deterministically                |
+| #   | Chapter                                        | File covered                                                                  | What you'll learn                                                                      |
+| --- | ---------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 1   | [The frame engine](01-frame-engine.md)         | `src/framewise-lite/VideoConfig.tsx`                                          | The contexts, `useCurrentFrame`/`useVideoConfig`, why the seam matters                 |
+| 2   | [interpolate](02-interpolate.md)               | `src/framewise-lite/interpolate.ts`                                           | Range mapping, the surprising `extend` default, multi-segment keyframes, easing        |
+| 3   | [spring](03-spring.md)                         | `src/framewise-lite/spring.ts`                                                | The damped-oscillator physics, why it's iterated, the public wrapper                   |
+| 4   | [Sequence](04-sequence.md)                     | `src/framewise-lite/Sequence.tsx`                                             | Time-shifting via context, how 20 lines power timelines                                |
+| 5   | [The Player](05-player.md)                     | `src/framewise-lite/Player.tsx`                                               | The wall-clock loop, seeking, the #1 playback bug, responsive scaling                  |
+| 6   | [Demo & wiring](06-demo-and-wiring.md)         | `HelloWorld.tsx`, `App.tsx`, `main.tsx`                                       | How the primitives combine into a real animation                                       |
+| 7   | [The Renderer](07-renderer.md)                 | `scripts/render.mjs`, `scripts/render-lib.mjs`, `render.html`, `src/render/*` | Stage 2: Puppeteer screenshots + ffmpeg → mp4, why it's naive, output formats + stills |
+| 8   | [delayRender](08-delay-render.md)              | `delay-render.ts`, `Img.tsx`, `AsyncImage.tsx`                                | Stage 3: making async assets block the capture, proved with a before/after experiment  |
+| 9   | [Audio](09-audio.md)                           | `audio-registry.ts`, `playback.ts`, `Audio.tsx`, `WithAudio.tsx`              | Stage 4: collecting audio per frame and mixing/muxing it with ffmpeg                   |
+| 10  | [Embedded Video](10-video.md)                  | `Video.tsx`, `WithVideo.tsx`                                                  | Stage 5: frame-accurate `<Video>` via delayRender-gated seeking + audio mux            |
+| 11  | [Parallel Rendering](11-parallel-rendering.md) | `scripts/render.mjs`                                                          | Stage 6: render chunks across browsers concurrently, deterministically                 |
 
 ## Map of the source tree
 
@@ -114,6 +114,7 @@ src/
 
 render.html                 render entry HTML (served to headless Chrome)  (ch. 7)
 scripts/render.mjs          the renderer: Vite + Puppeteer + ffmpeg        (ch. 7, 11)
+scripts/render-lib.mjs      pure renderer helpers (planEncode, planChunks…) (ch. 7, 11)
 public/                     static assets (photo.png, bg/blip.wav, clip.mp4)
 ```
 
