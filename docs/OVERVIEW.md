@@ -44,7 +44,7 @@ across machines. See [§14](#14-roadmap-status-and-proposal).
 | Version       | 0.1.0 (`package.json`)                                                                                 |
 | Runtime       | Node ≥ 20, React ^19.2.7                                                                               |
 | Toolchain     | TypeScript ^5.6 (strict), Vite ^6, Vitest ^3, ESLint ^10 flat config, Prettier (printWidth 100)        |
-| Tests         | 14 files / 160 tests, all passing (`npm test`)                                                         |
+| Tests         | 14 files / 185 tests, all passing (`npm test`)                                                         |
 | CI            | GitHub Actions: Node 20.x & 22.x matrix, runs `npm ci && npm run verify` (`.github/workflows/ci.yml`)  |
 | Renderer deps | System Chrome/Chromium + ffmpeg on PATH (not npm packages — `puppeteer-core` attaches to your browser) |
 
@@ -186,7 +186,7 @@ Everything public is exported from `src/framewise-lite/index.ts`:
 | `useVideoConfig()`                                                                                  | `{width, height, fps, durationInFrames}`; throws outside a composition                                                                                                                               |
 | `<AbsoluteFill>`                                                                                    | Positioned full-size `<div>` building block                                                                                                                                                          |
 | `interpolate(input, inRange, outRange, opts?)`                                                      | Multi-segment range mapping; defaults to **extend** (linear extrapolation); `extrapolateLeft/Right`: extend \| clamp \| identity \| wrap; easing curves or arrays; `posterize` snaps output to steps |
-| `Easing`                                                                                            | `bezier(...)`, `linear`, `step0/step1`, and `in/out/inOut` combinators over `quad/cubic/sin`                                                                                                         |
+| `Easing`                                                                                            | `bezier(...)`, `linear`, `step0/step1`, `poly(n)`, plus `back`, `bounce`, and `elastic(bounciness)` curves and `in/out/inOut` combinators over `quad/cubic/sin`                                      |
 | `spring({frame, fps, config?, from?, to?, durationInFrames?*, overshootClamping?})`                 | Physics-based animation; verbatim upstream math except clamping happens in **output space**; O(N) via integer-chain cache (_accepted upstream, not implemented here_)                                |
 | `<Sequence from durationInFrames layout name?>`                                                     | Re-bases `useCurrentFrame()` to 0 at `from`; unmounts children outside `[from, from+duration)`                                                                                                       |
 | `<Player component inputProps width height fps durationInFrames loop autoPlay controls maxHeight?>` | Preview frame source with controls, scrubber, keyboard shortcuts, delayRender-pending badge                                                                                                          |
@@ -288,7 +288,11 @@ npm run render -- [--comp <id>] [--out <path>] [options]
 | `--no-sandbox`        | off          | Chrome sandbox is ON by default; root auto-falls back with a warning   |
 
 Format behaviors worth knowing: **gif drops audio** (warned if the comp has
-audio segments); **webm** uses VP9 + Opus; **png-seq** skips ffmpeg entirely.
+audio segments) and ignores `--crf`/`--codec` (warned — palette encode uses
+neither); **mp4** is encoded with `-movflags +faststart` for progressive
+playback; **webm** uses VP9 + Opus; **png-seq** skips ffmpeg entirely. Default
+output paths and their extension/mkdir rules come from the pure `planOutput()`
+planner in `scripts/render-lib.mjs`.
 
 ## 8. Working in this repository
 
@@ -304,17 +308,17 @@ system Chrome/Chromium and ffmpeg on PATH.
 
 ### Command reference
 
-| Command                | What it does                                   |
-| ---------------------- | ---------------------------------------------- |
-| `npm test`             | Vitest once (all 160 tests)                    |
-| `npm run test:watch`   | Vitest in watch mode                           |
-| `npm run typecheck`    | `tsc -b`                                       |
-| `npm run lint`         | ESLint (flat config)                           |
-| `npm run format`       | Prettier write                                 |
-| `npm run format:check` | Prettier check                                 |
-| `npm run build`        | Typecheck + production bundle                  |
-| `npm run verify`       | **The gate:** typecheck + lint + tests + build |
-| `npm run render -- …`  | Export compositions (see §7)                   |
+| Command                | What it does                                              |
+| ---------------------- | --------------------------------------------------------- |
+| `npm test`             | Vitest once (all 160 tests)                               |
+| `npm run test:watch`   | Vitest in watch mode                                      |
+| `npm run typecheck`    | `tsc -b`                                                  |
+| `npm run lint`         | ESLint (flat config)                                      |
+| `npm run format`       | Prettier write                                            |
+| `npm run format:check` | Prettier check                                            |
+| `npm run build`        | Typecheck + production bundle                             |
+| `npm run verify`       | **The gate:** typecheck + lint + prettier + tests + build |
+| `npm run render -- …`  | Export compositions (see §7)                              |
 
 CI runs `npm run verify` on Node 20.x and 22.x. Run it locally before pushing;
 it is the definition of "done" used throughout the docs and plans.
@@ -370,7 +374,9 @@ follows Prettier (printWidth 100).
 Large changes go through `plans/`: each plan is a numbered markdown executor
 script with priority, effort estimate, dependencies, STOP conditions, and a
 status row in `plans/README.md` (TODO → IN PROGRESS → DONE/BLOCKED/REJECTED).
-All sixteen current plans are DONE; keep the same discipline for future ones.
+Plans 001–016 are DONE; plan 017 — a manual output-format smoke test that needs
+a machine with Chrome and ffmpeg — is the only open item. Keep the same
+discipline for future ones.
 
 ## 9. Architecture invariants — do not break these
 
@@ -461,33 +467,39 @@ The project advanced through three recorded waves, all complete:
   tests, the Video seek-race fix, CompositionHost docs, ESLint/Prettier gates,
   CLAUDE.md, sandbox gating, demo wiring, `useMediaSync` extraction, Player
   improvements, spring fractional-frame tests, React 19 upgrade, output formats
-  (`--format`/`--still`), and the `Easing` module.
+  (`--format`/`--still`), and the `Easing` module. A follow-up wave added the
+  remaining easing curves (`back`/`bounce`/`elastic`), the pure `planOutput()`
+  out-path planner, mp4 `+faststart`, Prettier inside the verify gate, and open
+  plan 017 (a manual output-format smoke test on a Chrome+ffmpeg machine).
 - **Original build-out roadmap** — README's six stages (player/core → renderer →
   delayRender → audio → embedded video → parallel rendering), each verified
   with concrete experiments (frame extraction comparisons, dB-level audio
   checks, byte-identical hashes at different concurrencies).
 
-Test count along the way: 17 → 51 → 116 → 160.
+Test count along the way: 17 → 51 → 116 → 160 → 185.
 
 ## 14. Roadmap status and proposal
 
 **Status: the existing roadmap is finished.** README's six-stage Roadmap is all
-✅, all 16 audit plans are DONE, and all backlog items are closed. There is
-currently **no forward-looking roadmap**. Everything below is a _proposal_,
-grounded in items the repository itself already flagged as desirable but
-unbuilt (deferred backlog letters, rejected-but-real findings, and the
-"deliberately omitted" list). Adopt it wholesale, prune it, or treat it as a
-menu — but record whatever you choose in README's Roadmap section so status
-stays visible.
+✅, audit plans 001–016 are DONE (017 is a manual checklist, not code), and all
+backlog items are closed. There is currently **no forward-looking roadmap**.
+Everything below is a _proposal_, grounded in items the repository itself
+already flagged as desirable but unbuilt (deferred backlog letters,
+rejected-but-real findings, and the "deliberately omitted" list). Adopt it
+wholesale, prune it, or treat it as a menu — but record whatever you choose in
+README's Roadmap section so status stays visible.
 
 ### Phase 1 — Complete the primitive surface (small, independent PRs)
 
-| Item                                                                              | Origin               | Why it's next                                                                                              |
-| --------------------------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `<Series>` and `<Loop>` helpers                                                   | backlog item D       | Timeline ergonomics built directly on `<Sequence>`; the most-requested Framewise affordance still missing. |
-| `measureSpring`, spring `durationInFrames`, `reverse`                             | backlog item E       | Lets authors size springs by time instead of tuning physics constants.                                     |
-| Color interpolation (`interpolateColors`, string/tuple outputs like `"scale(2)"`) | backlog item B       | Completes the `interpolate` story; HelloWorld already hand-rolls hue drift that this would simplify.       |
-| Bounce/elastic/back easing curves                                                 | deferred by plan 016 | Finishes `Easing`; the module shipped with bezier + combinators only.                                      |
+| Item                                                                              | Origin         | Why it's next                                                                                              |
+| --------------------------------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------- |
+| `<Series>` and `<Loop>` helpers                                                   | backlog item D | Timeline ergonomics built directly on `<Sequence>`; the most-requested Framewise affordance still missing. |
+| `measureSpring`, spring `durationInFrames`, `reverse`                             | backlog item E | Lets authors size springs by time instead of tuning physics constants.                                     |
+| Color interpolation (`interpolateColors`, string/tuple outputs like `"scale(2)"`) | backlog item B | Completes the `interpolate` story; HelloWorld already hand-rolls hue drift that this would simplify.       |
+
+(The Easing library — bezier and combinators in plan 016, then
+`back`/`bounce`/`elastic` in a follow-up — was Phase-1-shaped work that has
+already shipped.)
 
 ### Phase 2 — Media fidelity (close the documented gaps)
 
