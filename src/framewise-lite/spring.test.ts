@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {spring} from './spring';
+import {measureSpring, spring} from './spring';
 
 const fps = 30;
 
@@ -125,5 +125,160 @@ describe('spring — fractional frames', () => {
 
   it('clamps negative frames to 0', () => {
     expect(spring({frame: -0.5, fps})).toBe(spring({frame: 0, fps}));
+  });
+});
+
+describe('measureSpring', () => {
+  it('pins the default config at 30 fps (characterization)', () => {
+    // 33 frames ≈ 1.1 s until consecutive positions differ by < 0.0005.
+    expect(measureSpring({fps})).toEqual({maxFrameDuration: 33});
+  });
+
+  it('is deterministic regardless of which chains the cache already holds', () => {
+    const first = measureSpring({fps});
+    // Extend a different config's chain, then re-measure.
+    spring({frame: 200, fps, config: {damping: 5}});
+    expect(measureSpring({fps})).toEqual(first);
+  });
+
+  it('stiffer springs settle sooner', () => {
+    expect(measureSpring({fps, config: {stiffness: 200}}).maxFrameDuration).toBeLessThan(
+      measureSpring({fps}).maxFrameDuration,
+    );
+  });
+
+  it('more damping settles sooner', () => {
+    expect(measureSpring({fps, config: {damping: 20}}).maxFrameDuration).toBeLessThan(
+      measureSpring({fps}).maxFrameDuration,
+    );
+  });
+
+  it('ignores overshootClamping (it clamps output, not the normalized chain)', () => {
+    expect(measureSpring({fps, config: {overshootClamping: true}})).toEqual(measureSpring({fps}));
+  });
+
+  it('a smaller threshold measures longer', () => {
+    expect(measureSpring({fps, threshold: 0.00005}).maxFrameDuration).toBeGreaterThanOrEqual(
+      measureSpring({fps}).maxFrameDuration,
+    );
+  });
+
+  it('needs more frames at higher fps — but sublinearly', () => {
+    // Measurement stops at the first frame whose consecutive-sample delta
+    // drops under the threshold. Smaller steps sample a smoother curve, so
+    // the delta shrinks faster than the frame count grows: 60 fps needs more
+    // frames than 30 fps, but less than twice as many.
+    const at60 = measureSpring({fps: 60}).maxFrameDuration;
+    const at30 = measureSpring({fps: 30}).maxFrameDuration;
+    expect(at60).toBeGreaterThan(at30);
+    expect(at60 / at30).toBeLessThan(2);
+  });
+
+  it('throws on invalid fps or threshold', () => {
+    expect(() => measureSpring({fps: 0})).toThrow(/fps/);
+    expect(() => measureSpring({fps, threshold: -1})).toThrow(/threshold/);
+  });
+});
+
+describe('spring — durationInFrames', () => {
+  it('settles at `to` around the requested frame', () => {
+    const duration = 45;
+    expect(spring({frame: duration, fps, durationInFrames: duration})).toBeCloseTo(1, 2);
+  });
+
+  it('advances toward `to` across the requested window', () => {
+    const duration = 40;
+    // Starts exactly at `from`…
+    expect(spring({frame: 0, fps, durationInFrames: duration})).toBe(0);
+    // …is further along late in the window than early (critically damped so
+    // the rise is monotonic — an underdamped spring legitimately overshoots
+    // mid-window)…
+    const early = spring({frame: 10, fps, durationInFrames: duration, config: {damping: 20}});
+    const late = spring({frame: 36, fps, durationInFrames: duration, config: {damping: 20}});
+    expect(early).toBeGreaterThan(0);
+    expect(late).toBeGreaterThan(early);
+    expect(late).toBeLessThan(1);
+    // …and has settled by the end.
+    expect(spring({frame: duration, fps, durationInFrames: duration})).toBeCloseTo(1, 2);
+  });
+
+  it('stretches slower as durationInFrames grows', () => {
+    const quick = spring({frame: 15, fps, durationInFrames: 30});
+    const slow = spring({frame: 15, fps, durationInFrames: 90});
+    expect(slow).toBeLessThan(quick);
+    expect(slow).toBeGreaterThan(0);
+  });
+
+  it('compresses into fewer frames than the natural run', () => {
+    const natural = measureSpring({fps}).maxFrameDuration;
+    const compressed = 10;
+    expect(compressed).toBeLessThan(natural);
+    expect(spring({frame: compressed, fps, durationInFrames: compressed})).toBeCloseTo(1, 1);
+  });
+
+  it('works for descending ranges (from > to)', () => {
+    // Without clamping the underdamped spring legitimately overshoots just
+    // past `to`; with clamping it lands on it.
+    const value = spring({
+      frame: 40,
+      fps,
+      from: 100,
+      to: 0,
+      durationInFrames: 40,
+      config: {overshootClamping: true},
+    });
+    expect(value).toBeCloseTo(0, 2);
+  });
+
+  it('honors delay inside the warped window', () => {
+    // Delay shifts the outer timeline before the warp: frame 10 with delay 10
+    // is still the very start of the animation.
+    expect(spring({frame: 10, fps, delay: 10, durationInFrames: 20})).toBe(0);
+  });
+
+  it('throws on invalid durationInFrames', () => {
+    for (const bad of [0, -3, 2.5]) {
+      expect(() => spring({frame: 5, fps, durationInFrames: bad})).toThrow(/positive whole number/);
+    }
+  });
+});
+
+describe('spring — reverse', () => {
+  const natural = measureSpring({fps}).maxFrameDuration;
+
+  it('starts near `to` and ends near `from`', () => {
+    expect(spring({frame: 0, fps, reverse: true})).toBeCloseTo(1, 2);
+    expect(spring({frame: natural, fps, reverse: true})).toBeCloseTo(0, 2);
+  });
+
+  it('exactly mirrors the forward curve played backward', () => {
+    // Implementation property: reversing evaluates forward(total - frame).
+    for (const f of [0, 7, 13, natural - 1, natural + 50]) {
+      expect(spring({frame: f, fps, reverse: true})).toBe(
+        spring({frame: Math.max(0, natural - f), fps}),
+      );
+    }
+  });
+
+  it('respects durationInFrames as its window', () => {
+    const duration = 60;
+    expect(spring({frame: 0, fps, durationInFrames: duration, reverse: true})).toBeCloseTo(1, 2);
+    expect(spring({frame: duration, fps, durationInFrames: duration, reverse: true})).toBeCloseTo(
+      0,
+      2,
+    );
+    // Halfway through the reversed window mirrors halfway through the forward one.
+    expect(spring({frame: 30, fps, durationInFrames: 60, reverse: true})).toBeCloseTo(
+      spring({frame: 30, fps, durationInFrames: 60}),
+      6,
+    );
+  });
+
+  it('stays within [from, to] when overshootClamping is on', () => {
+    const values = Array.from({length: 120}, (_, f) =>
+      spring({frame: f, fps, reverse: true, config: {overshootClamping: true}}),
+    );
+    expect(Math.min(...values)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...values)).toBeLessThanOrEqual(1);
   });
 });
