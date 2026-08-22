@@ -47,6 +47,7 @@ import {
   planEncode,
   planOutput,
 } from './render-lib.mjs';
+import {framewiseExtract} from './offthread-server.mjs';
 
 // Sandbox policy: keep Chrome's OS sandbox ON by default. It only has to be
 // disabled where it cannot start — running as root (common in containers/CI).
@@ -405,13 +406,20 @@ async function renderChunk(url, startFrame, endFrame, {width, height, framesDir,
 // authority for puppeteer above. (Vite registers nothing for SIGINT or
 // SIGHUP, so those two are unaffected by this.)
 const sigtermListenersBeforeVite = new Set(process.listeners('SIGTERM'));
-const server = await createServer({server: {port: 0}, logLevel: 'warn'});
+// The frames dir must exist before the server starts: <OffthreadVideo>'s
+// extraction endpoint caches its PNGs under it (cleanup below already removes
+// the whole dir, so nothing new can leak).
+const framesDir = await mkdtemp(join(tmpdir(), 'framewise-lite-'));
+const server = await createServer({
+  server: {port: 0},
+  logLevel: 'warn',
+  plugins: [framewiseExtract({publicDir, cacheDir: join(framesDir, 'offthread')})],
+});
 for (const listener of process.listeners('SIGTERM')) {
   if (!sigtermListenersBeforeVite.has(listener)) {
     process.removeListener('SIGTERM', listener);
   }
 }
-const framesDir = await mkdtemp(join(tmpdir(), 'framewise-lite-'));
 const started = Date.now();
 
 // Fault-isolated, idempotent teardown. Under normal completion, workers have

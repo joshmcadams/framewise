@@ -10,6 +10,7 @@ export {Player, type PlayerProps} from './Player';
 export {Img} from './Img';
 export {Audio, type AudioProps} from './Audio';
 export {Video, type VideoProps} from './Video';
+export {OffthreadVideo} from './OffthreadVideo';
 export {
   delayRender,
   continueRender,
