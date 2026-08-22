@@ -12,7 +12,8 @@ accelerates, overshoots the target, and oscillates to a stop.
 > classic "looks right, is subtly wrong" trap — a sign error in the velocity
 > term gives motion that's _almost_ correct. So `advance()` and
 > `springCalculation()` are a faithful copy of Framewise's `spring/spring-utils.ts`.
-> We dropped only its memoization caches (pure performance, no effect on output).
+> Like Framewise, repeated calls are made O(1) amortized by an integer-chain
+> cache that replays the exact same `advance()` sequence (byte-identical output).
 
 ## The mental model
 
@@ -66,6 +67,10 @@ velocity) into the next call. The `unevenRest` trick handles **fractional
 frames**: if you ask for frame 12.4 (which happens when `durationInFrames`
 stretches the curve, or with sub-frame timing), it integrates the 12 whole steps
 then a final 0.4-frame step so the value is smooth rather than stair-stepped.
+(The shipped code replaces the visible loop with `integerChainCache`, which
+memoizes one growing array of nodes per `fps|damping|mass|stiffness` key and
+issues exactly the sequence above on first request — same math, no quadratic
+re-walk.)
 
 Note `springCalculation` always runs from `0 → 1`. The public wrapper maps that
 unit output onto your actual `from`/`to`. Keeping the physics on a fixed `[0,1]`
@@ -133,46 +138,93 @@ if (config.damping <= 0) {
 ergonomics:
 
 ```ts
-export function spring({frame: passedFrame, fps, config = {}, from = 0, to = 1, delay = 0}) {
+export function spring({
+  frame: passedFrame,
+  fps,
+  config = {},
+  from = 0,
+  to = 1,
+  delay = 0,
+  durationInFrames,
+  reverse = false,
+}) {
   if (!Number.isFinite(fps) || fps <= 0) throw new Error(`fps must be positive…`);
 
-  const delayProcessed = passedFrame - delay; // 1. delay
-  const spr = springCalculation({fps, frame: delayProcessed, config});
+  let framePassed = passedFrame - delay; // 1. delay
 
-  const inner = config.overshootClamping // 2. clamp overshoot
-    ? to >= from
-      ? Math.min(spr.current, to)
-      : Math.max(spr.current, to)
-    : spr.current;
+  if (durationInFrames !== undefined || reverse) {
+    // 2. time controls
+    const {maxFrameDuration: natural} = measureSpring({fps, config});
+    const total = durationInFrames ?? natural;
+    const stretch = durationInFrames !== undefined ? natural / total : 1;
+    const warpedForward = framePassed * stretch;
+    framePassed = reverse ? natural - warpedForward : warpedForward;
+  }
 
-  return from === 0 && to === 1 // 3. remap to from..to
-    ? inner
-    : interpolate(inner, [0, 1], [from, to]);
+  const spr = springCalculation({fps, frame: framePassed, config});
+
+  // 3. map to from..to FIRST (see the deviation note), then clamp overshoot
+  const mapped =
+    from === 0 && to === 1 ? spr.current : interpolate(spr.current, [0, 1], [from, to]);
+  if (!config.overshootClamping) return mapped;
+  return to >= from ? Math.min(mapped, to) : Math.max(mapped, to);
 }
 ```
 
-Three jobs:
+Four jobs:
 
 1. **`delay`** — subtracting from the frame shifts the start. At frames before
-   the delay, `delayProcessed` is negative; `springCalculation` clamps that to 0
-   (`Math.max(0, frame)`), so the value sits at the start until the delay
-   elapses.
-2. **`overshootClamping`** — if you don't want the bounce past the target, cap
+   the delay, `framePassed` is negative; `springCalculation` clamps that to 0,
+   so the value sits at the start until the delay elapses. Delay applies to the
+   outer timeline before any time-warp.
+2. **Time controls** — see the next section.
+3. **`overshootClamping`** — if you don't want the bounce past the target, cap
    the value at `to`. The `to >= from` check makes it work for springs going
    either direction.
-3. **`from`/`to` remap** — reuse `interpolate` to scale the `[0,1]` physics onto
+4. **`from`/`to` remap** — reuse `interpolate` to scale the `[0,1]` physics onto
    your real values. The `from === 0 && to === 1` fast-path skips that when it's
    a no-op. (Nice detail: chapter 2's module gets reused here — the two math
    primitives compose.)
 
+## The `measureSpring` family
+
+Three conveniences share one primitive — knowing where the normalized chain
+comes to rest:
+
+```ts
+measureSpring({fps, config}); // → {maxFrameDuration}
+```
+
+Measurement walks the same integer chain the animation uses (so it inherits the
+cache) and returns the first frame whose consecutive positions differ by less
+than `threshold` (default `0.0005`, expressed as a fraction of the animated
+span). Two consequences worth internalizing:
+
+- It runs in **normalized space**, so `from` and `to` cannot affect it — a
+  spring over `0 → 100` takes exactly as long as one over `0 → 1`.
+- "At rest" means _consecutive samples barely move_, not _distance to target_:
+  near an oscillation peak the velocity crosses zero, so measurement stops on
+  the decayed tail of the oscillation. That's why an unclamped underdamped
+  spring can sit a fraction of a percent off `to` at its measured end.
+
+The two options built on it are one line of arithmetic each:
+
+- **`durationInFrames`** warps time: the internal clock advances by
+  `natural / requested` per outer frame, so the whole run compresses or
+  stretches to land around the requested length. This is why fractional-frame
+  support exists at all — warped frames are almost never integers.
+- **`reverse: true`** plays `to → from` by evaluating the forward path at
+  `natural − warpedFrame`. Frame 0 shows the settled end, the last frame shows
+  the start, and with a `durationInFrames` window the mirror happens inside it.
+  The reversal is exact mirroring — `reverse(f)` equals `forward(total − f)` —
+  which the tests pin with exact equality.
+
 ## What we omitted vs. real Framewise
 
-Framewise's `spring()` also supports `reverse` and `durationInFrames` (stretch
-the natural curve to a target length). Both require `measureSpring` — a helper
-that runs the simulation until it comes to rest to find the natural duration.
-It's buildable on what's here but adds surface area without teaching anything
-new, so it's left out. `from`, `to`, `delay`, `overshootClamping`, `config`, and
-the core physics all match Framewise exactly.
+Nothing significant remains on the spring surface: `from`, `to`, `delay`,
+`overshootClamping`, `config`, `durationInFrames`, `reverse`, and
+`measureSpring` all match Framewise's behavior (with the documented
+`overshootClamping` deviation above).
 
 ## The tests
 
