@@ -208,7 +208,7 @@ describe('assetPath', () => {
 });
 
 describe('parseRegistryIds', () => {
-  it('extracts the four real composition ids in order from src/render/registry.ts', async () => {
+  it('extracts the real composition ids in order from src/render/registry.ts', async () => {
     const registrySource = await readFile(
       new URL('../src/render/registry.ts', import.meta.url),
       'utf8',
@@ -218,6 +218,7 @@ describe('parseRegistryIds', () => {
       'AsyncImage',
       'WithAudio',
       'WithVideo',
+      'WithSeries',
     ]);
   });
 
