@@ -44,7 +44,7 @@ across machines. See [§14](#14-roadmap-status-and-proposal).
 | Version       | 0.1.0 (`package.json`)                                                                                 |
 | Runtime       | Node ≥ 20, React ^19.2.7                                                                               |
 | Toolchain     | TypeScript ^5.6 (strict), Vite ^6, Vitest ^3, ESLint ^10 flat config, Prettier (printWidth 100)        |
-| Tests         | 14 files / 185 tests, all passing (`npm test`)                                                         |
+| Tests         | 16 files / 204 tests, all passing (`npm test`)                                                         |
 | CI            | GitHub Actions: Node 20.x & 22.x matrix, runs `npm ci && npm run verify` (`.github/workflows/ci.yml`)  |
 | Renderer deps | System Chrome/Chromium + ffmpeg on PATH (not npm packages — `puppeteer-core` attaches to your browser) |
 
@@ -141,6 +141,8 @@ src/
 │   ├── easing.ts              Easing.bezier + in/out/inOut combinators                     (ch. 2)
 │   ├── spring.ts              damped-oscillator animation, integer-chain cache             (ch. 3)
 │   ├── Sequence.tsx           time-shifter: re-bases frame, clips mount window             (ch. 4)
+│   ├── Series.tsx             back-to-back clips via auto-computed offsets                 (ch. 4)
+│   ├── Loop.tsx               repeat with a re-based clock                                 (ch. 4)
 │   ├── Player.tsx             wall-clock frame source + controls + scrubber + badge       (ch. 5)
 │   ├── CompositionHost.tsx    shared provider stack — both frame sources render through it (ch. 5, 7)
 │   ├── delay-render.ts        delayRender/continueRender handle registry                   (ch. 8)
@@ -159,7 +161,8 @@ src/
 │   ├── HelloWorld.tsx         exercises every primitive                                    (ch. 6)
 │   ├── AsyncImage.tsx         delayRender demo (--no-wait breaks it on purpose)            (ch. 8)
 │   ├── WithAudio.tsx          background tone + offset blip                                (ch. 9)
-│   └── WithVideo.tsx          embedded clip + React overlay                                (ch. 10)
+│   ├── WithVideo.tsx          embedded clip + React overlay                                (ch. 10)
+│   └── WithSeries.tsx         <Series>/<Loop> timeline demo                                (ch. 4)
 ├── render/
 │   ├── registry.ts            composition registry (id → component + metadata)
 │   └── main-render.tsx        chrome-less entry exposing window.framewiseLite
@@ -189,6 +192,8 @@ Everything public is exported from `src/framewise-lite/index.ts`:
 | `Easing`                                                                                            | `bezier(...)`, `linear`, `step0/step1`, `poly(n)`, plus `back`, `bounce`, and `elastic(bounciness)` curves and `in/out/inOut` combinators over `quad/cubic/sin`                                      |
 | `spring({frame, fps, config?, from?, to?, durationInFrames?*, overshootClamping?})`                 | Physics-based animation; verbatim upstream math except clamping happens in **output space**; O(N) via integer-chain cache (_accepted upstream, not implemented here_)                                |
 | `<Sequence from durationInFrames layout name?>`                                                     | Re-bases `useCurrentFrame()` to 0 at `from`; unmounts children outside `[from, from+duration)`                                                                                                       |
+| `<Series>` / `<Series.Sequence>`                                                                    | Plays clips back-to-back via auto-computed offsets; teaching-first validation                                                                                                                        |
+| `<Loop durationInFrames times?>`                                                                    | Repeats children with the clock re-based every cycle; unmounts after `times`                                                                                                                         |
 | `<Player component inputProps width height fps durationInFrames loop autoPlay controls maxHeight?>` | Preview frame source with controls, scrubber, keyboard shortcuts, delayRender-pending badge                                                                                                          |
 | `<Img src>`                                                                                         | Like `<img>` plus `delayRender` gating                                                                                                                                                               |
 | `<Audio src volume? startFrom? endAt?>`                                                             | Plays in preview; contributes to the ffmpeg mix in export                                                                                                                                            |
@@ -226,6 +231,7 @@ Four demos ship in `src/compositions/`, registered in `src/render/registry.ts`
 | `AsyncImage` | 90 f     | `<Img>` + a `delayRender`-gated simulated fetch (`fetchDelayMs` prop) |
 | `WithAudio`  | 150 f    | `<Audio>` background tone + offset blip inside a `<Sequence>`         |
 | `WithVideo`  | 150 f    | embedded clip with frame-accurate seek + React overlay                |
+| `WithSeries` | 150 f    | three `<Series>` cards, a nested `<Series>`, and a `<Loop>` pulse     |
 
 The preview app (`npm run dev`) reads the **same registry** via a dropdown in
 `src/App.tsx`; switching compositions remounts the `<Player>` (`key={comp.id}`)
@@ -491,15 +497,14 @@ README's Roadmap section so status stays visible.
 
 ### Phase 1 — Complete the primitive surface (small, independent PRs)
 
-| Item                                                                              | Origin         | Why it's next                                                                                              |
-| --------------------------------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------- |
-| `<Series>` and `<Loop>` helpers                                                   | backlog item D | Timeline ergonomics built directly on `<Sequence>`; the most-requested Framewise affordance still missing. |
-| `measureSpring`, spring `durationInFrames`, `reverse`                             | backlog item E | Lets authors size springs by time instead of tuning physics constants.                                     |
-| Color interpolation (`interpolateColors`, string/tuple outputs like `"scale(2)"`) | backlog item B | Completes the `interpolate` story; HelloWorld already hand-rolls hue drift that this would simplify.       |
+| Item                                                                              | Origin         | Why it's next                                                                                        |
+| --------------------------------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------- |
+| `measureSpring`, spring `durationInFrames`, `reverse`                             | backlog item E | Lets authors size springs by time instead of tuning physics constants.                               |
+| Color interpolation (`interpolateColors`, string/tuple outputs like `"scale(2)"`) | backlog item B | Completes the `interpolate` story; HelloWorld already hand-rolls hue drift that this would simplify. |
 
-(The Easing library — bezier and combinators in plan 016, then
-`back`/`bounce`/`elastic` in a follow-up — was Phase-1-shaped work that has
-already shipped.)
+(Phase-1-shaped work that has already shipped: the `Easing` library — bezier
+and combinators in plan 016, then `back`/`bounce`/`elastic` in a follow-up —
+and the `<Series>`/`<Loop>` timeline helpers via plan 018.)
 
 ### Phase 2 — Media fidelity (close the documented gaps)
 
