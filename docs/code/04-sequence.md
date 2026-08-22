@@ -1,6 +1,7 @@
-# Chapter 4 — Sequence
+# Chapter 4 — Sequence, Series, Loop
 
-**File:** `src/framewise-lite/Sequence.tsx`
+**Files:** `src/framewise-lite/Sequence.tsx`, `src/framewise-lite/Series.tsx`,
+`src/framewise-lite/Loop.tsx`
 
 `<Sequence>` is the most important _compositional_ primitive in Framewise, and
 it's almost suspiciously small. Its entire job is to **shift the frame number**
@@ -92,18 +93,108 @@ say the child is an inline element you're positioning yourself — pass
 
 ## Why this tiny thing is a big deal
 
-Almost every higher-level timing API in Framewise is built on `Sequence`:
+Almost every higher-level timing API in Framewise is built on `Sequence`. This
+repo ships two of them, and both are pure bookkeeping over the shift trick:
 
-- **`<Series>`** (play clips back-to-back) is `Sequence`s with auto-computed
-  `from` offsets.
-- **Transitions** are overlapping `Sequence`s with interpolated cross-fades.
+- **`<Series>`** plays clips back-to-back — `Sequence`s with auto-computed
+  `from` offsets ([below](#series-timelines-without-the-math)).
+- **Transitions** would be overlapping `Sequence`s with interpolated
+  cross-fades — not built here yet.
 - **Nested timing** works for free: a `Sequence` inside a `Sequence` shifts an
-  already-shifted frame, so you can build sub-timelines arbitrarily deep. In the
-  demo, the looping dot lives in `<Sequence from={40}>` _inside_ the main
+  already-shifted frame, so you can build sub-timelines arbitrarily deep. In
+  the demo, the looping dot lives in `<Sequence from={40}>` _inside_ the main
   composition — it sees a frame re-based to the parent's frame 40.
 
 Twenty lines, because all the heavy lifting was already done by making the
 frame a context value.
+
+## `<Series>`: timelines without the math
+
+`<Series>` (`src/framewise-lite/Series.tsx`) plays its children one after
+another, like clips laid end-to-end:
+
+```tsx
+<Series>
+  <Series.Sequence durationInFrames={30}>
+    <TitleCard />
+  </Series.Sequence>
+  <Series.Sequence durationInFrames={45}>
+    <SecondCard />
+  </Series.Sequence>
+</Series>
+```
+
+The implementation idea: **walk the children once, sum durations, wrap each in
+a real `<Sequence>`** —
+
+```tsx
+let offset = 0;
+return (
+  <SeriesContext.Provider value={true}>
+    {items.map((child) => {
+      const duration = assertDuration(props.durationInFrames ?? defaultDurationInFrames);
+      const from = offset;
+      offset += duration + spacing;
+      return (
+        <Sequence key={…} from={from} durationInFrames={duration} layout={layout}>
+          {child}
+        </Sequence>
+      );
+    })}
+  </SeriesContext.Provider>
+);
+```
+
+Three details worth noticing:
+
+1. **The parent does all the work.** `Series.Sequence` itself only validates
+   placement (via `SeriesContext`, so an orphan throws) and renders its
+   children bare. All timing lives in one pass over the child list — there is
+   no second mechanism to learn.
+2. **Strict hand-off for free.** Because each clip becomes a half-open
+   `[from, from + duration)` window, clip B mounts on exactly the frame clip A
+   unmounts. Neighbors can never overlap or leave gaps (unless you ask for
+   them with `spacing`).
+3. **Nesting composes.** Offsets are computed against the nearest
+   `FrameProvider`, so a `<Series>` inside a `Series.Sequence` lays out its own
+   children relative to its parent card's clock — sub-timelines without any
+   extra code. The `WithSeries` demo composition leans on exactly this.
+
+Validation is teaching-first: non-`Series.Sequence` children throw, orphaned
+`Series.Sequence` elements throw, and durations must be positive whole numbers
+(`defaultDurationInFrames` supplies the fallback).
+
+## `<Loop>`: repeat, re-timed
+
+`<Loop>` (`src/framewise-lite/Loop.tsx`) repeats its children on a fixed beat:
+
+```tsx
+<Loop durationInFrames={30} times={3}>
+  <PulsingDot />
+</Loop>
+```
+
+The entire mechanism is one line of arithmetic followed by delegation:
+
+```tsx
+const iteration = Math.floor(frame / durationInFrames);
+if (iteration >= times) return null;
+return (
+  <Sequence from={iteration * durationInFrames} durationInFrames={durationInFrames} …>
+    {children}
+  </Sequence>
+);
+```
+
+During iteration `i`, the inner `Sequence` shifts by `i * durationInFrames`,
+so the child's clock restarts at 0 every cycle — the dot pops fresh each time,
+with no reset logic anywhere. Omitting `times` loops until the composition
+ends; the half-open window inherited from `Sequence` makes the "unmount after
+the last repetition" boundary exact.
+
+These two components are the payoff of chapter 1's design discipline: because
+the frame is just a context value, whole timeline APIs collapse into
+bookkeeping over `from`.
 
 ---
 

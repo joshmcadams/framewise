@@ -62,19 +62,19 @@ line in the codebase, and it lives in `VideoConfig.tsx`.
 
 ## Reading order
 
-| #   | Chapter                                        | File covered                                                                  | What you'll learn                                                                      |
-| --- | ---------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 1   | [The frame engine](01-frame-engine.md)         | `src/framewise-lite/VideoConfig.tsx`                                          | The contexts, `useCurrentFrame`/`useVideoConfig`, why the seam matters                 |
-| 2   | [interpolate](02-interpolate.md)               | `src/framewise-lite/interpolate.ts`                                           | Range mapping, the surprising `extend` default, multi-segment keyframes, easing        |
-| 3   | [spring](03-spring.md)                         | `src/framewise-lite/spring.ts`                                                | The damped-oscillator physics, why it's iterated, the public wrapper                   |
-| 4   | [Sequence](04-sequence.md)                     | `src/framewise-lite/Sequence.tsx`                                             | Time-shifting via context, how 20 lines power timelines                                |
-| 5   | [The Player](05-player.md)                     | `src/framewise-lite/Player.tsx`                                               | The wall-clock loop, seeking, the #1 playback bug, responsive scaling                  |
-| 6   | [Demo & wiring](06-demo-and-wiring.md)         | `HelloWorld.tsx`, `App.tsx`, `main.tsx`                                       | How the primitives combine into a real animation                                       |
-| 7   | [The Renderer](07-renderer.md)                 | `scripts/render.mjs`, `scripts/render-lib.mjs`, `render.html`, `src/render/*` | Stage 2: Puppeteer screenshots + ffmpeg → mp4, why it's naive, output formats + stills |
-| 8   | [delayRender](08-delay-render.md)              | `delay-render.ts`, `Img.tsx`, `AsyncImage.tsx`                                | Stage 3: making async assets block the capture, proved with a before/after experiment  |
-| 9   | [Audio](09-audio.md)                           | `audio-registry.ts`, `playback.ts`, `Audio.tsx`, `WithAudio.tsx`              | Stage 4: collecting audio per frame and mixing/muxing it with ffmpeg                   |
-| 10  | [Embedded Video](10-video.md)                  | `Video.tsx`, `WithVideo.tsx`                                                  | Stage 5: frame-accurate `<Video>` via delayRender-gated seeking + audio mux            |
-| 11  | [Parallel Rendering](11-parallel-rendering.md) | `scripts/render.mjs`                                                          | Stage 6: render chunks across browsers concurrently, deterministically                 |
+| #   | Chapter                                        | File covered                                                                  | What you'll learn                                                                            |
+| --- | ---------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 1   | [The frame engine](01-frame-engine.md)         | `src/framewise-lite/VideoConfig.tsx`                                          | The contexts, `useCurrentFrame`/`useVideoConfig`, why the seam matters                       |
+| 2   | [interpolate](02-interpolate.md)               | `src/framewise-lite/interpolate.ts`                                           | Range mapping, the surprising `extend` default, multi-segment keyframes, easing              |
+| 3   | [spring](03-spring.md)                         | `src/framewise-lite/spring.ts`                                                | The damped-oscillator physics, why it's iterated, the public wrapper                         |
+| 4   | [Sequence](04-sequence.md)                     | `src/framewise-lite/Sequence.tsx`, `Series.tsx`, `Loop.tsx`                   | Time-shifting via context, how 20 lines power timelines; `<Series>` and `<Loop>` build on it |
+| 5   | [The Player](05-player.md)                     | `src/framewise-lite/Player.tsx`                                               | The wall-clock loop, seeking, the #1 playback bug, responsive scaling                        |
+| 6   | [Demo & wiring](06-demo-and-wiring.md)         | `HelloWorld.tsx`, `App.tsx`, `main.tsx`                                       | How the primitives combine into a real animation                                             |
+| 7   | [The Renderer](07-renderer.md)                 | `scripts/render.mjs`, `scripts/render-lib.mjs`, `render.html`, `src/render/*` | Stage 2: Puppeteer screenshots + ffmpeg → mp4, why it's naive, output formats + stills       |
+| 8   | [delayRender](08-delay-render.md)              | `delay-render.ts`, `Img.tsx`, `AsyncImage.tsx`                                | Stage 3: making async assets block the capture, proved with a before/after experiment        |
+| 9   | [Audio](09-audio.md)                           | `audio-registry.ts`, `playback.ts`, `Audio.tsx`, `WithAudio.tsx`              | Stage 4: collecting audio per frame and mixing/muxing it with ffmpeg                         |
+| 10  | [Embedded Video](10-video.md)                  | `Video.tsx`, `WithVideo.tsx`                                                  | Stage 5: frame-accurate `<Video>` via delayRender-gated seeking + audio mux                  |
+| 11  | [Parallel Rendering](11-parallel-rendering.md) | `scripts/render.mjs`                                                          | Stage 6: render chunks across browsers concurrently, deterministically                       |
 
 ## Map of the source tree
 
@@ -85,6 +85,8 @@ src/
 │   ├── interpolate.ts       value range mapping               (ch. 2)
 │   ├── spring.ts            physics-based animation           (ch. 3)
 │   ├── Sequence.tsx         the time-shifter                  (ch. 4)
+│   ├── Series.tsx           back-to-back clips on one timeline (ch. 4)
+│   ├── Loop.tsx             repeat with a re-based clock      (ch. 4)
 │   ├── Player.tsx           the playback clock + UI + badge   (ch. 5, 8)
 │   ├── CompositionHost.tsx  shared provider stack — both frame sources
 │   │                         render through it               (ch. 5, 7)
@@ -105,7 +107,8 @@ src/
 │   ├── HelloWorld.tsx       the demo video                    (ch. 6)
 │   ├── AsyncImage.tsx       async demo (<Img> + simulated fetch) (ch. 8)
 │   ├── WithAudio.tsx        audio demo (bg tone + offset blip) (ch. 9)
-│   └── WithVideo.tsx        embedded-video demo               (ch. 10)
+│   ├── WithVideo.tsx        embedded-video demo               (ch. 10)
+│   └── WithSeries.tsx       <Series>/<Loop> timeline demo     (ch. 4)
 ├── render/                 ← Stage 2 renderer (ch. 7)
 │   ├── registry.ts          the composition registry
 │   └── main-render.tsx      chrome-less render entry (window.framewiseLite)
