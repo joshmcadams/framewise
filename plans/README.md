@@ -30,7 +30,7 @@ plans cite them.
 | 014  | React 18.3 → 19 upgrade | P3 | M | 004 | DONE (executed, merged; clean upgrade, zero type fixes needed) |
 | 015  | Output formats: --format webm/gif/png-seq + --still | P2 | M | 002, 003 | DONE (executed, merged; planEncode, 5 formats, 21 new tests) |
 | 016  | Easing library (backlog item C) | P2 | M | 001 (after 006, 010) | DONE (executed, merged; bezier, combinators, 25 tests, HelloWorld demo) |
-| 017  | Manual smoke test: output formats on a Chrome+ffmpeg machine (Mac) | P2 | S | 015 | TODO (manual checklist; dev box lacks Chrome/ffmpeg — run on the Mac) |
+| 017  | Manual smoke test: output formats on a Chrome+ffmpeg machine (Mac) | P2 | S | 015 | DONE (all 6 steps pass on the Mac; ffmpeg 8.0, Chrome for Testing 151.0.7922.34 via `--chrome` — system Chrome 151 hangs at headless launch; determinism hash identical at c1/c4/png-seq) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

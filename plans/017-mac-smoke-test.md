@@ -1,6 +1,12 @@
 # Plan 017 — Manual smoke test: output formats on a machine with Chrome + ffmpeg
 
-**Status:** TODO
+**Status:** DONE (2026-08-23) — all six steps pass. ffmpeg 8.0 (Homebrew);
+browser: Google Chrome for Testing 151.0.7922.34 via `--chrome`/`CHROME_PATH`
+because this Mac's system Chrome 151.0.7922.170 hangs at headless launch
+(even a bare `--headless=new --dump-dom` stalls). png-seq, still, webm
+(vp9+opus), gif (both warnings, no audio mux), mp4 (`moov` first), and the
+determinism check all behaved as specified; sha256 `3203283d21148710` was
+identical at `--concurrency 1`, `4`, and in the step-1 PNG sequence.
 **Priority:** P2 · **Effort:** S · **Depends on:** 015 (merged)
 
 ## Why
