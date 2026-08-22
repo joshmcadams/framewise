@@ -219,6 +219,7 @@ describe('parseRegistryIds', () => {
       'WithAudio',
       'WithVideo',
       'WithSeries',
+      'WithOffthread',
     ]);
   });
 
