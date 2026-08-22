@@ -3,6 +3,8 @@ export {AbsoluteFill, useCurrentFrame, useVideoConfig, type VideoConfig} from '.
 export {interpolate, type InterpolateOptions, type ExtrapolateType} from './interpolate';
 export {spring, type SpringConfig} from './spring';
 export {Sequence} from './Sequence';
+export {Series} from './Series';
+export {Loop} from './Loop';
 export {Player, type PlayerProps} from './Player';
 export {Img} from './Img';
 export {Audio, type AudioProps} from './Audio';
