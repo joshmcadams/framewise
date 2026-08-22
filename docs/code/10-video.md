@@ -1,6 +1,8 @@
 # Chapter 10 — Embedded Video (Stage 5)
 
-**Files:** `src/framewise-lite/Video.tsx`, `src/compositions/WithVideo.tsx`,
+**Files:** `src/framewise-lite/Video.tsx`,
+`src/framewise-lite/OffthreadVideo.tsx`, `src/compositions/WithVideo.tsx`,
+`src/compositions/WithOffthread.tsx`, `scripts/offthread-server.mjs`,
 `public/clip.mp4`
 
 Embedding a video is the hardest primitive in the project, and it's a good one
@@ -122,17 +124,71 @@ Rendering `WithVideo` (clip full-frame, a React banner overlaid):
 - **Preview** — selecting `WithVideo` and scrubbing the timeline to frame 90 moved
   the `<video>` element's `currentTime` to 3.0s (90 / 30 fps), with no errors.
 
-## The honest alternative: `<OffthreadVideo>`
+## The honest alternative, realized: `<OffthreadVideo>`
 
 This `<Video>` works, and the spike proved it's frame-accurate here. But relying
 on a live `<video>` element's seeking is fragile in general — it depends on the
 browser's compositor painting the seeked frame, which broke historically and is
-why Framewise built **`<OffthreadVideo>`**: instead of seeking an element, it
-asks ffmpeg to **extract the exact frame as an image** and renders _that_ through
-the same `<Img>` + `delayRender` path from Stage 3. That's more robust (no
-compositor dependency, frame-accurate by construction) and reuses Stages 3+4
-even more directly. Had the spike come back black, that was the planned pivot —
-worth knowing as the production-grade approach.
+why Framewise built **`<OffthreadVideo>`**. This repo ships it too
+(`src/framewise-lite/OffthreadVideo.tsx`): instead of seeking an element, it
+asks ffmpeg to **extract the exact frame as an image** and renders _that_
+through the same `<Img>` + `delayRender` path from Stage 3.
+
+The shape of it:
+
+```tsx
+export const OffthreadVideo = ({src, volume = 1, startFrom = 0, muted = false, style}) => {
+  // …hooks: frame, fps, playback, id, audio report (identical to <Video>)…
+  if (playback) {
+    return <Video … />; // PREVIEW: live element is exactly right here
+  }
+
+  // RENDER: an image served by the renderer's extraction endpoint.
+  return (
+    <Img src={`/__framewise_extract/${key}/${frame + startFrom}.png?fps=${fps}`} style={…} />
+  );
+};
+```
+
+Three things make it work end-to-end:
+
+1. **The extraction endpoint** (`scripts/offthread-server.mjs`, a Vite plugin
+   registered by `render.mjs`) serves `/__framewise_extract/<b64(src)>/<N>.png`.
+   On a cache miss it runs `ffmpeg -ss N/fps -i <file> -frames:v 1` and writes
+   the PNG under the render's temp frames dir; hits are served straight from
+   disk, and concurrent duplicate requests dedupe on one job.
+2. **Audio is unchanged** — the same `reportAudio` call as `<Video>` feeds
+   Stage 4, so ffmpeg muxes the clip's soundtrack with zero new renderer code.
+3. **Capture gating comes free** via `<Img>`: the frame isn't screenshotted
+   until the extracted PNG has actually loaded.
+
+### The off-by-one this chapter almost shipped with
+
+The first draft reused `<Video>`'s half-frame nudge for extraction:
+`-ss (N + 0.5)/fps`. The still at comp frame 75 showed the clip's frame
+**76**. The two paths select differently:
+
+- A live element given `currentTime = T` presents whichever frame's
+  _presentation interval_ contains `T` — hence the nudge into the middle of
+  frame N's interval.
+- `ffmpeg -ss T` presents the first frame whose **PTS ≥ T** — the boundary
+  itself is already unambiguous, so `(N+0.5)/fps` skips right past frame N.
+
+Seeking to exactly `N/fps` fixes it; a unit test pins the seconds computation,
+and the same three-point check chapter 10 used for the live path (comp frames
+30 / 75 / 120 reading back "30" / "75" / "120") verified the extraction path.
+
+### Which one to use
+
+|                | `<Video>`                                                  | `<OffthreadVideo>`                              |
+| -------------- | ---------------------------------------------------------- | ----------------------------------------------- |
+| Preview        | Live element (shared code path)                            | Renders `<Video>` — identical behavior          |
+| Render visual  | Seek live element, gate on `seeked`                        | ffmpeg extracts PNG, gate on image load         |
+| Robustness     | Depends on compositor painting seeks (spike-verified here) | Frame-accurate by construction; needs ffmpeg    |
+| Cost per frame | One async seek                                             | One ffmpeg invocation (cached per source+frame) |
+
+`WithOffthread` mirrors `WithVideo` (clip full-frame + overlay banner) so the
+two outputs are directly comparable.
 
 ## Intentionally simplified
 
@@ -140,8 +196,6 @@ worth knowing as the production-grade approach.
   [chapter 9](09-audio.md).
 - **A silent clip would break the audio path** — `[k:a]` has nothing to map.
   Pass `muted` for a video with no audio track (it also skips the report).
-- **No `<OffthreadVideo>`-style ffmpeg extraction** — we use the live element,
-  which the spike validated for this environment.
 
 ## What's left
 

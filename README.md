@@ -26,6 +26,9 @@ npm run render -- --comp WithAudio --out out/withaudio.mp4
 # Render a composition with frame-accurate embedded video + its audio:
 npm run render -- --comp WithVideo --out out/withvideo.mp4
 
+# Same idea via ffmpeg frame extraction instead of live-element seeking:
+npm run render -- --comp WithOffthread --out out/offthread.mp4
+
 # Render in parallel across 4 browsers (identical output, ~2.6x faster):
 npm run render -- --comp HelloWorld --concurrency 4 --out out/hello.mp4
 
@@ -87,7 +90,8 @@ about clocks.** The `<Player>` is just one possible frame source.
 | `src/framewise-lite/easing.ts`             | Standard easing curves and combinators (incl. back/bounce/elastic)                                                          | `Easing` module from `framewise`                                                                      |
 | `src/framewise-lite/Img.tsx`               | `<img>` that blocks the render until loaded                                                                                 | `<Img>` from `framewise`                                                                              |
 | `src/framewise-lite/Audio.tsx`             | `<Audio>` — collected for the mix in render, played in preview                                                              | `<Audio>` from `framewise`                                                                            |
-| `src/framewise-lite/Video.tsx`             | `<Video>` — frame-accurate seek gated by delayRender + audio mux                                                            | `<Video>`/`<OffthreadVideo>` from `framewise`                                                         |
+| `src/framewise-lite/Video.tsx`             | `<Video>` — frame-accurate seek gated by delayRender + audio mux                                                            | `<Video>` from `framewise`                                                                            |
+| `src/framewise-lite/OffthreadVideo.tsx`    | `<OffthreadVideo>` — ffmpeg-extracted frames rendered through `<Img>`                                                       | `<OffthreadVideo>` from `framewise`                                                                   |
 | `src/framewise-lite/audio-registry.ts`     | Per-frame audio collection sink                                                                                             | Framewise's render-time asset collection                                                              |
 | `src/framewise-lite/staticFile.ts`         | `staticFile('photo.png')` → `'/photo.png'`; keeps public-dir convention explicit                                            | `staticFile()` from `framewise`                                                                       |
 | `src/framewise-lite/random.ts`             | Seeded PRNG (FNV-1a + mulberry32) — identical in preview and all render workers                                             | `random(seed)` from `framewise`                                                                       |
@@ -96,6 +100,7 @@ about clocks.** The `<Player>` is just one possible frame source.
 | `src/compositions/AsyncImage.tsx`          | Async demo: `<Img>` + a delayRender-gated fetch                                                                             | A composition that loads assets                                                                       |
 | `src/compositions/WithAudio.tsx`           | Audio demo: bg tone + an offset blip in a `<Sequence>`                                                                      | A composition with a soundtrack                                                                       |
 | `src/compositions/WithVideo.tsx`           | Embedded-video demo: clip + a React overlay                                                                                 | A composition embedding footage                                                                       |
+| `src/compositions/WithOffthread.tsx`       | `<OffthreadVideo>` demo — same layout as WithVideo for A/B comparison                                                       | A composition using `<OffthreadVideo>`                                                                |
 | `src/compositions/WithSeries.tsx`          | Timeline demo: `<Series>` cards, a nested `<Series>`, a `<Loop>` pulse                                                      | A composition using `<Series>`/`<Loop>`                                                               |
 | `src/render/registry.ts`                   | Composition registry (id → component + metadata)                                                                            | `<Composition>` declarations in `Root.tsx`                                                            |
 | `src/render/main-render.tsx`               | Chrome-less render entry exposing `window.framewiseLite.renderFrame`                                                        | Framewise's `window.framewise_setFrame` seam                                                          |
@@ -125,20 +130,16 @@ about clocks.** The `<Player>` is just one possible frame source.
 
 These are real, but they're not the _core idea_ — adding them is the next stage:
 
-- **`<OffthreadVideo>`-style frame extraction.** Our `<Video>` seeks a live
-  `<video>` element (spike-verified frame-accurate here); the more robust
-  production approach extracts each frame via ffmpeg and renders it through
-  `<Img>` — see [chapter 10](docs/code/10-video.md).
 - **Per-frame volume automation & frame-accurate A/V sync.** Our audio/video use
   constant per-segment volume and best-effort preview sync; sample-accuracy is a
-  deeper problem.
+  deeper problem. (`<OffthreadVideo>` frame extraction has since landed — see
+  [chapter 10](docs/code/10-video.md) for both embedded-video paths.)
 - **Distributed rendering.** Stage 6 parallelizes across local browsers into a
   shared frames dir. Framewise Lambda goes further — workers on _separate machines_
   encode chunk videos and concatenate them, because they can't share a filesystem.
   Same idea, plus a network. See [chapter 11](docs/code/11-parallel-rendering.md).
-- **`interpolate` string/tuple outputs** (`"scale(2)"`), **`Series`,
-  transitions, `Easing` library, `measureSpring`/`reverse`/`durationInFrames`.**
-  All buildable on what's here.
+- **Transitions** — overlapping `<Sequence>`s with interpolated cross-fades.
+  Buildable on what's here.
 
 ## Roadmap
 

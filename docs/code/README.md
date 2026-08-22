@@ -73,7 +73,7 @@ line in the codebase, and it lives in `VideoConfig.tsx`.
 | 7   | [The Renderer](07-renderer.md)                 | `scripts/render.mjs`, `scripts/render-lib.mjs`, `render.html`, `src/render/*` | Stage 2: Puppeteer screenshots + ffmpeg → mp4, why it's naive, output formats + stills                           |
 | 8   | [delayRender](08-delay-render.md)              | `delay-render.ts`, `Img.tsx`, `AsyncImage.tsx`                                | Stage 3: making async assets block the capture, proved with a before/after experiment                            |
 | 9   | [Audio](09-audio.md)                           | `audio-registry.ts`, `playback.ts`, `Audio.tsx`, `WithAudio.tsx`              | Stage 4: collecting audio per frame and mixing/muxing it with ffmpeg                                             |
-| 10  | [Embedded Video](10-video.md)                  | `Video.tsx`, `WithVideo.tsx`                                                  | Stage 5: frame-accurate `<Video>` via delayRender-gated seeking + audio mux                                      |
+| 10  | [Embedded Video](10-video.md)                  | `Video.tsx`, `OffthreadVideo.tsx`, `WithVideo.tsx`, `WithOffthread.tsx`       | Stage 5: frame-accurate `<Video>` via seek-gating, and `<OffthreadVideo>` via ffmpeg extraction + `<Img>`        |
 | 11  | [Parallel Rendering](11-parallel-rendering.md) | `scripts/render.mjs`                                                          | Stage 6: render chunks across browsers concurrently, deterministically                                           |
 
 ## Map of the source tree
@@ -99,6 +99,7 @@ src/
 │   ├── playback.ts          preview-only playback context     (ch. 9)
 │   ├── Audio.tsx            <Audio> primitive                 (ch. 9)
 │   ├── Video.tsx            <Video> primitive (seek + mux)    (ch. 10)
+│   ├── OffthreadVideo.tsx   <OffthreadVideo>: ffmpeg frames via <Img> (ch. 10)
 │   ├── staticFile.ts        asset-path utility                 (ch. 6, 11)
 │   ├── random.ts            seeded random (deterministic render) (ch. 6, 11)
 │   ├── easing.ts            easing curves and combinators       (ch. 2)
@@ -109,7 +110,8 @@ src/
 │   ├── AsyncImage.tsx       async demo (<Img> + simulated fetch) (ch. 8)
 │   ├── WithAudio.tsx        audio demo (bg tone + offset blip) (ch. 9)
 │   ├── WithVideo.tsx        embedded-video demo               (ch. 10)
-│   └── WithSeries.tsx       <Series>/<Loop> timeline demo     (ch. 4)
+│   ├── WithSeries.tsx       <Series>/<Loop> timeline demo     (ch. 4)
+│   └── WithOffthread.tsx    <OffthreadVideo> demo             (ch. 10)
 ├── render/                 ← Stage 2 renderer (ch. 7)
 │   ├── registry.ts          the composition registry
 │   └── main-render.tsx      chrome-less render entry (window.framewiseLite)
@@ -118,6 +120,7 @@ src/
 
 render.html                 render entry HTML (served to headless Chrome)  (ch. 7)
 scripts/render.mjs          the renderer: Vite + Puppeteer + ffmpeg        (ch. 7, 11)
+scripts/offthread-server.mjs  on-demand ffmpeg frame extraction for <OffthreadVideo> (ch. 10)
 scripts/render-lib.mjs      pure renderer helpers (planEncode, planChunks…) (ch. 7, 11)
 public/                     static assets (photo.png, bg/blip.wav, clip.mp4)
 ```

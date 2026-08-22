@@ -44,7 +44,7 @@ across machines. See [§14](#14-roadmap-status-and-proposal).
 | Version       | 0.1.0 (`package.json`)                                                                                 |
 | Runtime       | Node ≥ 20, React ^19.2.7                                                                               |
 | Toolchain     | TypeScript ^5.6 (strict), Vite ^6, Vitest ^3, ESLint ^10 flat config, Prettier (printWidth 100)        |
-| Tests         | 17 files / 248 tests, all passing (`npm test`)                                                         |
+| Tests         | 19 files / 263 tests, all passing (`npm test`)                                                         |
 | CI            | GitHub Actions: Node 20.x & 22.x matrix, runs `npm ci && npm run verify` (`.github/workflows/ci.yml`)  |
 | Renderer deps | System Chrome/Chromium + ffmpeg on PATH (not npm packages — `puppeteer-core` attaches to your browser) |
 
@@ -162,7 +162,8 @@ src/
 │   ├── AsyncImage.tsx         delayRender demo (--no-wait breaks it on purpose)            (ch. 8)
 │   ├── WithAudio.tsx          background tone + offset blip                                (ch. 9)
 │   ├── WithVideo.tsx          embedded clip + React overlay                                (ch. 10)
-│   └── WithSeries.tsx         <Series>/<Loop> timeline demo                                (ch. 4)
+│   ├── WithSeries.tsx         <Series>/<Loop> timeline demo                                (ch. 4)
+│   └── WithOffthread.tsx      <OffthreadVideo> demo — A/B with WithVideo                   (ch. 10)
 ├── render/
 │   ├── registry.ts            composition registry (id → component + metadata)
 │   └── main-render.tsx        chrome-less entry exposing window.framewiseLite
@@ -199,6 +200,7 @@ Everything public is exported from `src/framewise-lite/index.ts`:
 | `<Img src>`                                                                                                                   | Like `<img>` plus `delayRender` gating                                                                                                                                                                                                                                        |
 | `<Audio src volume? startFrom? endAt?>`                                                                                       | Plays in preview; contributes to the ffmpeg mix in export                                                                                                                                                                                                                     |
 | `<Video src volume? startFrom? endAt?>`                                                                                       | Live element, seeked per frame in export; audio muxed                                                                                                                                                                                                                         |
+| `<OffthreadVideo src volume? startFrom? muted?>`                                                                              | Same props/audio as `<Video>`; in a render the frame is ffmpeg-extracted and shown via `<Img>` — frame-accurate by construction; previews as a live `<Video>`                                                                                                                 |
 | `delayRender(label?, timeout?)` / `continueRender(handle)`                                                                    | Block capture until resolved; timeout logs a labeled error                                                                                                                                                                                                                    |
 | `getPendingDelayRenders()` / `useDelayRenderPending()`                                                                        | Inspect/subcribe to outstanding handles (powers the badge)                                                                                                                                                                                                                    |
 | `staticFile(path)`                                                                                                            | Root-relative asset URL consistent with `public/` and the renderer                                                                                                                                                                                                            |
@@ -504,13 +506,13 @@ Every item from the repo's deferred lists now ships: `<Series>`/`<Loop>` (plan
 `interpolate` outputs plus `interpolateColors` (plan 020 — backlog item B, the
 last one). Phase 2 is next in line.
 
-### Phase 2 — Media fidelity (close the documented gaps)
+### Phase 2 — Media fidelity (close the documented gaps) — item 1 shipped
 
-| Item                                   | Origin                                                   | Notes                                                                                                                                 |
-| -------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| OffthreadVideo-style frame extraction  | README "deliberately omitted"; ch. 10 names the approach | Extract each needed frame via ffmpeg, render through `<Img>`; removes live-element seek fragility. Biggest correctness win available. |
-| Per-frame volume automation            | README "deliberately omitted"                            | Drive `volume` via `interpolate` instead of constant per-segment values.                                                              |
-| Sample-accurate A/V sync investigation | README "deliberately omitted"                            | Scope it honestly — even a written analysis with measurements would upgrade chapter 9/10.                                             |
+| Item                                                  | Origin                                                   | Notes                                                                                                                                                          |
+| ----------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~OffthreadVideo-style frame extraction~~ ✅ plan 021 | README "deliberately omitted"; ch. 10 names the approach | Shipped as `<OffthreadVideo>`: on-demand ffmpeg extraction served by the renderer, rendered through `<Img>`; verified frame-accurate at comp frames 30/75/120. |
+| Per-frame volume automation                           | README "deliberately omitted"                            | Drive `volume` via `interpolate` instead of constant per-segment values (plan 022).                                                                            |
+| Sample-accurate A/V sync investigation                | README "deliberately omitted"                            | Scope it honestly — even a written analysis with measurements would upgrade chapter 9/10 (plan 023).                                                           |
 
 ### Phase 3 — Renderer capability and performance
 
