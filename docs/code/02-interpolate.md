@@ -202,13 +202,66 @@ The library ships a set of standard curves and combinators in `easing.ts`
 The HelloWorld demo uses `Easing.out(Easing.cubic)` on the subtitle slide-up so
 it decelerates into place rather than sliding linearly.
 
-## What was left out (vs. real Framewise)
+## Tuple and string-template outputs
 
-Framewise's `interpolate` also accepts **string** output ranges (`['scale(1)',
-'scale(2)']`) and **tuple** ranges (`[[0,0],[100,100]]`), with a whole CSS
-transform parser. That's a big chunk of code and not core to the _idea_, so this
-port keeps only the numeric path. The numeric semantics — extrapolation modes,
-multi-segment dispatch, easing, validation — match exactly.
+The numeric path above is the core, but the shipped `interpolate` also accepts
+richer output shapes — all three consume the **same input-side pipeline**
+(extrapolation → normalize → ease), differing only in how the eased progress
+`t` maps onto the output:
+
+```ts
+// Tuples: every lane interpolates independently.
+interpolate(
+  5,
+  [0, 10],
+  [
+    [0, -100],
+    [100, -200],
+  ],
+); // → [50, -150]
+
+// String templates: embedded numbers are extracted, interpolated slot by
+// slot, and substituted back in order (React Native's classic pattern).
+interpolate(5, [0, 10], ['scale(0)', 'scale(2)']); // → "scale(1)"
+```
+
+Implementation notes worth knowing:
+
+1. **Mode dispatch happens on `typeof outputRange[0]`**, before any math. Each
+   mode validates its shape up front: tuples must be non-empty, equal-length,
+   finite; string templates must contain the same number of slots in every
+   entry (zero-slot templates are constants and must be byte-identical).
+2. **Slot formatting** rounds to four decimals (`Number(v.toFixed(4))`) so
+   CSS-bound values don't carry binary-float noise.
+3. **`'identity'` extrapolation throws** in tuple/string modes — it would have
+   to invent a vector or a string from a raw scalar.
+4. **The caveat that motivates `interpolateColors`:** numeric slots make
+   `'rgb(255, 0, 0)'` templates work, but `'#ff00ff'` has no usable slots —
+   its digits are one giant base-16 number. Colors parse first, then mix.
+
+## `interpolateColors`
+
+Colors live in their own module (`src/framewise-lite/interpolate-colors.ts`)
+because they need parsing, not templating. It accepts hex (`#rgb #rgba #rrggbb
+#rrggbbaa`), comma-syntax `rgb()/rgba()`, and `hsl()/hsla()` — formats mix
+freely because everything normalizes to `{r, g, b, a}` first:
+
+```ts
+interpolateColors(progress, [0, 1], ['#ff0000', 'rgb(0, 0, 255)']);
+// → "rgba(128, 0, 128, 1)"
+```
+
+Channels mix independently with the same easing contract as `interpolate`
+(single function or per-segment array); extrapolation accepts `'extend'`
+(the default) or `'clamp'` only — `'wrap'` would cycle hues backwards through
+magenta and `'identity'` would return a raw number, so both throw with an
+explanation. The output is always a normalized `rgba(r, g, b, a)` string:
+channels rounded to integers, alpha to three decimals.
+
+Structurally it is a thin client of this chapter's machinery: validation,
+segment finding, easing resolution, and the input-side pipeline are all
+imported from `interpolate.ts` (marked `@internal`), leaving only parsing,
+per-channel mixing, and formatting as new code.
 
 ## The tests
 
@@ -220,8 +273,22 @@ expect(interpolate(5, [0, 10], [0, 100])).toBe(50); // linear
 expect(interpolate(15, [0, 10], [0, 100])).toBe(150); // extend default!
 expect(interpolate(15, [0, 10], [0, 100], {extrapolateRight: 'clamp'})).toBe(100);
 expect(interpolate(5, [0, 10], [0, 100], {easing: (t) => t * t})).toBe(25); // eased
+expect(
+  interpolate(
+    5,
+    [0, 10],
+    [
+      [0, -100],
+      [100, -200],
+    ],
+  ),
+).toEqual([50, -150]); // tuples
 expect(() => interpolate(5, [0, 0], [0, 100])).toThrow(/monotonic/); // guard
 ```
+
+`interpolate-colors.test.ts` pins format parsing, midpoint blends
+(`red ⊕ blue = rgba(128, 0, 128, 1)`), alpha handling, hsl→rgb conversion,
+easing, clamp-vs-extend, and the full error matrix.
 
 ---
 
