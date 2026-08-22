@@ -2,10 +2,11 @@
 // spring/index.ts. The analytical damped-harmonic-oscillator solution is exact;
 // reconstructing it from scratch is the classic "almost right" trap, so this is
 // a faithful copy. Like Framewise we memoize the integer-frame chain (pure perf,
-// byte-identical output — see integerChainCache below); we drop the
-// `reverse`/`durationInFrames` options (which need measureSpring) to keep the
-// educational core small. `from`, `to`, and `delay` behave exactly like
-// Framewise.
+// byte-identical output — see integerChainCache below). `from`, `to`, and
+// `delay` behave exactly like Framewise, as do the `measureSpring` family
+// additions: `measureSpring()`, the `durationInFrames` time-warp, and
+// `reverse` — all three are thin arithmetic over the measured rest point of
+// the same normalized chain.
 //
 // Deliberate deviation from upstream: `overshootClamping`. Upstream clamps
 // `spr.current` (normalized 0..1 space) directly against `to` (output space),
@@ -167,9 +168,65 @@ function springCalculation({
   return advance({animation: base, now: (frameClamped / fps) * 1000, config: resolvedConfig});
 }
 
+// Measurement walks the same normalized integer chain the animation uses, so
+// it inherits both the cache and the exact advance() sequence. The walk is
+// capped so a pathological config (e.g. damping → 0⁺) fails fast instead of
+// spinning forever.
+const MAX_MEASURE_FRAMES = 10_000;
+const DEFAULT_MEASURE_THRESHOLD = 0.0005;
+
+/**
+ * Measures where a spring comes to rest. Returns `{maxFrameDuration}`: the
+ * first frame at which consecutive positions differ by less than `threshold`.
+ *
+ * Measurement happens in normalized [0, 1] progress space, so the result
+ * depends only on `fps` and `config` — never on `from` or `to`. `threshold`
+ * is therefore a fraction of the animated span; smaller means stricter (and a
+ * longer measured duration).
+ *
+ * This is the primitive under spring()'s `durationInFrames` and `reverse`
+ * options: both need to know how long the natural run is.
+ */
+export const measureSpring = ({
+  fps,
+  config = {},
+  threshold = DEFAULT_MEASURE_THRESHOLD,
+}: {
+  fps: number;
+  config?: Partial<SpringConfig>;
+  threshold?: number;
+}): {maxFrameDuration: number} => {
+  if (!Number.isFinite(fps) || fps <= 0) {
+    throw new Error(`fps must be a positive number, but got ${fps}`);
+  }
+  if (!Number.isFinite(threshold) || threshold <= 0) {
+    throw new Error(`threshold must be a positive number, but got ${threshold}`);
+  }
+
+  const resolvedConfig: SpringConfig = {...defaultSpringConfig, ...config};
+  const key = `${fps}|${resolvedConfig.damping}|${resolvedConfig.mass}|${resolvedConfig.stiffness}`;
+
+  let previous = getIntegerNode(0, fps, resolvedConfig, key);
+  for (let k = 1; k < MAX_MEASURE_FRAMES; k++) {
+    const node = getIntegerNode(k, fps, resolvedConfig, key);
+    if (Math.abs(node.current - previous.current) < threshold) {
+      return {maxFrameDuration: k};
+    }
+    previous = node;
+  }
+
+  return {maxFrameDuration: MAX_MEASURE_FRAMES};
+};
+
 /**
  * Physics-based animation value. At frame 0 it equals `from`; over time it
  * springs toward `to`, possibly overshooting (unless `overshootClamping`).
+ *
+ * Optional time controls, both built on `measureSpring`:
+ *  - `durationInFrames`: warps time so the spring settles around that frame
+ *    instead of its natural duration.
+ *  - `reverse: true`: plays `to → from` over the same window (the requested
+ *    duration if given, else the natural one).
  *
  * @example
  * const scale = spring({frame, fps, config: {damping: 12}});
@@ -181,6 +238,8 @@ export function spring({
   from = 0,
   to = 1,
   delay = 0,
+  durationInFrames,
+  reverse = false,
 }: {
   frame: number;
   fps: number;
@@ -188,14 +247,40 @@ export function spring({
   from?: number;
   to?: number;
   delay?: number;
+  /** Warp the spring to settle around this many frames. Must be ≥ 1. */
+  durationInFrames?: number;
+  /** Play to → from instead of from → to. */
+  reverse?: boolean;
 }): number {
   if (!Number.isFinite(fps) || fps <= 0) {
     throw new Error(`fps must be a positive number, but got ${fps}`);
   }
+  if (
+    durationInFrames !== undefined &&
+    (!Number.isInteger(durationInFrames) || durationInFrames < 1)
+  ) {
+    throw new Error(
+      `durationInFrames must be a positive whole number of frames, but got ${durationInFrames}`,
+    );
+  }
 
-  const delayProcessed = passedFrame - delay;
+  // Delay applies to the outer timeline first; the time-warp and reversal
+  // below then operate inside the delayed window.
+  let framePassed = passedFrame - delay;
 
-  const spr = springCalculation({fps, frame: delayProcessed, config});
+  if (durationInFrames !== undefined || reverse) {
+    const {maxFrameDuration: natural} = measureSpring({fps, config});
+    const total = durationInFrames ?? natural;
+    // To make the run take `total` frames instead of `natural`, advance the
+    // internal clock by the ratio — slower when stretching, faster when
+    // compressing. Reversal then walks that internal window backward
+    // (natural → 0), so frame 0 shows `to` and frame `total` shows `from`.
+    const stretch = durationInFrames !== undefined ? natural / total : 1;
+    const warpedForward = framePassed * stretch;
+    framePassed = reverse ? natural - warpedForward : warpedForward;
+  }
+
+  const spr = springCalculation({fps, frame: framePassed, config});
 
   // springCalculation always animates in normalized [0, 1] space, so map to the
   // requested [from, to] range first, THEN clamp against `to`. Clamping
