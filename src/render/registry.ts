@@ -4,6 +4,7 @@ import {AsyncImage} from '../compositions/AsyncImage';
 import {WithAudio} from '../compositions/WithAudio';
 import {WithVideo} from '../compositions/WithVideo';
 import {WithSeries} from '../compositions/WithSeries';
+import {WithOffthread} from '../compositions/WithOffthread';
 
 /**
  * A composition descriptor — a component plus the metadata needed to render it.
@@ -68,6 +69,15 @@ export const compositions: Composition[] = [
   {
     id: 'WithSeries',
     component: WithSeries,
+    width: 1280,
+    height: 720,
+    fps: 30,
+    durationInFrames: 150,
+    defaultProps: {},
+  },
+  {
+    id: 'WithOffthread',
+    component: WithOffthread,
     width: 1280,
     height: 720,
     fps: 30,
