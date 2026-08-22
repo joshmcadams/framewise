@@ -32,6 +32,7 @@ plans cite them.
 | 016  | Easing library (backlog item C) | P2 | M | 001 (after 006, 010) | DONE (executed, merged; bezier, combinators, 25 tests, HelloWorld demo) |
 | 017  | Manual smoke test: output formats on a Chrome+ffmpeg machine (Mac) | P2 | S | 015 | DONE (all 6 steps pass on the Mac; ffmpeg 8.0, Chrome for Testing 151.0.7922.34 via `--chrome` — system Chrome 151 hangs at headless launch; determinism hash identical at c1/c4/png-seq) |
 | 018  | `<Series>` and `<Loop>` timeline helpers (backlog item D) | P2 | M | — | DONE (executed; Series/Loop + 19 tests, WithSeries demo, ch. 4 sections, source map + README rows; verify green at 204 tests) |
+| 019  | `measureSpring` family: measureSpring + spring durationInFrames/reverse (backlog item E) | P2 | M | — | DONE (executed; measureSpring + durationInFrames/reverse on spring(), 19 new tests incl. exact-mirror pin, ch. 3 family section; caught+fixed reversal space-mixing bug pre-merge) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 
