@@ -1,8 +1,46 @@
 # Backlog
 
-Suggestions from a code review of framewise-lite, ordered most-impactful first.
-All items are complete. Individual prompt files have been removed; summaries are
-below.
+Code-review findings for framewise-lite, ordered most-impactful first within each
+round. Open items have a prompt file next to this README; completed rounds keep
+only their summary here.
+
+## Round 2 — open (review of `421a091..071f754`, 2026-08-24)
+
+Review of the 36-commit roadmap run (OVERVIEW + plans 017–030). Gates were green
+at review time — `tsc -b` clean, 291 tests in 22 files — and every finding below
+was reproduced rather than inferred.
+
+| # | Item | Type | Severity | Status |
+|---|------|------|----------|--------|
+| 10 | [`npm run build` destroys the `build:lib` output](10-lib-build-clobbered-by-app-build.md) | Bug (packaging) | High | OPEN |
+| 11 | [`--distributed --format webm` fails at the concat step](11-distributed-webm-codec-container-mismatch.md) | Bug (correctness) | High | OPEN |
+| 12 | [React is a `dependency`, not a `peerDependency`](12-react-should-be-peer-dependency.md) | Bug (packaging) | High | OPEN |
+| 13 | [Per-frame volume automation splices audio once per frame](13-volume-automation-splices-audio-per-frame.md) | Bug (audio) / scalability | Medium | OPEN |
+| 14 | [`<OffthreadVideo>` breaks on non-ASCII asset paths](14-offthreadvideo-non-ascii-paths.md) | Bug (correctness) | Medium | OPEN |
+| 15 | [delayRender backstop moved entirely in-page](15-delayrender-backstop-moved-in-page.md) | Regression (diagnostics) | Medium | OPEN |
+| 16 | [`interpolateColors` output validity + parsing gaps](16-interpolatecolors-output-validity-and-parsing.md) | Correctness / polish | Low | OPEN |
+| 17 | [Renderer and config minor cleanups](17-renderer-and-config-minor-cleanups.md) | Robustness / hygiene | Low | OPEN |
+| 18 | [`App.tsx` silences two hooks rules file-wide](18-app-tsx-blanket-eslint-disable.md) | Quality / teaching | Low | OPEN |
+
+### Not findings — verified and holding
+
+Recorded so a later round does not re-audit them:
+
+- `assetPath` containment (`render-lib.mjs:23-33`) is correct, including the
+  `//etc/passwd` double-slash case, and is wired into both the encode path and
+  the extraction server (plan 026).
+- The plan-024 perf refactor preserves audio semantics: `audio-registry` keys
+  reports by instance id, so folding render→wait→read into one CDP round trip
+  cannot produce duplicate or overlapping segments.
+- The `<OffthreadVideo>` PNG cache lives in `framesDir/offthread/`, and the
+  non-recursive `readdir(…).filter(f => f.endsWith('.png'))` correctly excludes
+  it from both the frame-count assertion and the png-seq copy.
+- `docs/code/README.md`'s source map is current for every module added in
+  plans 018–030.
+
+## Round 1 — complete (2026-07-10)
+
+Individual prompt files have been removed; summaries are below.
 
 | # | Item | Type | Commit(s) |
 |---|------|------|-----------|
@@ -17,6 +55,8 @@ below.
 | 09 | Next primitives (A/F/G) | Features | `7d23847` |
 
 ---
+
+# Round 1 details
 
 ## 01 — Cross-platform Chrome resolution
 
