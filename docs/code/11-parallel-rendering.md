@@ -175,13 +175,22 @@ concept; theirs survives a network between the workers.
 
 For teaching, `--distributed` simulates Lambda on one box: each chunk's frames
 are encoded to a temporary video (`planChunkVideoEncode` — `-start_number` +
-`-frames:v` per chunk, same codec/crf), then the concat demuxer stitches them
-with stream copy (`buildConcatList` → `file '…'` list → `ffmpeg -f concat -c
-copy`). On this machine HelloWorld c4 renders identically (hash `3203283d…`) at
-16.4 s distributed vs 20.5 s local. With audio, the simulation falls back to
-single-stitch with a warning — true distributed audio would mux the globally-
-aggregated segments at concat time, which is the same filter graph as today
-fed by the concat video instead of the image sequence.
+`-frames:v` per chunk, codec/crf matching the output format), then the concat
+demuxer stitches them with stream copy (`buildConcatList` → `file '…'` list →
+`ffmpeg -f concat -c copy`). The subtle rule: **chunks must live in the same
+container as the final output** — `chunkContainerFor(format)` names each chunk
+`.mp4` or `.webm`, and the codec defaults follow `planEncode`'s table
+(libx264 / libvpx-vp9). An early version hardcoded libx264 `.mp4` chunks while
+letting webm through the guard, so every frame rendered and then ffmpeg
+refused at concat ("Only VP8 or VP9 or AV1…") — a codec/container mismatch can
+only be caught before rendering starts, which is why the mapping is a pure,
+unit-tested helper. mp4 concats carry `-movflags +faststart` so distributed
+output matches local single-stitch. On this machine HelloWorld c4 renders
+identically (hash `3203283d…`) at 16.4 s distributed vs 20.5 s local; a
+distributed webm probes back as vp9 · 150 frames · 5.000 s. With audio, the
+simulation falls back to single-stitch with a warning — true distributed audio
+would mux the globally-aggregated segments at concat time, which is the same
+filter graph as today fed by the concat video instead of the image sequence.
 
 ## Where the project stands
 

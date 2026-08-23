@@ -244,20 +244,44 @@ export function planChunks(durationInFrames, requestedConcurrency) {
 
 // Distributed (Lambda-style) helpers — pure, testable.
 
+// Chunk container per output format: chunks must be stream-copy-compatible
+// with the final container (an H.264 chunk cannot live in a .webm — ffmpeg
+// refuses at concat time, after every frame was already rendered). gif and
+// png-seq never reach the distributed branch; the helper still guards.
+const CHUNK_CONTAINERS = {mp4: '.mp4', webm: '.webm'};
+
+export function chunkContainerFor(format) {
+  const ext = CHUNK_CONTAINERS[format];
+  if (!ext) {
+    throw new Error(`--distributed does not support --format ${format}. Valid: mp4, webm.`);
+  }
+  return ext;
+}
+
 // Build ffmpeg args that encode one chunk's worth of frames (video-only) into
-// a temporary mp4. The frames live in the shared framesDir under absolute
-// names (frame-00000.png …), so -start_number tells ffmpeg where the chunk
-// begins and -frames:v caps it.
+// a temporary file in the SAME container as the final output. The codec
+// defaults mirror planEncode's per-format table so chunk and single-stitch
+// encodes agree. The frames live in the shared framesDir under absolute names
+// (frame-00000.png …), so -start_number tells ffmpeg where the chunk begins
+// and -frames:v caps it.
 export function planChunkVideoEncode({
   fps,
   crf = '18',
   codec,
+  format = 'mp4',
   startFrame,
   frameCount,
   framesPattern,
   out,
 }) {
-  const vc = codec ?? 'libx264';
+  const vc = codec ?? {mp4: 'libx264', webm: 'libvpx-vp9'}[format];
+  if (!vc) {
+    throw new Error(`Unknown chunk format: ${format}. Valid formats: mp4, webm.`);
+  }
+  // libvpx-vp9 needs -b:v 0 for true constant-quality CRF mode — same args
+  // planEncode uses for webm.
+  const qualityArgs =
+    format === 'webm' ? ['-crf', String(crf), '-b:v', '0'] : ['-crf', String(crf)];
   return [
     '-y',
     '-framerate',
@@ -270,8 +294,7 @@ export function planChunkVideoEncode({
     String(frameCount),
     '-c:v',
     vc,
-    '-crf',
-    String(crf),
+    ...qualityArgs,
     '-pix_fmt',
     'yuv420p',
     out,

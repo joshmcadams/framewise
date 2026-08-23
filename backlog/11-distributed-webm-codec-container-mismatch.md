@@ -1,6 +1,7 @@
 # 11 — `--distributed --format webm` fails at the concat step
 
 **Type:** Bug (correctness) · **Severity:** High · **Introduced by:** plan 030 (`444c54f`)
+**Status:** DONE — fixed by plan 032 (backlog option 1: chunk codec/container derived from `format`; mp4 concat also gained `+faststart`).
 
 ## Problem
 

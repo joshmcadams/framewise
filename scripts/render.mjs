@@ -48,6 +48,7 @@ import {
   planEncode,
   planOutput,
   planChunkVideoEncode,
+  chunkContainerFor,
   buildConcatList,
 } from './render-lib.mjs';
 import {framewiseExtract} from './offthread-server.mjs';
@@ -668,14 +669,16 @@ try {
       console.log(`▶ distributed: encoding ${chunks.length} chunk videos, then concatenating`);
       const chunkPaths = [];
       const framesPattern = join(framesDir, 'frame-%05d.png');
+      const chunkExt = chunkContainerFor(format);
       for (let i = 0; i < chunks.length; i++) {
         const [s, e] = chunks[i];
-        const chunkOut = join(framesDir, `chunk-${i}.mp4`);
+        const chunkOut = join(framesDir, `chunk-${i}${chunkExt}`);
         chunkPaths.push(chunkOut);
         const chunkArgs = planChunkVideoEncode({
           fps,
           crf,
           codec,
+          format,
           startFrame: s,
           frameCount: e - s,
           framesPattern,
@@ -686,7 +689,22 @@ try {
       }
       const listFile = join(framesDir, 'concat.txt');
       await writeFile(listFile, buildConcatList(chunkPaths));
-      const concatArgs = ['-y', '-f', 'concat', '-safe', '0', '-i', listFile, '-c', 'copy', out];
+      // +faststart on mp4 keeps the distributed output equivalent to the
+      // local single-stitch (which has had it since the output-format work).
+      const faststart = format === 'mp4' ? ['-movflags', '+faststart'] : [];
+      const concatArgs = [
+        '-y',
+        '-f',
+        'concat',
+        '-safe',
+        '0',
+        '-i',
+        listFile,
+        '-c',
+        'copy',
+        ...faststart,
+        out,
+      ];
       console.log(`▶ concat: ${chunkPaths.length} chunks → ${out} (stream copy)`);
       await run('ffmpeg', concatArgs);
       const secs = ((Date.now() - started) / 1000).toFixed(1);

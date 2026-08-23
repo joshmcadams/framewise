@@ -8,6 +8,7 @@ import {
   hasEncoderToken,
   parseRegistryIds,
   planChunkVideoEncode,
+  chunkContainerFor,
   planChunks,
   planEncode,
   planOutput,
@@ -716,6 +717,63 @@ describe('planChunkVideoEncode', () => {
     });
     expect(custom).toContain('libx265');
     expect(custom[custom.indexOf('-crf') + 1]).toBe('23');
+  });
+
+  // Regression (backlog #11): --distributed --format webm used to hardcode
+  // libx264/.mp4 chunks, so the concat into .webm failed after every frame
+  // had been rendered. Chunks must match the final container.
+  it('webm chunks use libvpx-vp9 with -b:v 0 for constant-quality CRF', () => {
+    const args = planChunkVideoEncode({
+      format: 'webm',
+      fps: 30,
+      startFrame: 0,
+      frameCount: 10,
+      framesPattern: 'p',
+      out: 'chunk-0.webm',
+    });
+    expect(args).toContain('libvpx-vp9');
+    expect(args[args.indexOf('-crf') + 1]).toBe('18');
+    expect(args[args.indexOf('-b:v') + 1]).toBe('0');
+    expect(args[args.length - 1]).toBe('chunk-0.webm');
+  });
+
+  it('explicit codec overrides the per-format default', () => {
+    const args = planChunkVideoEncode({
+      format: 'webm',
+      codec: 'libvpx',
+      fps: 30,
+      startFrame: 0,
+      frameCount: 10,
+      framesPattern: 'p',
+      out: 'chunk-0.webm',
+    });
+    expect(args).toContain('libvpx');
+    expect(args).not.toContain('libvpx-vp9');
+  });
+
+  it('rejects formats the distributed path cannot stitch', () => {
+    expect(() =>
+      planChunkVideoEncode({
+        format: 'gif',
+        fps: 30,
+        startFrame: 0,
+        frameCount: 10,
+        framesPattern: 'p',
+        out: 'c.gif',
+      }),
+    ).toThrow(/Unknown chunk format: gif/);
+  });
+});
+
+describe('chunkContainerFor', () => {
+  it('maps each distributable format to its matching container', () => {
+    expect(chunkContainerFor('mp4')).toBe('.mp4');
+    expect(chunkContainerFor('webm')).toBe('.webm');
+  });
+
+  it('throws for formats without a chunk-encode path', () => {
+    expect(() => chunkContainerFor('gif')).toThrow(/does not support --format gif/);
+    expect(() => chunkContainerFor('png-seq')).toThrow(/does not support --format png-seq/);
   });
 });
 
