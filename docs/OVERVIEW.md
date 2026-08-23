@@ -32,11 +32,13 @@ of a programmatic video engine:
   frame-accurate embedded **`<Video>`**.
 - **Parallel chunked rendering** across multiple headless browsers.
 
-What it deliberately does _not_ implement (each omission is explained in its
-chapter): ffmpeg-based frame extraction (`<OffthreadVideo>`-style), per-frame
-volume automation and sample-accurate A/V sync (both since shipped — plans 022
-and 023), and distributed rendering
-across machines. See [§14](#14-roadmap-status-and-proposal).
+Every fidelity gap the original README listed as "deliberately omitted" has
+since shipped: ffmpeg frame extraction (`<OffthreadVideo>`, plan 021),
+per-frame volume automation (plan 022), the measured sample-accuracy analysis
+(plan 023), and distributed chunk-encode + concat (plan 030). What remains
+honestly simplified: preview A/V sync is drift-snap best-effort (by design),
+and true cross-machine rendering (the `--distributed` flag simulates it on one
+box). See [§14](#14-roadmap-status).
 
 ### Status snapshot
 
@@ -161,22 +163,25 @@ src/
 ├── compositions/              demo compositions registered for preview AND render
 │   ├── HelloWorld.tsx         exercises every primitive                                    (ch. 6)
 │   ├── AsyncImage.tsx         delayRender demo (--no-wait breaks it on purpose)            (ch. 8)
-│   ├── WithAudio.tsx          background tone + offset blip                                (ch. 9)
+│   ├── WithAudio.tsx          background tone + offset blip + volume fade                  (ch. 9)
 │   ├── WithVideo.tsx          embedded clip + React overlay                                (ch. 10)
 │   ├── WithSeries.tsx         <Series>/<Loop> timeline demo                                (ch. 4)
-│   └── WithOffthread.tsx      <OffthreadVideo> demo — A/B with WithVideo                   (ch. 10)
+│   ├── WithOffthread.tsx      <OffthreadVideo> demo — A/B with WithVideo                   (ch. 10)
+│   └── Countdown.tsx          calculateMetadata demo — duration from props.seconds         (ch. 6, 7)
 ├── render/
-│   ├── registry.ts            composition registry (id → component + metadata)
+│   ├── registry.ts            composition registry + calculateMetadata resolver
+│   ├── parse-props-input.ts   preview props-editor JSON parser (unit-tested)
 │   └── main-render.tsx        chrome-less entry exposing window.framewiseLite
-├── App.tsx                    host page: dropdown over the registry + <Player>
+├── App.tsx                    host page: dropdown + props editor + gallery + <Player>
 └── main.tsx                   Vite entry
 
 scripts/render.mjs             the renderer: Vite + Puppeteer + ffmpeg, parallel chunks (ch. 7, 11)
 scripts/render-lib.mjs         pure helpers extracted from render.mjs (unit-tested)
+scripts/offthread-server.mjs   on-demand ffmpeg frame extraction for <OffthreadVideo> (ch. 10)
 render.html                    page served to headless Chrome
 public/                        static assets (photo.png, bg.wav, blip.wav, clip.mp4)
 docs/code/                     the 11-chapter walkthrough (docs are the product)
-plans/, backlog/               historical executor plans & review items — all complete
+plans/, backlog/               executor plans & review items — all complete (030 plans DONE)
 ```
 
 ¹ `posterize` is an extension not present in upstream Framewise.
@@ -225,21 +230,24 @@ const Title = ({text}: {text: string}) => {
 
 ## 6. Compositions and the registry
 
-Four demos ship in `src/compositions/`, registered in `src/render/registry.ts`
+Seven demos ship in `src/compositions/`, registered in `src/render/registry.ts`
 (the minimal analog of Framewise's `<Composition>` declarations). All are
 1280×720 @ 30fps.
 
-| id           | Duration | Demonstrates                                                          |
-| ------------ | -------- | --------------------------------------------------------------------- |
-| `HelloWorld` | 150 f    | spring pop-in, hue drift, `<Sequence>` timing, seeded `random()`      |
-| `AsyncImage` | 90 f     | `<Img>` + a `delayRender`-gated simulated fetch (`fetchDelayMs` prop) |
-| `WithAudio`  | 150 f    | `<Audio>` background tone + offset blip inside a `<Sequence>`         |
-| `WithVideo`  | 150 f    | embedded clip with frame-accurate seek + React overlay                |
-| `WithSeries` | 150 f    | three `<Series>` cards, a nested `<Series>`, and a `<Loop>` pulse     |
+| id              | Duration | Demonstrates                                                          |
+| --------------- | -------- | --------------------------------------------------------------------- |
+| `HelloWorld`    | 150 f    | spring pop-in, hue drift, `<Sequence>` timing, seeded `random()`      |
+| `AsyncImage`    | 90 f     | `<Img>` + a `delayRender`-gated simulated fetch (`fetchDelayMs` prop) |
+| `WithAudio`     | 150 f    | `<Audio>` background tone + offset blip inside a `<Sequence>`         |
+| `WithVideo`     | 150 f    | embedded clip with frame-accurate seek + React overlay                |
+| `WithSeries`    | 150 f    | three `<Series>` cards, a nested `<Series>`, and a `<Loop>` pulse     |
+| `WithOffthread` | 150 f    | `<OffthreadVideo>` — same layout as WithVideo for A/B comparison      |
+| `Countdown`     | dynamic  | `calculateMetadata`: duration derived from `props.seconds`            |
 
 The preview app (`npm run dev`) reads the **same registry** via a dropdown in
 `src/App.tsx`; switching compositions remounts the `<Player>` (`key={comp.id}`)
-to reset the clock and clear stale delayRender handles.
+to reset the clock and clear stale delayRender handles. The dropdown page also
+has a live props editor (plan 027) and a gallery view (plan 029).
 
 **To add a composition:**
 
@@ -256,7 +264,7 @@ to reset the clock and clear stale delayRender handles.
 
 ## 7. Rendering a composition
 
-Pipeline (`scripts/render.mjs`, ~620 lines; pure logic extracted and tested in
+Pipeline (`scripts/render.mjs`, ~730 lines; pure logic extracted and tested in
 `scripts/render-lib.mjs`):
 
 1. Parse flags; preflight `ffmpeg` and resolve Chrome (fail fast with actionable
@@ -318,17 +326,18 @@ system Chrome/Chromium and ffmpeg on PATH.
 
 ### Command reference
 
-| Command                | What it does                                              |
-| ---------------------- | --------------------------------------------------------- |
-| `npm test`             | Vitest once (all 160 tests)                               |
-| `npm run test:watch`   | Vitest in watch mode                                      |
-| `npm run typecheck`    | `tsc -b`                                                  |
-| `npm run lint`         | ESLint (flat config)                                      |
-| `npm run format`       | Prettier write                                            |
-| `npm run format:check` | Prettier check                                            |
-| `npm run build`        | Typecheck + production bundle                             |
-| `npm run verify`       | **The gate:** typecheck + lint + prettier + tests + build |
-| `npm run render -- …`  | Export compositions (see §7)                              |
+| Command                | What it does                                                               |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `npm test`             | Vitest once (all 291 tests)                                                |
+| `npm run test:watch`   | Vitest in watch mode                                                       |
+| `npm run typecheck`    | `tsc -b`                                                                   |
+| `npm run lint`         | ESLint (flat config)                                                       |
+| `npm run format`       | Prettier write                                                             |
+| `npm run format:check` | Prettier check                                                             |
+| `npm run build`        | Typecheck + production bundle                                              |
+| `npm run verify`       | **The gate:** typecheck + lint + prettier + tests + build                  |
+| `npm run build:lib`    | Build the publishable library (`dist/framewise-lite.js` + types, plan 028) |
+| `npm run render -- …`  | Export compositions (see §7)                                               |
 
 CI runs `npm run verify` on Node 20.x and 22.x. Run it locally before pushing;
 it is the definition of "done" used throughout the docs and plans.
@@ -384,9 +393,8 @@ follows Prettier (printWidth 100).
 Large changes go through `plans/`: each plan is a numbered markdown executor
 script with priority, effort estimate, dependencies, STOP conditions, and a
 status row in `plans/README.md` (TODO → IN PROGRESS → DONE/BLOCKED/REJECTED).
-Plans 001–016 are DONE; plan 017 — a manual output-format smoke test that needs
-a machine with Chrome and ffmpeg — is the only open item. Keep the same
-discipline for future ones.
+All thirty plans (001–030) are DONE — including 017, the manual output-format
+smoke test executed on this machine. Keep the same discipline for future ones.
 
 ## 9. Architecture invariants — do not break these
 
@@ -465,7 +473,7 @@ Recommended order (all under `docs/code/`):
 
 ## 13. Project history & status
 
-The project advanced through three recorded waves, all complete:
+The project advanced through four recorded waves, all complete:
 
 - **Backlog (review-driven fixes)** — items 01–09 in
   `backlog/README.md`: cross-platform Chrome resolution, spring clamp fix,
@@ -479,25 +487,32 @@ The project advanced through three recorded waves, all complete:
   improvements, spring fractional-frame tests, React 19 upgrade, output formats
   (`--format`/`--still`), and the `Easing` module. A follow-up wave added the
   remaining easing curves (`back`/`bounce`/`elastic`), the pure `planOutput()`
-  out-path planner, mp4 `+faststart`, Prettier inside the verify gate, and open
-  plan 017 (a manual output-format smoke test on a Chrome+ffmpeg machine).
-- **Original build-out roadmap** — README's six stages (player/core → renderer →
+  out-path planner, mp4 `+faststart`, Prettier inside the verify gate, and plan
+  017 (a manual output-format smoke test on a Chrome+ffmpeg machine).
+- **Original build-out roadmap** — README's stages (player/core → renderer →
   delayRender → audio → embedded video → parallel rendering), each verified
   with concrete experiments (frame extraction comparisons, dB-level audio
   checks, byte-identical hashes at different concurrencies).
+- **The five-phase roadmap (August 2026)** — plans 017–030 executed the §14
+  proposal end to end: the remaining primitives (Series/Loop, measureSpring
+  family, interpolateColors + tuple/string outputs), media fidelity
+  (`<OffthreadVideo>`, volume automation, the measured sync analysis), renderer
+  capability (perf trio, `calculateMetadata`, assetPath containment), authoring
+  experience (props editor, publishable packaging, gallery), and distributed
+  chunk-encode + concat.
 
-Test count along the way: 17 → 51 → 116 → 160 → 185.
+Test count along the way: 17 → 51 → 116 → 160 → 185 → 291.
 
-## 14. Roadmap status and proposal
+## 14. Roadmap status
 
-**Status: the existing roadmap is finished.** README's six-stage Roadmap is all
-✅, audit plans 001–016 are DONE (017 is a manual checklist, not code), and all
-backlog items are closed. There is currently **no forward-looking roadmap**.
-Everything below is a _proposal_, grounded in items the repository itself
-already flagged as desirable but unbuilt (deferred backlog letters,
-rejected-but-real findings, and the "deliberately omitted" list). Adopt it
-wholesale, prune it, or treat it as a menu — but record whatever you choose in
-README's Roadmap section so status stays visible.
+**Status: fully executed.** The five-phase proposal below was written when
+every item was unbuilt; all of it has since shipped as plans 017–030 (all
+DONE in `plans/README.md`), and README's Roadmap section now lists seven ✅
+stages. The phases are kept here as the historical record of what was proposed
+and how each item landed. For future direction, the open ideas live in
+chapter 11's distributed-rendering notes (true cross-machine audio mux) and
+chapter 10's comparison table (which path to prefer when) — plus whatever the
+next audit surfaces.
 
 ### Phase 1 — Complete the primitive surface ✅ COMPLETE
 
@@ -505,7 +520,7 @@ Every item from the repo's deferred lists now ships: `<Series>`/`<Loop>` (plan
 018), the `measureSpring` family (plan 019), `Easing` incl.
 `back`/`bounce`/`elastic` (plan 016 + follow-up), and tuple/string-template
 `interpolate` outputs plus `interpolateColors` (plan 020 — backlog item B, the
-last one). Phase 2 is next in line.
+last one).
 
 ### Phase 2 — Media fidelity ✅ COMPLETE
 
@@ -537,12 +552,12 @@ last one). Phase 2 is next in line.
 | ------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ~~Distributed rendering~~ ✅ plan 030 | README "deliberately omitted"; ch. 11 explains the difference | `--distributed` sim: chunk-encode via `planChunkVideoEncode` then concat demuxer stream-copy (`buildConcatList`); HelloWorld c4 hash identical to local (16.4 s vs 20.5 s); audio falls back to single-stitch with warning — true distributed would mux global segments at concat time. |
 
-### Suggested sequencing and guardrails
+### How it was sequenced
 
 Phase 1 first (independent, small, high teaching value), then the quick wins of
-Phase 3, then Phase 2's extraction work (larger, touches `<Video>`'s contracts),
-then Phase 4, keeping Phase 5 as the capstone. Whatever is chosen, keep the
-house rules: every primitive lands with colocated tests, a barrel export, a
-same-commit docs chapter/section, a source-map entry, and — for anything
-multi-file — a plan in `plans/` executed under the existing TODO/DONE
-discipline.
+Phase 3, then Phase 2's extraction work (larger, touches `<Video>`'s
+contracts), then Phase 4, with Phase 5 as the capstone — which is the order
+execution actually followed. House rules held throughout: every primitive
+landed with colocated tests, a barrel export, a same-commit docs
+chapter/section, a source-map entry, and — for anything multi-file — a plan in
+`plans/` under the TODO/DONE discipline.

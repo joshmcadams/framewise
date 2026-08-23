@@ -17,6 +17,7 @@ in preview and export.
 | test         | `npm test`                                   | vitest run                                                           |
 | typecheck    | `npm run typecheck`                          | tsc -b                                                               |
 | build        | `npm run build`                              | tsc -b && vite build                                                 |
+| build:lib    | `npm run build:lib`                          | Publishable library → dist/framewise-lite.js + dist/*.d.ts           |
 | render       | `npm run render -- --comp <id> --out <path>` | Needs system Chrome + ffmpeg; `--list` needs neither                 |
 | verify       | `npm run verify`                             | tsc -b && eslint . && prettier --check . && vitest run && vite build |
 | lint         | `npm run lint`                               | eslint .                                                             |
@@ -74,4 +75,6 @@ chapter in the same commit. New primitives get a chapter/section and an entry in
 ## Plans
 
 Implementation plans live in `plans/` with a status index at `plans/README.md`. Each plan
-is a step-by-step executor script. Executors update their row when done.
+is a step-by-step executor script. Executors update their row when done. All thirty
+(001–030) are DONE; new work follows the same pattern (write the plan, execute, flip the
+row).
