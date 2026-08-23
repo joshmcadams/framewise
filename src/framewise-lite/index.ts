@@ -8,7 +8,7 @@ export {Series} from './Series';
 export {Loop} from './Loop';
 export {Player, type PlayerProps} from './Player';
 export {Img} from './Img';
-export {Audio, type AudioProps} from './Audio';
+export {Audio, type AudioProps, type VolumeProp} from './Audio';
 export {Video, type VideoProps} from './Video';
 export {OffthreadVideo} from './OffthreadVideo';
 export {

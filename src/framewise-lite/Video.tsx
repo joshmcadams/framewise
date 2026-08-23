@@ -4,12 +4,13 @@ import {useCurrentFrame, useVideoConfig} from './VideoConfig';
 import {reportAudio} from './audio-registry';
 import {continueRender, delayRender} from './delay-render';
 import {usePlayback} from './playback';
+import {resolveVolume, type VolumeProp} from './Audio';
 import {useMediaSync} from './useMediaSync';
 
 export type VideoProps = {
   src: string;
-  /** 0..1, constant. Mute the audio track with `muted`. */
-  volume?: number;
+  /** 0..1 typical (>1 boosts); constant or a function of the local frame. */
+  volume?: VolumeProp;
   /** Skip this many frames into the video file before starting. */
   startFrom?: number;
   /** Don't mix the video's audio track. */
@@ -44,12 +45,13 @@ export const Video = ({src, volume = 1, startFrom = 0, muted = false, style}: Vi
   // ambiguous (the decoder may present frame N-1 or N); the half-frame nudge
   // lands squarely inside frame N. Verified frame-accurate by spike.
   const seekTarget = mediaTime + 0.5 / fps;
+  const resolvedVolume = resolveVolume(volume, frame);
 
   // AUDIO: report the track for the mix (unless muted). No-deps so it fires on
   // every commit; reportAudio no-ops outside a render.
   useLayoutEffect(() => {
     if (!muted) {
-      reportAudio({id, src, mediaTime, volume});
+      reportAudio({id, src, mediaTime, volume: resolvedVolume});
     }
   });
 
@@ -129,7 +131,7 @@ export const Video = ({src, volume = 1, startFrom = 0, muted = false, style}: Vi
   });
 
   // VISUAL — PREVIEW: element sync lives in useMediaSync — shared with <Audio>.
-  useMediaSync(ref, playback, mediaTime, volume);
+  useMediaSync(ref, playback, mediaTime, resolvedVolume);
 
   return (
     <video

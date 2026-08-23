@@ -52,7 +52,9 @@ export const hasEncoderToken = (encodersOutput, codec) =>
 
 // Turn per-frame audio reports into contiguous segments. Keyed by the <Audio>'s
 // stable instance id (so the same file used twice yields two segments), and
-// split whenever the active frames have a gap.
+// split whenever the active frames have a gap OR the reported volume changes
+// (volume callbacks — fades, ducks — thus become one segment per distinct
+// value; planEncode already emits per-segment volume= filters).
 export function aggregateAudioSegments(audioByFrame) {
   const byId = new Map();
   for (const {frame, reports} of audioByFrame) {
@@ -67,7 +69,7 @@ export function aggregateAudioSegments(audioByFrame) {
     points.sort((a, b) => a.frame - b.frame);
     let run = null;
     for (const p of points) {
-      if (run && p.frame === run.endFrame + 1) {
+      if (run && p.frame === run.endFrame + 1 && p.volume === run.volume) {
         run.endFrame = p.frame;
       } else {
         if (run) segments.push(run);

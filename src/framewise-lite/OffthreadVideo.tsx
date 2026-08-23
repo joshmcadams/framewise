@@ -3,6 +3,7 @@ import {useCurrentFrame, useVideoConfig} from './VideoConfig';
 import {reportAudio} from './audio-registry';
 import {Img} from './Img';
 import {usePlayback} from './playback';
+import {resolveVolume} from './Audio';
 import {Video, type VideoProps} from './Video';
 
 /**
@@ -34,12 +35,13 @@ export const OffthreadVideo = ({
   const id = useId();
 
   const mediaTime = (frame + startFrom) / fps;
+  const resolvedVolume = resolveVolume(volume ?? 1, frame);
 
   // AUDIO: same contract as <Video>. Inert in preview (reportAudio no-ops
   // outside a render) and when muted.
   useLayoutEffect(() => {
     if (!muted) {
-      reportAudio({id, src, mediaTime, volume});
+      reportAudio({id, src, mediaTime, volume: resolvedVolume});
     }
   });
 
