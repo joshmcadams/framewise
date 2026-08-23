@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {Player} from './framewise-lite';
-import {compositions} from './render/registry';
+import {compositions, resolveCompositionConfig} from './render/registry';
 
 /**
  * The host app — the equivalent of embedding `@framewise/player` in your own
@@ -11,6 +11,9 @@ import {compositions} from './render/registry';
 export default function App() {
   const [selectedId, setSelectedId] = useState(compositions[0].id);
   const comp = compositions.find((c) => c.id === selectedId) ?? compositions[0];
+  // Same resolver the render entry uses, so a calculateMetadata hook produces
+  // identical dimensions/duration in preview and export.
+  const {config} = resolveCompositionConfig(comp);
 
   return (
     <div
@@ -49,10 +52,10 @@ export default function App() {
         key={comp.id}
         component={comp.component}
         inputProps={comp.defaultProps}
-        width={comp.width}
-        height={comp.height}
-        fps={comp.fps}
-        durationInFrames={comp.durationInFrames}
+        width={config.width}
+        height={config.height}
+        fps={config.fps}
+        durationInFrames={config.durationInFrames}
         loop
       />
     </div>

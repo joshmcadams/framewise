@@ -1,11 +1,11 @@
 import {createRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
-import {type VideoConfig} from '../framewise-lite/VideoConfig';
+import type {VideoConfig} from '../framewise-lite/VideoConfig';
 import {CompositionHost} from '../framewise-lite/CompositionHost';
 import {getPendingDelayRenders} from '../framewise-lite/delay-render';
 import {beginAudioFrame, readAudioFrame} from '../framewise-lite/audio-registry';
 import type {AudioReport} from '../framewise-lite/audio-registry';
-import {getComposition, compositions} from './registry';
+import {getComposition, resolveCompositionConfig, compositions} from './registry';
 
 /**
  * The RENDER entry point — a deliberately chrome-less counterpart to the Player.
@@ -23,7 +23,10 @@ import {getComposition, compositions} from './registry';
 declare global {
   interface Window {
     framewiseLite?: {
-      config: VideoConfig;
+      /** Undefined iff configError is set (calculateMetadata failed). */
+      config?: VideoConfig;
+      /** Why composition metadata could not be resolved (calculateMetadata threw). */
+      configError?: string;
       renderFrame: (frame: number) => void;
       /** Outstanding delayRender handles — the renderer waits for this to empty. */
       getPending: () => {handle: number; label: string}[];
@@ -61,27 +64,40 @@ if (propsParam) {
 // Shallow merge: a nested-object prop in ?props= replaces the corresponding
 // default wholesale rather than merging into it (e.g. `{settings: {b: 1}}`
 // drops `settings.a` from defaultProps rather than combining the two).
-const mergedProps = {...comp.defaultProps, ...overrideProps};
-
-const config: VideoConfig = {
-  width: comp.width,
-  height: comp.height,
-  fps: comp.fps,
-  durationInFrames: comp.durationInFrames,
-};
+// resolveCompositionConfig runs the composition's calculateMetadata (if any)
+// BEFORE first paint, so dimensions/duration adapt to props and the
+// renderer's probe reads the final values.
+let mergedProps: Record<string, unknown> = {};
+let config: VideoConfig | undefined;
+let configError: string | undefined;
+try {
+  ({config, props: mergedProps} = resolveCompositionConfig(comp, overrideProps));
+} catch (e) {
+  configError = `${comp.id}: ${e instanceof Error ? e.message : String(e)}`;
+  // Banner appended to (not replacing) the body — #render-root must survive.
+  const banner = document.createElement('pre');
+  banner.style.cssText = 'color:#f88;background:#300;padding:16px;font-size:14px';
+  banner.textContent = configError;
+  document.body.appendChild(banner);
+}
 
 const el = document.getElementById('render-root');
 if (!el) {
   throw new Error('main-render: #render-root not found — is render.html the page being served?');
 }
-// Size the positioned containing block so AbsoluteFill resolves against it
-// (not the viewport) and the capture is exactly the composition box.
-el.style.width = `${config.width}px`;
-el.style.height = `${config.height}px`;
+if (config) {
+  // Size the positioned containing block so AbsoluteFill resolves against it
+  // (not the viewport) and the capture is exactly the composition box.
+  el.style.width = `${config.width}px`;
+  el.style.height = `${config.height}px`;
+}
 
 const root = createRoot(el);
 
 const renderFrame = (frame: number) => {
+  if (!config) {
+    throw new Error(configError ?? `${comp.id}: metadata failed to resolve`);
+  }
   // Arm audio collection BEFORE the render pass, so each <Audio>'s layout effect
   // reports into a freshly-cleared bucket for this frame.
   beginAudioFrame();
@@ -99,10 +115,11 @@ const renderFrame = (frame: number) => {
   });
 };
 
-// Render frame 0 immediately so the page isn't blank, then publish the API.
-renderFrame(0);
+// Publish the API even on metadata failure (with configError set): the
+// renderer's probe then fails FAST with the named reason instead of timing out.
 window.framewiseLite = {
   config,
+  configError,
   renderFrame,
   getPending: getPendingDelayRenders,
   waitForPendingEmpty: (timeoutMs: number) =>
@@ -125,3 +142,8 @@ window.framewiseLite = {
   getAudioFrame: readAudioFrame,
   compositionIds: compositions.map((c) => c.id),
 };
+
+// Render frame 0 immediately so the page isn't blank.
+if (!configError) {
+  renderFrame(0);
+}
