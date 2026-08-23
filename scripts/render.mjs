@@ -11,6 +11,7 @@
 //                           [--crf <n>] [--codec <name>] [--audio-bitrate <k>]
 //                           [--public-dir <path>] [--chrome <path>] [--list]
 //                           [--format mp4|webm|gif|png-seq] [--still <frame>]
+//                           [--distributed]  (Lambda-style: chunk-encode + concat)
 //
 // --list           print available composition IDs and exit (no Chrome needed).
 // --no-wait        ignore delayRender (Stage 2 behaviour) to see async comps break.
@@ -28,7 +29,7 @@
 import {createServer} from 'vite';
 import puppeteer from 'puppeteer-core';
 import {spawn} from 'node:child_process';
-import {mkdtemp, rm, mkdir, readFile, readdir, copyFile} from 'node:fs/promises';
+import {mkdtemp, rm, mkdir, readFile, readdir, copyFile, writeFile} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {tmpdir, platform} from 'node:os';
@@ -46,6 +47,8 @@ import {
   hasEncoderToken,
   planEncode,
   planOutput,
+  planChunkVideoEncode,
+  buildConcatList,
 } from './render-lib.mjs';
 import {framewiseExtract} from './offthread-server.mjs';
 
@@ -104,6 +107,17 @@ if (stillExplicit && concurrencyExplicit) {
   throw new Error('--still is mutually exclusive with --concurrency.');
 }
 const requestedConcurrency = Math.max(1, parseInt(concurrencyRaw ?? '4', 10) || 4);
+
+const distributed = args.includes('--distributed');
+if (distributed && stillExplicit) {
+  throw new Error('--distributed is mutually exclusive with --still.');
+}
+if (distributed && format === 'png-seq') {
+  throw new Error('--distributed has no effect with --format png-seq (no stitching).');
+}
+if (distributed && requestedConcurrency < 2) {
+  throw new Error('--distributed requires --concurrency 2 or higher.');
+}
 
 // Encode settings. gif has neither a CRF knob nor a codec choice (palette
 // filter encode), so passing them there is a mistake worth flagging.
@@ -637,38 +651,80 @@ try {
       }
     }
 
-    const plan = planEncode({
-      format,
-      codec,
-      crf,
-      audioBitrate,
-      fps,
-      framesPattern: join(framesDir, 'frame-%05d.png'),
-      segments,
-      assetPaths: segments.map((seg) => assetPath(seg.src)),
-      out,
-    });
-
-    if (plan === null) {
-      // Should not reach here (png-seq is handled above), but guard.
-      throw new Error('planEncode returned null for a non-png-seq format');
+    // Distributed (Lambda-style): each chunk encodes its frames to a video,
+    // then a final concat stitches them. Educational simulation on one machine.
+    const canDistribute = distributed && segments.length === 0 && format !== 'gif';
+    if (distributed && !canDistribute) {
+      if (segments.length > 0) {
+        console.warn(
+          '⚠ --distributed with audio: chunk-encode is video-only in this simulation — falling back to single-stitch for this render',
+        );
+      } else if (format === 'gif') {
+        console.warn('⚠ --distributed with gif: falling back to single-stitch');
+      }
     }
 
-    if (plan.dropsAudio) {
-      console.warn('⚠ --format gif drops audio: skipping audio mux');
+    if (canDistribute) {
+      console.log(`▶ distributed: encoding ${chunks.length} chunk videos, then concatenating`);
+      const chunkPaths = [];
+      const framesPattern = join(framesDir, 'frame-%05d.png');
+      for (let i = 0; i < chunks.length; i++) {
+        const [s, e] = chunks[i];
+        const chunkOut = join(framesDir, `chunk-${i}.mp4`);
+        chunkPaths.push(chunkOut);
+        const chunkArgs = planChunkVideoEncode({
+          fps,
+          crf,
+          codec,
+          startFrame: s,
+          frameCount: e - s,
+          framesPattern,
+          out: chunkOut,
+        });
+        console.log(`  · chunk ${i} [${s},${e}) → ${chunkOut}`);
+        await run('ffmpeg', chunkArgs);
+      }
+      const listFile = join(framesDir, 'concat.txt');
+      await writeFile(listFile, buildConcatList(chunkPaths));
+      const concatArgs = ['-y', '-f', 'concat', '-safe', '0', '-i', listFile, '-c', 'copy', out];
+      console.log(`▶ concat: ${chunkPaths.length} chunks → ${out} (stream copy)`);
+      await run('ffmpeg', concatArgs);
+      const secs = ((Date.now() - started) / 1000).toFixed(1);
+      console.log(`✔ wrote ${out} in ${secs}s total (distributed)`);
+    } else {
+      const plan = planEncode({
+        format,
+        codec,
+        crf,
+        audioBitrate,
+        fps,
+        framesPattern: join(framesDir, 'frame-%05d.png'),
+        segments,
+        assetPaths: segments.map((seg) => assetPath(seg.src)),
+        out,
+      });
+
+      if (plan === null) {
+        // Should not reach here (png-seq is handled above), but guard.
+        throw new Error('planEncode returned null for a non-png-seq format');
+      }
+
+      if (plan.dropsAudio) {
+        console.warn('⚠ --format gif drops audio: skipping audio mux');
+      }
+
+      console.log(
+        `▶ encode: ${format}${
+          segments.length && !plan.dropsAudio
+            ? ` · audio ${{mp4: 'aac', webm: 'libopus'}[format]} ${audioBitrate}`
+            : ''
+        }`,
+      );
+      await run('ffmpeg', plan.args);
+
+      const secs = ((Date.now() - started) / 1000).toFixed(1);
+      console.log(`✔ wrote ${out} in ${secs}s total`);
     }
-
-    console.log(
-      `▶ encode: ${format}${
-        segments.length && !plan.dropsAudio
-          ? ` · audio ${{mp4: 'aac', webm: 'libopus'}[format]} ${audioBitrate}`
-          : ''
-      }`,
-    );
-    await run('ffmpeg', plan.args);
-
-    const secs = ((Date.now() - started) / 1000).toFixed(1);
-    console.log(`✔ wrote ${out} in ${secs}s total`);
   }
 } finally {
   // Workers own and close their own browsers; here we only tear down shared

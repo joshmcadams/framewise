@@ -241,3 +241,45 @@ export function planChunks(durationInFrames, requestedConcurrency) {
   }
   return chunks;
 }
+
+// Distributed (Lambda-style) helpers — pure, testable.
+
+// Build ffmpeg args that encode one chunk's worth of frames (video-only) into
+// a temporary mp4. The frames live in the shared framesDir under absolute
+// names (frame-00000.png …), so -start_number tells ffmpeg where the chunk
+// begins and -frames:v caps it.
+export function planChunkVideoEncode({
+  fps,
+  crf = '18',
+  codec,
+  startFrame,
+  frameCount,
+  framesPattern,
+  out,
+}) {
+  const vc = codec ?? 'libx264';
+  return [
+    '-y',
+    '-framerate',
+    String(fps),
+    '-start_number',
+    String(startFrame),
+    '-i',
+    framesPattern,
+    '-frames:v',
+    String(frameCount),
+    '-c:v',
+    vc,
+    '-crf',
+    String(crf),
+    '-pix_fmt',
+    'yuv420p',
+    out,
+  ];
+}
+
+// Build the concat demuxer list file content for a set of chunk video paths.
+// Each line is `file 'absolute/path'` as required by `ffmpeg -f concat`.
+export function buildConcatList(chunkPaths) {
+  return chunkPaths.map((p) => `file '${p}'`).join('\n') + '\n';
+}

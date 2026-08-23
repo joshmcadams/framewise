@@ -171,6 +171,18 @@ keyframes, audio spanning chunks) but it's the same core idea — split the pure
 frame range, render in parallel, reassemble in order. Our version teaches the
 concept; theirs survives a network between the workers.
 
+## Distributed on one machine (`--distributed`)
+
+For teaching, `--distributed` simulates Lambda on one box: each chunk's frames
+are encoded to a temporary video (`planChunkVideoEncode` — `-start_number` +
+`-frames:v` per chunk, same codec/crf), then the concat demuxer stitches them
+with stream copy (`buildConcatList` → `file '…'` list → `ffmpeg -f concat -c
+copy`). On this machine HelloWorld c4 renders identically (hash `3203283d…`) at
+16.4 s distributed vs 20.5 s local. With audio, the simulation falls back to
+single-stitch with a warning — true distributed audio would mux the globally-
+aggregated segments at concat time, which is the same filter graph as today
+fed by the concat video instead of the image sequence.
+
 ## Where the project stands
 
 With Stage 6, the arc is complete: a frame-as-state engine (1), the animation

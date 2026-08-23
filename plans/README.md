@@ -43,6 +43,7 @@ plans cite them.
 | 027  | Preview props editor | P2 | M | — | DONE |
 | 028  | Publishable library packaging | P2 | M | — | DONE (vite.lib.config.ts + tsconfig.lib.json → dist/framewise-lite.js + types; package.json exports/files/sideEffects; build:lib smoke) |
 | 029  | Composition gallery | P2 | S | — | DONE (Single/Gallery toggle, static posters via CompositionHost, 2 App tests) |
+| 030  | Distributed rendering (Lambda-style: chunk-encode + concat) | P3 | M | — | DONE (video-only chunk-encode + concat demuxer stream-copy; HelloWorld c4 hash identical to local; audio falls back with warning) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

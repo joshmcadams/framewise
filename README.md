@@ -5,8 +5,9 @@ A minimal, educational reimplementation of [Framewise](https://www.framewise.dev
 It implements the frame-as-state engine, `interpolate`, `spring`, `<Sequence>`,
 a `<Player>` clock, a **Puppeteer + ffmpeg renderer** that turns a composition
 into an `.mp4`, **`delayRender`** so async assets render deterministically,
-**`<Audio>`** mixed/muxed with ffmpeg, frame-accurate embedded **`<Video>`**, and
-**parallel chunked rendering** (all six stages — see [Roadmap](#roadmap)).
+**`<Audio>`** mixed/muxed with ffmpeg, frame-accurate embedded **`<Video>`**,
+**parallel chunked rendering**, and **distributed chunk-encode + concat**
+(`--distributed`, all stages — see [Roadmap](#roadmap)).
 
 ```bash
 npm install
@@ -32,6 +33,9 @@ npm run render -- --comp WithOffthread --out out/offthread.mp4
 # Render in parallel across 4 browsers (identical output, ~2.6x faster):
 npm run render -- --comp HelloWorld --concurrency 4 --out out/hello.mp4
 
+# Distributed chunk-encode + concat (same pixels, HelloWorld hash identical):
+npm run render -- --comp HelloWorld --concurrency 4 --distributed --out out/hello-dist.mp4
+
 # Parametrize a composition from the CLI and tune the encode:
 npm run render -- --comp HelloWorld --props '{"title":"Hi"}' --crf 28 --codec libx265 --out out/hi.mp4
 
@@ -49,7 +53,8 @@ npm run render -- --comp WithVideo --still 75 --out out/still-75.png
 > `--crf <n>` (quality, default 18), `--codec <name>` (overrides the format
 > default codec), `--audio-bitrate <k>` (default 192k),
 > `--public-dir <path>` (asset base dir, default `public`),
-> `--still <frame>` (single-frame PNG still; mutually exclusive with `--format`/`--concurrency`).
+> `--still <frame>` (single-frame PNG still; mutually exclusive with `--format`/`--concurrency`),
+> `--distributed` (Lambda-style chunk-encode + concat; video-only, requires `--concurrency` ≥2).
 > The renderer fails fast with a clear message if `ffmpeg` or
 > Chrome is missing. GIF output drops audio (a warning is printed if the comp
 > has audio segments). `--format png-seq` treats `--out` as a directory and
@@ -173,3 +178,7 @@ These are real, but they're not the _core idea_ — adding them is the next stag
    regardless of concurrency: verified that HelloWorld renders to a byte-identical
    frame hash at concurrency 1 and 4, ~2.6× faster. See
    [chapter 11](docs/code/11-parallel-rendering.md).
+7. ✅ **Distributed chunk-encode + concat** (`--distributed`) — each chunk encodes
+   to a video, then concat demuxer stream-copies them (video-only; audio falls
+   back to single-stitch with a warning). HelloWorld c4 hash identical to local
+   single-stitch. See [chapter 11](docs/code/11-parallel-rendering.md).

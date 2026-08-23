@@ -4,8 +4,10 @@ import {readFile} from 'node:fs/promises';
 import {
   aggregateAudioSegments,
   assetPath,
+  buildConcatList,
   hasEncoderToken,
   parseRegistryIds,
+  planChunkVideoEncode,
   planChunks,
   planEncode,
   planOutput,
@@ -671,5 +673,57 @@ describe('planOutput', () => {
     it('nested explicit out: mkdirTarget is the parent dir', () => {
       expect(planOutput({format: 'mp4', out: 'a/b/c.mp4'}).mkdirTarget).toBe('a/b');
     });
+  });
+});
+
+describe('planChunkVideoEncode', () => {
+  it('builds video-only chunk args with -start_number and -frames:v', () => {
+    const args = planChunkVideoEncode({
+      fps: 30,
+      startFrame: 38,
+      frameCount: 38,
+      framesPattern: '/tmp/frames/frame-%05d.png',
+      out: '/tmp/chunk-1.mp4',
+    });
+    expect(args).toContain('-framerate');
+    expect(args).toContain('30');
+    expect(args).toContain('-start_number');
+    expect(args[args.indexOf('-start_number') + 1]).toBe('38');
+    expect(args).toContain('-frames:v');
+    expect(args[args.indexOf('-frames:v') + 1]).toBe('38');
+    expect(args[args.length - 1]).toBe('/tmp/chunk-1.mp4');
+    expect(args).toContain('-pix_fmt');
+  });
+
+  it('uses libx264 by default and respects explicit codec/crf', () => {
+    expect(
+      planChunkVideoEncode({
+        fps: 30,
+        startFrame: 0,
+        frameCount: 10,
+        framesPattern: 'p',
+        out: 'o.mp4',
+      }),
+    ).toContain('libx264');
+    const custom = planChunkVideoEncode({
+      fps: 30,
+      startFrame: 0,
+      frameCount: 10,
+      framesPattern: 'p',
+      out: 'o.mp4',
+      codec: 'libx265',
+      crf: '23',
+    });
+    expect(custom).toContain('libx265');
+    expect(custom[custom.indexOf('-crf') + 1]).toBe('23');
+  });
+});
+
+describe('buildConcatList', () => {
+  it('joins chunk paths as concat demuxer file list', () => {
+    expect(buildConcatList(['/tmp/a.mp4', '/tmp/b.mp4'])).toBe(
+      "file '/tmp/a.mp4'\nfile '/tmp/b.mp4'\n",
+    );
+    expect(buildConcatList([])).toBe('\n');
   });
 });

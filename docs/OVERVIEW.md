@@ -45,7 +45,7 @@ across machines. See [§14](#14-roadmap-status-and-proposal).
 | Version       | 0.1.0 (`package.json`)                                                                                 |
 | Runtime       | Node ≥ 20, React ^19.2.7                                                                               |
 | Toolchain     | TypeScript ^5.6 (strict), Vite ^6, Vitest ^3, ESLint ^10 flat config, Prettier (printWidth 100)        |
-| Tests         | 22 files / 288 tests, all passing (`npm test`)                                                         |
+| Tests         | 22 files / 291 tests, all passing (`npm test`)                                                         |
 | CI            | GitHub Actions: Node 20.x & 22.x matrix, runs `npm ci && npm run verify` (`.github/workflows/ci.yml`)  |
 | Renderer deps | System Chrome/Chromium + ffmpeg on PATH (not npm packages — `puppeteer-core` attaches to your browser) |
 
@@ -531,11 +531,11 @@ last one). Phase 2 is next in line.
 | ~~Publishable library packaging~~ ✅ plan 028 | the source-tree comment calls `framewise-lite/` "what you'd publish" | `vite.lib.config.ts` + `tsconfig.lib.json` → `dist/framewise-lite.js` + `dist/index.d.ts`; `package.json` exports/files/sideEffects; `npm run build:lib` smoke-tested via node import. |
 | ~~Composition gallery~~ ✅ plan 029           | new suggestion                                                       | Toggle Single/Gallery in App; static `CompositionHost` posters (no clock/audio) per registry entry; click poster jumps to single.                                                      |
 
-### Phase 5 — Scale out
+### Phase 5 — Scale out ✅ COMPLETE
 
-| Item                                           | Origin                                                        | Notes                                                                                                                                                             |
-| ---------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Distributed rendering (Framewise-Lambda style) | README "deliberately omitted"; ch. 11 explains the difference | Workers on separate machines encode their own chunks and concatenate because they can't share a filesystem. Same idea as Phase-local parallelism, plus a network. |
+| Item                                  | Origin                                                        | Notes                                                                                                                                                                                                                                                                                   |
+| ------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~Distributed rendering~~ ✅ plan 030 | README "deliberately omitted"; ch. 11 explains the difference | `--distributed` sim: chunk-encode via `planChunkVideoEncode` then concat demuxer stream-copy (`buildConcatList`); HelloWorld c4 hash identical to local (16.4 s vs 20.5 s); audio falls back to single-stitch with warning — true distributed would mux global segments at concat time. |
 
 ### Suggested sequencing and guardrails
 
