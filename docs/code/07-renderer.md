@@ -231,6 +231,44 @@ regardless of the user's local browser. Managing that browser binary is a real
 chunk of Framewise's surface area; we sidestep it by borrowing the system Chrome,
 which is fine for learning.
 
+## Performance notes (measured)
+
+Three hotspots were measured on a 150-frame 1280×720 render, then addressed.
+Baseline → after, same machine, byte-identical output (sha256 equal at both
+concurrency levels):
+
+| Configuration                | Before  | After  | Δ        |
+| ---------------------------- | ------- | ------ | -------- |
+| `--concurrency 4` total      | 65.6 s  | 20.5 s | **−69%** |
+| `--concurrency 4` frame loop | 48.4 s  | 12.7 s | −74%     |
+| `--concurrency 1` total      | 107.3 s | 45.3 s | −58%     |
+| `--concurrency 1` frame loop | 76.9 s  | 38.4 s | −50%     |
+
+What changed:
+
+1. **One CDP round trip per frame** (was four + polling). The old loop ran
+   separate `evaluate`s for: set frame; double-rAF paint wait; read
+   pending-at-capture labels; read audio reports. All four now live in one
+   in-page async step — enabled by `window.framewiseLite.waitForPendingEmpty`,
+   which polls the delayRender registry inside the page (10 ms cadence) and
+   rejects with the stuck handles' JSON so timeout errors keep their labels.
+2. **No throwaway probe browser.** The first worker's browser loads the page
+   before composition dimensions are known, so probing reads config through
+   _that_ browser and then hands it to chunk 0. Concurrency-1 renders launch
+   one Chrome instead of two; N-worker renders save one launch each run.
+3. **Dev server vs prebuilt bundle: verdict — keep the dev server.** Measured
+   fixed overhead after the two fixes above is ~8 s for c4 (server start +
+   browser launches + ffmpeg encode), of which dev-server module serving is a
+   few hundred ms per page load. A production bundle would trade that for a
+   ~2 s `vite build` on every invocation plus a second code path to maintain —
+   a net loss at educational scale, and the break-even render length is far
+   beyond anything this repo produces. Revisit only if page-load cost ever
+   shows up in profiles (it scales with worker count, not frame count).
+
+Determinism is unaffected by all of it: the frame-set sha256 was identical
+before and after at both concurrency levels (`3203283d21148710`), exactly what
+chapter 11's invariant predicts.
+
 ## This works — and here's exactly where it stops working
 
 The renderer produces a correct mp4 for `HelloWorld`, **verified** by extracting
