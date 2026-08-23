@@ -169,22 +169,51 @@ if (reports.length) audioByFrame.push({frame: f, reports});
 ```
 
 After the loop, `aggregateAudioSegments()` turns those per-frame points into
-segments — grouped by instance id, split wherever the active frames have a gap:
+segments — grouped by instance id, split wherever the active frames have a gap
+**or the reported volume changes**:
 
 ```js
-// for each id, walk frames in order; a frame that isn't endFrame+1 starts a new run
+// for each id, walk frames in order; a frame that isn't endFrame+1 — or whose
+// volume differs from the run's — starts a new run
 run = {src, startFrame, endFrame, trimStart: mediaTimeAtFirstFrame, volume};
 ```
 
 For `WithAudio` this produces exactly:
 
 ```
-/bg.wav    frames 0–149  @0.00s  trim 0.00s  vol 0.3
+/bg.wav    frames 0–120  @0.00s  trim 0.00s  vol 0.3   ← constant run
+/bg.wav    frames 121–…  @…      trim …      vol 0.29  ← fade steps (below)
 /blip.wav  frames 60–74  @2.00s  trim 0.00s  vol 0.7
 ```
 
 — the blip correctly placed at 2.0s and clipped to its 15-frame window, straight
 from the `<Sequence from={60} durationInFrames={15}>`.
+
+## Volume automation
+
+`volume` accepts a **function of the current frame** as well as a number:
+
+```tsx
+<Audio
+  src="/bg.wav"
+  volume={(f) => interpolate(f, [120, 150], [0.3, 0], {extrapolateLeft: 'clamp'})}
+/>
+```
+
+The callback receives the **re-based local frame** — whatever
+`useCurrentFrame()` returns at that point in the tree — so wrapping in a
+`<Sequence>` shifts the whole curve for free, exactly like every other
+animation input. Both jobs consume the evaluated number per commit: preview
+sets `el.volume` on every tick (the curve is audible while scrubbing), render
+reports it into the registry.
+
+Because aggregation splits on volume changes, a smooth fade becomes one
+segment per distinct value — `WithAudio`'s one-second fade-out yields ~30
+one-frame segments after its constant run. That's comfortable for ffmpeg's
+`amix` at this scale and keeps each step's volume exact; production engines
+instead build continuous volume curves for ffmpeg's `eval=frame` expressions.
+No stair-stepping is audible here because consecutive steps differ by well
+under 0.1 dB of signal.
 
 ### The ffmpeg filter graph
 
@@ -244,9 +273,6 @@ Rendering `WithAudio` and probing the output:
 
 ## What's intentionally simplified
 
-- **Constant volume per segment.** Per-frame volume (a `volume={(f) => …}`
-  function, for fades) would need ffmpeg volume _automation_ — real, but a big
-  step up in complexity, and orthogonal to the core "collect-then-mux" idea.
 - **No media-duration `delayRender`.** Real Framewise delays the render until it
   has read each media file's true duration. We compute timing purely from frames,
   so we don't need the file loaded to collect — but we also can't detect "your

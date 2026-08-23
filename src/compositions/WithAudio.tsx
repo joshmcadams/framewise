@@ -11,7 +11,8 @@ import {
 
 /**
  * A composition with a soundtrack:
- *  - a continuous background tone from frame 0 (volume 0.3)
+ *  - a continuous background tone from frame 0 (volume 0.3) that fades out
+ *    over the final second — per-frame volume automation via a callback
  *  - a short "blip" placed at frame 60 via <Sequence>, at volume 0.7
  *
  * The two volumes sum to 1.0 so the mix doesn't clip. The blip's offset is the
@@ -59,8 +60,18 @@ export const WithAudio = () => {
         frame {frame} / {durationInFrames}
       </div>
 
-      {/* Background tone for the whole video. */}
-      <Audio src={staticFile('bg.wav')} volume={0.3} />
+      {/* Background tone for the whole video, fading out over the final
+          second: the volume callback runs every frame, in preview AND render.
+          Clamped so it holds 0.3 until the fade window starts. */}
+      <Audio
+        src={staticFile('bg.wav')}
+        volume={(f) =>
+          interpolate(f, [durationInFrames - 30, durationInFrames], [0.3, 0], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+          })
+        }
+      />
 
       {/* A blip at frame 60 (2.0s). The Sequence both times it and clips it to
           the blip's 15-frame (0.5s) length. */}
