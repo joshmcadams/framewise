@@ -214,13 +214,19 @@ describe('assetPath', () => {
     expect(assetPath('public', 'bg.wav')).toBe(join('public', 'bg.wav'));
   });
 
-  // Characterization: `../` is currently NOT rejected or sanitized, so a
-  // crafted src can resolve outside publicDir. Renderer hardening (plan
-  // 003/later) may revisit this.
-  it('characterization: a src containing ../ is not rejected and can escape publicDir', () => {
-    // join() normalizes the traversal instead of assetPath rejecting it, so
-    // the result lands outside "public" entirely.
-    expect(assetPath('public', '../etc/passwd')).toBe(join('etc', 'passwd'));
+  // Containment: traversal attempts are rejected outright (plan 026). These
+  // paths previously escaped publicDir via join() normalization.
+  it('rejects a src that traverses outside the public dir', () => {
+    expect(() => assetPath('public', '../etc/passwd')).toThrow(/outside the public dir/);
+    expect(() => assetPath('public', 'a/../../outside.wav')).toThrow(/outside the public dir/);
+    expect(() => assetPath('/tmp/pub', '/../../../../etc/passwd')).toThrow(
+      /outside the public dir/,
+    );
+  });
+
+  it('still accepts nested paths inside the public dir', () => {
+    expect(assetPath('public', 'sub/dir/bg.wav')).toBe(join('public', 'sub/dir/bg.wav'));
+    expect(assetPath('public', './bg.wav')).toBe(join('public', 'bg.wav'));
   });
 });
 

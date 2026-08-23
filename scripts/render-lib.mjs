@@ -1,6 +1,6 @@
 // Pure logic for scripts/render.mjs, extracted so it can be unit-tested.
 // No side effects, no imports from puppeteer/vite — keep it that way.
-import {join, dirname} from 'node:path';
+import {join, dirname, resolve, sep} from 'node:path';
 
 // Read a `--name value` flag out of an argv-style array. Returns `fallback`
 // when the flag is absent. When the flag IS present, a missing or
@@ -18,8 +18,20 @@ export const readFlag = (args, name, fallback) => {
 };
 
 // Where composition asset URLs (e.g. "/bg.wav") resolve on disk. One place, so
-// the renderer and any future staticFile() helper agree.
-export const assetPath = (publicDir, src) => join(publicDir, src.replace(/^\//, ''));
+// the renderer and any future staticFile() helper agree. Containment: the
+// resolved target must stay inside publicDir — a crafted "../…" src must not
+// reach files outside it (these paths feed ffmpeg inputs).
+export const assetPath = (publicDir, src) => {
+  const relative = src.replace(/^\//, '');
+  const base = resolve(publicDir);
+  const target = resolve(base, relative);
+  if (target !== base && !target.startsWith(base + sep)) {
+    throw new Error(
+      `Asset path "${src}" resolves outside the public dir (${publicDir}) — path traversal is not allowed.`,
+    );
+  }
+  return join(publicDir, relative);
+};
 
 // Parse composition ids out of a src/render/registry.ts-shaped source string.
 // Scoped to `id:` as the first member of an object literal (each registry
