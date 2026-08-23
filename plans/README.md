@@ -35,7 +35,7 @@ plans cite them.
 | 019  | `measureSpring` family: measureSpring + spring durationInFrames/reverse (backlog item E) | P2 | M | — | DONE (executed; measureSpring + durationInFrames/reverse on spring(), 19 new tests incl. exact-mirror pin, ch. 3 family section; caught+fixed reversal space-mixing bug pre-merge) |
 | 020  | interpolate tuple/string outputs + interpolateColors (backlog item B) | P2 | M | — | DONE (executed; tuple + string-template modes on interpolate(), new interpolateColors module reusing @internal pipeline, 25 new tests, ch. 2 sections; Phase 1 complete) |
 | 021  | `<OffthreadVideo>`: ffmpeg frame extraction through the `<Img>` path (Phase 2 item 1) | P1 | L | — | DONE (executed; OffthreadVideo + offthread-server.mjs Vite plugin w/ cache+dedupe, WithOffthread demo, 14 tests, ch. 10 section; live-verified frame-accurate at 30/75/120; caught PTS≥target seek off-by-one) |
-| 022  | Per-frame volume automation for `<Audio>`/`<Video>` (Phase 2 item 2) | P2 | M | — | TODO |
+| 022  | Per-frame volume automation for `<Audio>`/`<Video>` (Phase 2 item 2) | P2 | M | — | DONE (executed; VolumeProp callbacks on all three media components, split-on-volume-change aggregation, WithAudio fade-out demo; live-verified −32.1→−41.9 dB across fade window) |
 | 023  | Sample-accurate A/V sync analysis with measurements (Phase 2 item 3) | P3 | S | — | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
