@@ -26,6 +26,11 @@ in preview and export.
 
 ## Architecture invariants — do not break these
 
+These invariants cite `file:line`. If you change code an invariant points at, update the
+invariant text in the same commit — including when you believe you preserved it. An
+invariant stated as a numeric relationship ("X fires after Y") also assumes a _mechanism_;
+say which, and re-check the mechanism, not the numbers.
+
 1. **`useCurrentFrame()` only reads context**; it knows nothing about clocks.
    `src/framewise-lite/VideoConfig.tsx:20-25` — whoever renders the tree decides what the
    frame is. This decoupling is the whole point.
@@ -57,6 +62,24 @@ in preview and export.
 - **`spring` is verbatim upstream math except `overshootClamping`**, which clamps in output
   space (not upstream's incorrect norm-space clamp). `src/framewise-lite/spring.ts:10-14`.
 
+## Verifying a change
+
+Verify the artifact a user receives, not the layer you just wrote.
+
+- A new CLI flag is not done until it has been crossed with the existing orthogonal
+  flags. `--distributed` × `--format`, `--still` × `--format`, `--concurrency` ×
+  everything. Most renderer bugs live in the crossings, not in the new flag.
+- A packaging change is not done until `npm run verify && npm pack --dry-run` shows the
+  right file list. `npm run build` and `npm run build:lib` both write to `dist/`, so
+  running one after the other is part of the test.
+- Lint and type gates are fixed, not silenced. An `eslint-disable` is single-line with a
+  comment saying why the pattern is safe here; a file-level disable needs a line in the
+  commit message defending it.
+- State what a verification does NOT cover. "sha256 identical" covers the frame set,
+  which is computed before encoding — it says nothing about the encoded output. Prefer
+  probing the produced file (`ffprobe`) over asserting an upstream hash. Likewise a dB
+  measurement confirms an envelope and cannot see splice artifacts inside it.
+
 ## Docs are the product
 
 `docs/code/` chapters mirror the source; a change to a module with a chapter updates the
@@ -75,6 +98,9 @@ chapter in the same commit. New primitives get a chapter/section and an entry in
 ## Plans
 
 Implementation plans live in `plans/` with a status index at `plans/README.md`. Each plan
-is a step-by-step executor script. Executors update their row when done. All thirty
-(001–030) are DONE; new work follows the same pattern (write the plan, execute, flip the
-row).
+is a step-by-step executor script. Executors update their row when done. Plans 001–030
+are DONE; new work follows the same pattern (write the plan, execute, flip the row).
+
+Completing the plan list is not the same as the work being finished. `backlog/README.md`
+carries the open code-review findings, ranked by severity with a reproduction in each
+item's file — start there rather than inventing plan 031.
