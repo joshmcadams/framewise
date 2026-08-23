@@ -87,3 +87,43 @@ describe('<App> props editor', () => {
     container.remove();
   });
 });
+
+describe('<App> gallery', () => {
+  it('toggles to gallery and shows a poster per composition', async () => {
+    const {container, unmount} = mount();
+    const galleryBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Gallery',
+    )!;
+    await act(async () => {
+      galleryBtn.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+    });
+    // One poster button per composition (plus the two view-toggle buttons).
+    const posterButtons = Array.from(container.querySelectorAll('button')).filter(
+      (b) => b.textContent?.includes('HelloWorld') || b.textContent?.includes('Countdown'),
+    );
+    expect(posterButtons.length).toBeGreaterThanOrEqual(2);
+    expect(container.textContent).toContain('HelloWorld');
+    expect(container.textContent).toContain('Countdown');
+    unmount();
+    container.remove();
+  });
+
+  it('clicking a poster switches back to single and selects that composition', async () => {
+    const {container, unmount} = mount();
+    const galleryBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Gallery',
+    )!;
+    await act(async () => {
+      galleryBtn.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+    });
+    const poster = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('WithVideo'),
+    )!;
+    await act(async () => {
+      poster.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+    });
+    expect((container.querySelector('select') as HTMLSelectElement).value).toBe('WithVideo');
+    unmount();
+    container.remove();
+  });
+});

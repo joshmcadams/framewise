@@ -45,7 +45,7 @@ across machines. See [§14](#14-roadmap-status-and-proposal).
 | Version       | 0.1.0 (`package.json`)                                                                                 |
 | Runtime       | Node ≥ 20, React ^19.2.7                                                                               |
 | Toolchain     | TypeScript ^5.6 (strict), Vite ^6, Vitest ^3, ESLint ^10 flat config, Prettier (printWidth 100)        |
-| Tests         | 19 files / 267 tests, all passing (`npm test`)                                                         |
+| Tests         | 22 files / 288 tests, all passing (`npm test`)                                                         |
 | CI            | GitHub Actions: Node 20.x & 22.x matrix, runs `npm ci && npm run verify` (`.github/workflows/ci.yml`)  |
 | Renderer deps | System Chrome/Chromium + ffmpeg on PATH (not npm packages — `puppeteer-core` attaches to your browser) |
 
@@ -523,13 +523,13 @@ last one). Phase 2 is next in line.
 | ~~Dynamic composition metadata~~ ✅ plan 025  | plans README notes the probe's "by-design tension"                                                                                                                                                               | `calculateMetadata` on registry entries: props-derived duration/dimensions resolved once at page init in preview AND render (Countdown demo); bad props fail fast with a named error. The tension is resolved — the runtime probe carries it. |
 | ~~`assetPath` containment check~~ ✅ plan 026 | plans README review note                                                                                                                                                                                         | Traversal attempts (`../…`) now throw with an actionable message; return shape unchanged for legitimate paths; characterization flipped + new cases.                                                                                          |
 
-### Phase 4 — Authoring experience and packaging
+### Phase 4 — Authoring experience and packaging — in progress
 
-| Item                          | Origin                                                               | Notes                                                                                |
-| ----------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Preview props editor          | audit direction item, not selected                                   | Edit `defaultProps` live in the App dropdown page; pairs well with `--props` parity. |
-| Publishable library packaging | the source-tree comment calls `framewise-lite/` "what you'd publish" | Lib-mode Vite build, `package.json` exports, decide what's public beyond the barrel. |
-| Composition gallery page      | new suggestion                                                       | Show all registered comps side-by-side in preview; cheap, great for teaching.        |
+| Item                                  | Origin                                                               | Notes                                                                                                                                                                                  |
+| ------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~Preview props editor~~ ✅ plan 027  | audit direction item, not selected                                   | Live JSON textarea in App, same resolver as renderer; Countdown demonstrates dynamic duration.                                                                                         |
+| Publishable library packaging — built | the source-tree comment calls `framewise-lite/` "what you'd publish" | `vite.lib.config.ts` + `tsconfig.lib.json` → `dist/framewise-lite.js` + `dist/index.d.ts`; `package.json` exports/files/sideEffects; `npm run build:lib` smoke-tested via node import. |
+| ~~Composition gallery~~ ✅ plan 029   | new suggestion                                                       | Toggle Single/Gallery in App; static `CompositionHost` posters (no clock/audio) per registry entry; click poster jumps to single.                                                      |
 
 ### Phase 5 — Scale out
 

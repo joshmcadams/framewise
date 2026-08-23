@@ -7,9 +7,20 @@
     "node": ">=20"
   },
   "description": "A minimal, educational clone of Framewise's core: frame-as-state engine, interpolate, spring, Sequence, and a Player.",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/framewise-lite.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
