@@ -159,6 +159,16 @@ compositions like `Countdown` update their duration live — typing
 `--props '{"seconds":2}'` does on the CLI. Bad metadata (e.g. `{"seconds":99}`)
 surfaces as a red banner and the Player keeps its last good config.
 
+### Gallery
+
+The `Single` / `Gallery` toggle switches between one Player and a grid of
+posters — one per registry entry. Each poster is a static
+`CompositionHost` at `frame = floor(duration/3)` (no clock, no audio), scaled
+to 280 px wide. Clicking a poster jumps back to single view and selects that
+composition. It's the cheapest possible overview: no rAF loops, no media
+elements, just a frame-accurate thumbnail that reuses the same rendering path
+as the exporter.
+
 ## `main.tsx` — the entry point
 
 Standard React 18 bootstrap, nothing Framewise-specific:
