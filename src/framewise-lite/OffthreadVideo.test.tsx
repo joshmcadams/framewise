@@ -75,6 +75,14 @@ describe('OffthreadVideo — render mode', () => {
     reports = readAudioFrame();
     expect(reports).toHaveLength(0);
   });
+
+  it('evaluates a volume callback against the current frame', async () => {
+    beginAudioFrame();
+    await renderAt(15, <OffthreadVideo src="/clip.mp4" volume={(f) => f / 30} />);
+    const reports = readAudioFrame();
+    expect(reports).toHaveLength(1);
+    expect(reports[0].volume).toBeCloseTo(0.5, 5);
+  });
 });
 
 describe('OffthreadVideo — preview mode', () => {

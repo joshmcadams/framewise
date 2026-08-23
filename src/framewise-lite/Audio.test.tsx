@@ -124,4 +124,31 @@ describe('Audio', () => {
     // Deliberate characterization — see plans/README.md rejected/deferred list.
     expect(readAudioFrame()).toHaveLength(1);
   });
+
+  it('evaluates a volume callback against the current (re-based) frame', async () => {
+    const curve = vi.fn((f: number) => f / 30);
+    beginAudioFrame();
+    await renderAt(30, <Audio src="/bg.wav" volume={curve} />);
+    let reports = readAudioFrame();
+    expect(curve).toHaveBeenCalledWith(30);
+    expect(reports).toHaveLength(1);
+    expect(reports[0].volume).toBeCloseTo(1, 5);
+
+    beginAudioFrame();
+    await renderAt(10, <Audio src="/bg.wav" volume={(f) => 0.25 * f} />);
+    reports = readAudioFrame();
+    expect(reports[0].volume).toBeCloseTo(2.5, 5);
+
+    beginAudioFrame();
+    await renderAt(
+      70,
+      <Sequence from={60} layout="none">
+        {/* Re-based frame inside the Sequence is 10 → the callback sees 10. */}
+        <Audio src="/bg.wav" volume={(f) => f / 100} />
+      </Sequence>,
+    );
+    reports = readAudioFrame();
+    expect(reports).toHaveLength(1);
+    expect(reports[0].volume).toBeCloseTo(0.1, 5);
+  });
 });

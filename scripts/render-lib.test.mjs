@@ -147,14 +147,31 @@ describe('aggregateAudioSegments', () => {
     expect(segments.map((s) => s.startFrame)).toEqual([0, 5]);
   });
 
-  it('takes volume from the first report of each run', () => {
-    // Same id, same run, but each per-frame report happens to carry its own
-    // volume value — the segment should record the first one, not the last.
+  it('splits a run when the reported volume changes (volume automation)', () => {
+    // Volume callbacks report a per-frame value; a change must split so each
+    // segment carries its own constant volume for ffmpeg's volume= filter.
     const audioByFrame = [
       {frame: 0, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0, volume: 0.8}]},
       {frame: 1, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0.03, volume: 0.9}]},
     ];
-    expect(aggregateAudioSegments(audioByFrame)[0].volume).toBe(0.8);
+    expect(aggregateAudioSegments(audioByFrame)).toEqual([
+      {src: 'bg.wav', startFrame: 0, endFrame: 0, trimStart: 0, volume: 0.8},
+      {src: 'bg.wav', startFrame: 1, endFrame: 1, trimStart: 0.03, volume: 0.9},
+    ]);
+  });
+
+  it('keeps equal volumes merged but splits on every distinct value', () => {
+    const audioByFrame = [
+      {frame: 0, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0, volume: 0.5}]},
+      {frame: 1, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0.03, volume: 0.5}]},
+      {frame: 2, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0.06, volume: 0.25}]},
+      {frame: 3, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0.09, volume: 0}]},
+    ];
+    expect(aggregateAudioSegments(audioByFrame)).toEqual([
+      {src: 'bg.wav', startFrame: 0, endFrame: 1, trimStart: 0, volume: 0.5},
+      {src: 'bg.wav', startFrame: 2, endFrame: 2, trimStart: 0.06, volume: 0.25},
+      {src: 'bg.wav', startFrame: 3, endFrame: 3, trimStart: 0.09, volume: 0},
+    ]);
   });
 });
 

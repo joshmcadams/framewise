@@ -167,4 +167,12 @@ describe('Video', () => {
     await act(() => root.unmount());
     expect(getPendingDelayRenders()).toHaveLength(0);
   });
+
+  it('reports a volume callback evaluated at the current frame', async () => {
+    beginAudioFrame();
+    await renderAt(30, <Video src="/clip.mp4" volume={(f) => 1 - f / 60} />);
+    const reports = readAudioFrame();
+    expect(reports).toHaveLength(1);
+    expect(reports[0].volume).toBeCloseTo(0.5, 5);
+  });
 });
