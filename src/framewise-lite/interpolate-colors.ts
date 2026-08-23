@@ -48,8 +48,16 @@ function parseHex(input: string): RGBA {
 }
 
 function parseRgbChannel(value: string, source: string): number {
+  // Number('') is 0 — finite and in range — so an empty component must be
+  // rejected explicitly or "rgb(, , )" would silently parse as black.
   const n = Number(value);
-  if (!Number.isFinite(n) || n < 0 || n > 255 || value.trim().endsWith('%')) {
+  if (
+    value.trim() === '' ||
+    !Number.isFinite(n) ||
+    n < 0 ||
+    n > 255 ||
+    value.trim().endsWith('%')
+  ) {
     throw new Error(
       `Invalid rgb component "${value}" in "${source}" — expected a number from 0 to 255.`,
     );
@@ -126,7 +134,7 @@ function parseHslLike(input: string): RGBA {
     );
   }
   const hue = Number(parts[0]);
-  if (!Number.isFinite(hue)) {
+  if (parts[0].trim() === '' || !Number.isFinite(hue)) {
     throw new Error(`Invalid hue "${parts[0]}" in "${input}".`);
   }
   const sat = parseHslPercent(parts[1], 'saturation', input);
@@ -140,14 +148,19 @@ function parseHslLike(input: string): RGBA {
 }
 
 export function parseColor(input: string): RGBA {
-  const trimmed = input.trim();
+  // Lowercase once, before dispatching: the detection regexes are
+  // case-insensitive, but the branch parsers' prefix-stripping is not — an
+  // uppercase "HSL(240, …)" used to slip through detection and then fail
+  // inside parseHslLike with a confusing hue error. Hex digits are
+  // case-insensitive too, so lowering first is safe everywhere.
+  const trimmed = input.trim().toLowerCase();
   if (trimmed.startsWith('#')) {
     return parseHex(trimmed);
   }
-  if (/^rgba?[(]/i.test(trimmed)) {
-    return parseRgbLike(trimmed.toLowerCase());
+  if (/^rgba?\(/.test(trimmed)) {
+    return parseRgbLike(trimmed);
   }
-  if (/^hsla?[(]/i.test(trimmed)) {
+  if (/^hsla?\(/.test(trimmed)) {
     return parseHslLike(trimmed);
   }
 
@@ -156,10 +169,19 @@ export function parseColor(input: string): RGBA {
   );
 }
 
+const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
 const mixChannel = (from: number, to: number, t: number): number => from + t * (to - from);
 
+// Formatting clamps on purpose: extrapolation may push the mix past the range
+// (the `extend` default), and while browsers silently clamp out-of-range rgb()
+// per CSS Color 4, every other consumer — canvas APIs, CSS-in-JS, downstream
+// parsers — rejects or mangles it, and alpha > 1 is invalid everywhere. The
+// math still extends linearly; only the returned STRING is guaranteed valid.
 const formatColor = ({r, g, b, a}: RGBA): string =>
-  `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${Number(a.toFixed(3))})`;
+  `rgba(${Math.round(clamp(r, 0, 255))}, ${Math.round(clamp(g, 0, 255))}, ${Math.round(
+    clamp(b, 0, 255),
+  )}, ${Number(clamp(a, 0, 1).toFixed(3))})`;
 
 /**
  * Interpolates between colors. Formats can be mixed freely — everything is

@@ -255,8 +255,13 @@ Channels mix independently with the same easing contract as `interpolate`
 (single function or per-segment array); extrapolation accepts `'extend'`
 (the default) or `'clamp'` only — `'wrap'` would cycle hues backwards through
 magenta and `'identity'` would return a raw number, so both throw with an
-explanation. The output is always a normalized `rgba(r, g, b, a)` string:
-channels rounded to integers, alpha to three decimals.
+explanation. The output is always a **valid** `rgba(r, g, b, a)` string:
+channels clamped into `[0, 255]`, alpha into `[0, 1]`, then rounded. The
+clamping is deliberate — the `extend` math still runs linearly past the range,
+but browsers are the only consumer that silently accepts out-of-gamut rgb()
+(CSS Color 4); canvas APIs, CSS-in-JS libraries, and downstream parsers reject
+or mangle it, and `alpha: 2` is invalid everywhere. So the _number_ extends;
+the _string_ stays renderable.
 
 Structurally it is a thin client of this chapter's machinery: validation,
 segment finding, easing resolution, and the input-side pipeline are all

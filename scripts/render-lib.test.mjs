@@ -850,6 +850,12 @@ describe('buildConcatList', () => {
     );
     expect(buildConcatList([])).toBe('\n');
   });
+
+  it("escapes single quotes shell-style (O'Brien paths)", () => {
+    expect(buildConcatList(["/tmp/O'Brien/frame-0.mp4"])).toBe(
+      "file '/tmp/O'\\''Brien/frame-0.mp4'\n",
+    );
+  });
 });
 
 describe('raceWithBackstop', () => {

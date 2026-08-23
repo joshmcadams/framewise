@@ -18,9 +18,11 @@ was reproduced rather than inferred.
 | 13 | [Per-frame volume automation splices audio once per frame](13-volume-automation-splices-audio-per-frame.md) | Bug (audio) / scalability | Medium | DONE (plan 034 — one segment + telescoped `gte()` gain envelope; A/B verified splice removal) |
 | 14 | [`<OffthreadVideo>` breaks on non-ASCII asset paths](14-offthreadvideo-non-ascii-paths.md) | Bug (correctness) | Medium | DONE (plan 035 — UTF-8 before base64, round-trip tests through parseExtractUrl) |
 | 15 | [delayRender backstop moved entirely in-page](15-delayrender-backstop-moved-in-page.md) | Regression (diagnostics) | Medium | DONE (plan 036 — Node race backstop at 40 s, explicit protocolTimeout, live-verified on a wedged comp) |
-| 16 | [`interpolateColors` output validity + parsing gaps](16-interpolatecolors-output-validity-and-parsing.md) | Correctness / polish | Low | OPEN |
-| 17 | [Renderer and config minor cleanups](17-renderer-and-config-minor-cleanups.md) | Robustness / hygiene | Low | OPEN |
-| 18 | [`App.tsx` silences two hooks rules file-wide](18-app-tsx-blanket-eslint-disable.md) | Quality / teaching | Low | OPEN |
+| 16 | [`interpolateColors` output validity + parsing gaps](16-interpolatecolors-output-validity-and-parsing.md) | Correctness / polish | Low | DONE (plan 037 — gamut-clamped output, case-insensitive parse, empty components rejected) |
+| 17 | [Renderer and config minor cleanups](17-renderer-and-config-minor-cleanups.md) | Robustness / hygiene | Low | DONE (plan 037 — concat-list quote escaping, dead catch dropped, target=lib=ES2022) |
+| 18 | [`App.tsx` silences two hooks rules file-wide](18-app-tsx-blanket-eslint-disable.md) | Quality / teaching | Low | DONE (plan 037 — zero disables: key-remount editor subtree + handler-side resolution replaced the render-phase ref entirely) |
+
+**Round 2 complete — all nine items closed.**
 
 ### Not findings — verified and holding
 

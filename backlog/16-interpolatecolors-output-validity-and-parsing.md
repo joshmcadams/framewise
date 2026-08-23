@@ -1,6 +1,7 @@
 # 16 — `interpolateColors`: invalid output past the range, plus two parsing gaps
 
 **Type:** Correctness / polish · **Severity:** Low · **Introduced by:** plan 020 (`fef3e9c`)
+**Status:** DONE — fixed by plan 037 (16a: formatColor clamps into gamut — extend math kept, string always valid CSS; 16b: lowercased once in parseColor; 16c: empty rgb/hue components rejected)
 
 Three issues in `src/framewise-lite/interpolate-colors.ts`. One PR.
 

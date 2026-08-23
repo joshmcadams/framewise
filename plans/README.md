@@ -50,6 +50,7 @@ plans cite them.
 | 034  | Volume automation → single segment + in-ffmpeg gain envelope (backlog Round 2 #13) | P2 | M | 022 | DONE (executed; segments merge across volume changes, telescoped gte() step-sum envelope via volumeFilterToken; nested-if encoding rejected by ffmpeg at ~90 levels — caught live, flat form shipped; WithAudio 31→2 segments, fade maxΔ 1043→115 vs ref 49; A/B vs pre-fix worktree) |
 | 035  | OffthreadVideo UTF-8-safe source keys (backlog Round 2 #14) | P2 | S | 021 | DONE (executed; extractKey TextEncoder→btoa, round-trip tests via real parseExtractUrl incl. CJK; server-side UTF-8 case pinned) |
 | 036  | Node-side backstop for the in-page frame wait (backlog Round 2 #15) | P2 | S | 024 | DONE (executed; raceWithBackstop + 40s Node race on per-frame evaluate, protocolTimeout 45s explicit, ready-wait explicit 60s; live-verified named backstop error at ~40s on wedged comp; invariant #5 + ch.8 layering updated) |
+| 037  | Round 2 tail: interpolateColors polish + renderer cleanups + App.tsx disables (#16, #17, #18) | P3 | S | 020, 027 | DONE (executed; 16: gamut-clamped formatColor + case-insensitive parseColor + empty-component rejection; 17: concat quote escaping, dead catch dropped, target=lib=ES2022; 18: zero disables — key-remount CompositionView + handler-side resolution replaces the render-phase ref entirely) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

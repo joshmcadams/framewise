@@ -48,11 +48,36 @@ describe('interpolateColors', () => {
   });
 
   it('defaults to extend past the range and clamps when asked', () => {
-    // Extend: linearly continue red→blue beyond the range.
-    expect(interpolateColors(-1, [0, 1], ['#ff0000', '#0000ff'])).toBe('rgba(510, 0, -255, 1)');
+    // Extend: the mix continues linearly beyond the range, but formatColor
+    // clamps the RESULT into gamut — the string is always valid CSS (browsers
+    // would silently clamp anyway; canvas/CSS-in-JS/downstream parsers
+    // reject it), while the underlying math stays extend.
+    expect(interpolateColors(-1, [0, 1], ['#ff0000', '#0000ff'])).toBe('rgba(255, 0, 0, 1)');
+    expect(interpolateColors(2, [0, 1], ['#ff0000', '#0000ff'])).toBe('rgba(0, 0, 255, 1)');
     expect(interpolateColors(2, [0, 1], ['#ff0000', '#0000ff'], {extrapolateRight: 'clamp'})).toBe(
       'rgba(0, 0, 255, 1)',
     );
+  });
+
+  it('clamps alpha so extended fades stay valid CSS', () => {
+    // alpha extrapolates to 2 at input 2 — invalid everywhere if emitted.
+    expect(interpolateColors(2, [0, 1], ['rgba(0,0,0,0)', 'rgba(0,0,0,1)'])).toBe(
+      'rgba(0, 0, 0, 1)',
+    );
+  });
+
+  it.each([
+    ['hsl(240, 100%, 50%)'],
+    ['HSL(240, 100%, 50%)'],
+    ['rgb(0, 0, 255)'],
+    ['RGB(0, 0, 255)'],
+  ])('parses %s identically regardless of case', (color) => {
+    expect(interpolateColors(0.5, [0, 1], [color, '#fff'])).toBe('rgba(128, 128, 255, 1)');
+  });
+
+  it('rejects empty rgb components instead of parsing them as 0', () => {
+    expect(() => interpolateColors(0, [0, 1], ['rgb(, , )', '#fff'])).toThrow(/Invalid rgb/);
+    expect(() => interpolateColors(0, [0, 1], ['rgb(255,, 0)', '#fff'])).toThrow(/Invalid rgb/);
   });
 
   it('returns a single-element range as-is', () => {

@@ -28,12 +28,10 @@ export function parseExtractUrl(url) {
     throw new Error(`Malformed extract URL: ${url}`);
   }
 
-  let src;
-  try {
-    src = Buffer.from(match[1], 'base64url').toString('utf8');
-  } catch {
-    throw new Error(`Invalid base64url source key: ${match[1]}`);
-  }
+  // Buffer.from(…, 'base64url') never throws — invalid characters are skipped
+  // silently — so there is nothing to catch here. A garbage key decodes to
+  // garbage, which the root-relative check below rejects with a clear error.
+  const src = Buffer.from(match[1], 'base64url').toString('utf8');
   if (!src.startsWith('/')) {
     throw new Error(`Decoded source must be a root-relative path like /clip.mp4, got "${src}"`);
   }

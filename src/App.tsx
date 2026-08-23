@@ -1,5 +1,5 @@
-/* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect */
-import {useEffect, useRef, useState} from 'react';
+import {useState} from 'react';
+import type {ComponentType} from 'react';
 import {Player} from './framewise-lite';
 import {parsePropsInput} from './render/parse-props-input';
 import {compositions, resolveCompositionConfig} from './render/registry';
@@ -53,71 +53,117 @@ function Poster({id, onSelect}: {id: string; onSelect: (id: string) => void}) {
   );
 }
 
+// Resolve now-or-later: either a usable config+props, or the reason there
+// isn't one. Used as STATE here — resolution runs inside the change handler
+// (and once at init), never during render, so a half-typed JSON box degrades
+// to the LAST GOOD config instead of falling back to composition statics.
+type Resolved =
+  | {
+      status: 'ok';
+      config: ReturnType<typeof resolveCompositionConfig>['config'];
+      props: Record<string, unknown>;
+    }
+  | {status: 'error'; message: string};
+
+const safeResolve = (
+  comp: (typeof compositions)[number],
+  props: Record<string, unknown>,
+): Resolved => {
+  try {
+    const {config, props: effective} = resolveCompositionConfig(comp, props);
+    return {status: 'ok', config, props: effective};
+  } catch (e) {
+    return {status: 'error', message: e instanceof Error ? e.message : String(e)};
+  }
+};
+
+// Everything that belongs to ONE composition's editing session. Mounted under
+// key={comp.id}, so switching compositions remounts this subtree and state
+// resets from defaultProps — React's recommended "reset state when a prop
+// changes" pattern, which is why there is no sync-to-state effect here.
+function CompositionView({comp}: {comp: (typeof compositions)[number]}) {
+  const [propsText, setPropsText] = useState(() => JSON.stringify(comp.defaultProps, null, 2));
+  const [resolved, setResolved] = useState<Resolved>(() => safeResolve(comp, comp.defaultProps));
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const handlePropsChange = (text: string) => {
+    setPropsText(text);
+    const parsed = parsePropsInput(text);
+    if (!parsed.ok) {
+      setEditError(parsed.error);
+      return; // keep showing the last good config underneath
+    }
+    const next = safeResolve(comp, parsed.props);
+    setEditError(next.status === 'error' ? next.message : null);
+    if (next.status === 'ok') {
+      setResolved(next); // parse failed or resolve threw: keep the last good one
+    }
+  };
+
+  // Statics guarantee the Player always has something to render.
+  const config =
+    resolved.status === 'ok'
+      ? resolved.config
+      : {
+          width: comp.width,
+          height: comp.height,
+          fps: comp.fps,
+          durationInFrames: comp.durationInFrames,
+        };
+  const effectiveProps = resolved.status === 'ok' ? resolved.props : comp.defaultProps;
+
+  return (
+    <>
+      <div style={{margin: '12px 0'}}>
+        <label style={{display: 'block', marginBottom: 4, color: '#444', fontSize: 14}}>
+          Props (JSON, merged over defaults):
+        </label>
+        <textarea
+          value={propsText}
+          onChange={(e) => handlePropsChange(e.target.value)}
+          rows={4}
+          spellCheck={false}
+          style={{
+            width: '100%',
+            fontFamily: 'monospace',
+            fontSize: 13,
+            padding: 8,
+            border: `1px solid ${editError ? '#f88' : '#ccc'}`,
+            borderRadius: 4,
+            resize: 'vertical',
+          }}
+        />
+        {editError ? (
+          <div style={{color: '#c00', fontSize: 13, marginTop: 4, whiteSpace: 'pre-wrap'}}>
+            {editError}
+          </div>
+        ) : (
+          <div style={{color: '#888', fontSize: 12, marginTop: 4}}>
+            {config.width}×{config.height} @ {config.fps}fps · {config.durationInFrames} frames
+          </div>
+        )}
+      </div>
+
+      {/* key={comp.id} also resets the Player clock and clears any delayRender
+          handles left over from a previous editing session. */}
+      <Player
+        key={comp.id}
+        component={comp.component as ComponentType<Record<string, unknown>>}
+        inputProps={effectiveProps}
+        width={config.width}
+        height={config.height}
+        fps={config.fps}
+        durationInFrames={config.durationInFrames}
+        loop
+      />
+    </>
+  );
+}
+
 export default function App() {
   const [view, setView] = useState<'single' | 'gallery'>('single');
   const [selectedId, setSelectedId] = useState(compositions[0].id);
   const comp = compositions.find((c) => c.id === selectedId) ?? compositions[0];
-  const [propsText, setPropsText] = useState(() => JSON.stringify(comp.defaultProps, null, 2));
-  const [inputProps, setInputProps] = useState<Record<string, unknown>>(comp.defaultProps);
-  const [parseError, setParseError] = useState<string | null>(null);
-  const lastGoodRef = useRef<{
-    id: string;
-    config: ReturnType<typeof resolveCompositionConfig>['config'];
-    props: Record<string, unknown>;
-  } | null>(null);
-
-  useEffect(() => {
-    setPropsText(JSON.stringify(comp.defaultProps, null, 2));
-    setInputProps(comp.defaultProps);
-    setParseError(null);
-  }, [comp]);
-
-  const handlePropsChange = (text: string) => {
-    setPropsText(text);
-    const result = parsePropsInput(text);
-    if (!result.ok) {
-      setParseError(result.error);
-      return;
-    }
-    setParseError(null);
-    setInputProps(result.props);
-  };
-
-  // Resolve config through the same path the renderer uses. On failure (bad
-  // JSON or a throwing calculateMetadata) keep the last good config so the
-  // Player stays mounted and the error banner explains what to fix.
-  let config: ReturnType<typeof resolveCompositionConfig>['config'] | null = null;
-  let effectiveProps: Record<string, unknown> = inputProps;
-  let configError: string | null = parseError;
-
-  if (!configError) {
-    try {
-      const resolved = resolveCompositionConfig(comp, inputProps);
-      config = resolved.config;
-      effectiveProps = resolved.props;
-    } catch (e) {
-      configError = e instanceof Error ? e.message : String(e);
-    }
-  }
-
-  if (!config) {
-    if (lastGoodRef.current && lastGoodRef.current.id === comp.id) {
-      config = lastGoodRef.current.config;
-      effectiveProps = lastGoodRef.current.props;
-    } else {
-      // Fallback to statics so the Player always has something to render.
-      config = {
-        width: comp.width,
-        height: comp.height,
-        fps: comp.fps,
-        durationInFrames: comp.durationInFrames,
-      };
-    }
-  }
-
-  if (config && !configError) {
-    lastGoodRef.current = {id: comp.id, config, props: effectiveProps};
-  }
 
   return (
     <div
@@ -203,48 +249,7 @@ export default function App() {
             </select>
           </label>
 
-          <div style={{margin: '12px 0'}}>
-            <label style={{display: 'block', marginBottom: 4, color: '#444', fontSize: 14}}>
-              Props (JSON, merged over defaults):
-            </label>
-            <textarea
-              value={propsText}
-              onChange={(e) => handlePropsChange(e.target.value)}
-              rows={4}
-              spellCheck={false}
-              style={{
-                width: '100%',
-                fontFamily: 'monospace',
-                fontSize: 13,
-                padding: 8,
-                border: `1px solid ${configError ? '#f88' : '#ccc'}`,
-                borderRadius: 4,
-                resize: 'vertical',
-              }}
-            />
-            {configError ? (
-              <div style={{color: '#c00', fontSize: 13, marginTop: 4, whiteSpace: 'pre-wrap'}}>
-                {configError}
-              </div>
-            ) : (
-              <div style={{color: '#888', fontSize: 12, marginTop: 4}}>
-                {config.width}×{config.height} @ {config.fps}fps · {config.durationInFrames} frames
-              </div>
-            )}
-          </div>
-
-          {/* key={comp.id} remounts the Player on switch: resets the clock and
-              clears any delayRender handles from the previous composition. */}
-          <Player
-            key={comp.id}
-            component={comp.component}
-            inputProps={effectiveProps}
-            width={config.width}
-            height={config.height}
-            fps={config.fps}
-            durationInFrames={config.durationInFrames}
-            loop
-          />
+          <CompositionView key={comp.id} comp={comp} />
         </>
       )}
     </div>

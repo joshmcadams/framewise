@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    // target matches lib (ES2022): lib governs which runtime APIs typecheck,
+    // target governs syntax downleveling — letting lib lead would admit
+    // Object.hasOwn/.at()/findLast with no polyfill on an older runtime.
+    // Safe here: the package declares node >= 20, where both exist.
+    "target": "ES2022",
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",

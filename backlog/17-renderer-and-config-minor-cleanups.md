@@ -1,6 +1,7 @@
 # 17 — Renderer and config minor cleanups
 
 **Type:** Robustness / hygiene · **Severity:** Low
+**Status:** DONE — fixed by plan 037 (17a: shell-style `'\''` escaping in buildConcatList + O'Brien test; 17b: dead base64 catch removed; 17c: target raised to ES2022 to match lib, with rationale comment)
 
 Three unrelated small items, one PR.
 

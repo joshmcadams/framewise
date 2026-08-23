@@ -1,6 +1,7 @@
 # 18 — `App.tsx` silences two React hooks rules file-wide
 
 **Type:** Quality / teaching · **Severity:** Low · **Introduced by:** plan 027 (`0a84f6d`)
+**Status:** DONE — fixed by plan 037, going one step further than the suggested fix: the file now carries **no** disables at all. The derived-state effect became a `key={comp.id}` remount (`<CompositionView>`), and the render-phase ref write was eliminated entirely by moving resolution into the change handler as `Resolved` state — the hooks-compiler rules flag ref *reads* during render too, so a narrowed disable would have only relocated the smell.
 
 ## Problem
 

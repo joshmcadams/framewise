@@ -333,9 +333,12 @@ export function planChunkVideoEncode({
 }
 
 // Build the concat demuxer list file content for a set of chunk video paths.
-// Each line is `file 'absolute/path'` as required by `ffmpeg -f concat`.
+// Each line is `file 'absolute/path'` as required by `ffmpeg -f concat`, with
+// embedded single quotes escaped shell-style (`'` → `'\''`) per the demuxer's
+// quoting rules. Unreachable via today's mkdtemp paths, but this helper is
+// exported and general-purpose — it should be correct for any path.
 export function buildConcatList(chunkPaths) {
-  return chunkPaths.map((p) => `file '${p}'`).join('\n') + '\n';
+  return chunkPaths.map((p) => `file '${p.replaceAll("'", `'\\''`)}'`).join('\n') + '\n';
 }
 
 // Race a promise against a Node-side timer so a wedged target cannot stall
