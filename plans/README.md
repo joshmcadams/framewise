@@ -40,6 +40,9 @@ plans cite them.
 | 024  | Renderer perf trio: fold per-frame CDP round-trips, probe without a spare browser, bundle-vs-devserver verdict (Phase 3 item 1) | P2 | M | — | DONE (executed; one CDP evaluate/frame via waitForPendingEmpty, probe adopts first worker's browser, dev-server verdict recorded in ch. 7; c4 −69% / c1 −58% wall time, sha256 identical pre/post) |
 | 025  | Dynamic composition metadata (`calculateMetadata` analog) (Phase 3 item 2) | P2 | M | — | DONE (executed; calculateMetadata on registry entries + shared resolver in preview & render, Countdown demo derives duration from props.seconds, fast named failures via configError; 9 tests; verified 150→90 frames via --props) |
 | 026  | assetPath containment check (Phase 3 item 3) | P3 | S | — | DONE (executed; resolve-based containment, traversal rejected with actionable error, characterization flipped + 3 new cases; live render sanity-checked) |
+| 027  | Preview props editor | P2 | M | — | DONE |
+| 028  | Publishable library packaging | P2 | M | — | TODO |
+| 029  | Composition gallery | P2 | S | — | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

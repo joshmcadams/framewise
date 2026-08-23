@@ -317,7 +317,12 @@ async function openWorker(url) {
   try {
     const page = await browser.newPage();
     await page.goto(url, {waitUntil: 'load'});
-    await page.waitForFunction(() => Boolean(window.framewiseLite?.config));
+    // Ready means metadata resolved OR definitively failed (fast, named error).
+    await page.waitForFunction(() =>
+      Boolean(
+        window.framewiseLite && (window.framewiseLite.config || window.framewiseLite.configError),
+      ),
+    );
     return {browser, page};
   } catch (e) {
     liveBrowsers.delete(browser);
@@ -405,6 +410,10 @@ async function renderChunk(url, startFrame, endFrame, opts) {
 // Read composition metadata through an existing page (no dedicated probe
 // browser). Kept as a function of a page so callers decide ownership.
 async function readConfigFromPage(page) {
+  const error = await page.evaluate(() => window.framewiseLite?.configError);
+  if (error) {
+    throw new Error(error);
+  }
   return page.evaluate(() => window.framewiseLite.config);
 }
 

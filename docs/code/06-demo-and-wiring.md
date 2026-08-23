@@ -118,17 +118,22 @@ own React site:
 
 ```tsx
 export default function App() {
+  const [selectedId, setSelectedId] = useState(compositions[0].id);
+  const comp = compositions.find((c) => c.id === selectedId) ?? compositions[0];
+  const {config} = resolveCompositionConfig(comp, inputProps);
   return (
     <div style={{maxWidth: 960, margin: '0 auto', padding: 24}}>
       <h2>framewise-lite</h2>
       <p>…instructions…</p>
+      <select>…compositions…</select>
+      <textarea>…JSON props…</textarea>
       <Player
-        component={HelloWorld}
-        inputProps={{title: 'framewise-lite', subtitle: 'a video is a function of frame'}}
-        width={1280}
-        height={720}
-        fps={30}
-        durationInFrames={150}
+        component={comp.component}
+        inputProps={effectiveProps}
+        width={config.width}
+        height={config.height}
+        fps={config.fps}
+        durationInFrames={config.durationInFrames}
         loop
       />
     </div>
@@ -142,6 +147,17 @@ is type-checked against `HelloWorldProps`, getting the shape wrong is a compile
 error. In full Framewise you'd _also_ register this in a `Root.tsx` via
 `<Composition>` so the Studio and the server renderer could discover it; here
 the Player is the only consumer, so that registry isn't needed yet.
+
+### Props editor
+
+The dropdown picks a composition; the textarea below it edits its props live.
+`parsePropsInput` validates the JSON (must be an object) and shows a parse
+error without crashing preview. Valid edits flow through the same
+`resolveCompositionConfig` the renderer uses, so `calculateMetadata`
+compositions like `Countdown` update their duration live — typing
+`{"seconds": 2}` shrinks the timeline from 150 to 60 frames, just as
+`--props '{"seconds":2}'` does on the CLI. Bad metadata (e.g. `{"seconds":99}`)
+surfaces as a red banner and the Player keeps its last good config.
 
 ## `main.tsx` — the entry point
 
