@@ -193,7 +193,9 @@ two outputs are directly comparable.
 ## Intentionally simplified
 
 - **Constant per-segment volume** and **best-effort preview sync**, same as
-  [chapter 9](09-audio.md).
+  [chapter 9](09-audio.md) — though chapter 9 now measures the render path at
+  ±0.5 ms placement accuracy; the caveats that remain are volume-automation
+  frame granularity and the preview drift policy.
 - **A silent clip would break the audio path** — `[k:a]` has nothing to map.
   Pass `muted` for a video with no audio track (it also skips the report).
 

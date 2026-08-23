@@ -130,10 +130,10 @@ about clocks.** The `<Player>` is just one possible frame source.
 
 These are real, but they're not the _core idea_ — adding them is the next stage:
 
-- **Frame-accurate A/V sync.** Our preview sync is best-effort by design;
-  sample-accuracy is a deeper problem. (Per-frame volume automation has since
-  landed — `volume` accepts a function of the frame on all three media
-  components.) (`<OffthreadVideo>` frame extraction has since landed — see
+- **Frame-accurate A/V sync in preview.** The preview sync is best-effort by
+  design (0.3 s drift-snap policy); render-path audio placement is measured at
+  ±0.5 ms — see the "How sample-accurate is it?" section in
+  [chapter 9](docs/code/09-audio.md). (`<OffthreadVideo>` frame extraction has since landed — see
   [chapter 10](docs/code/10-video.md) for both embedded-video paths.)
 - **Distributed rendering.** Stage 6 parallelizes across local browsers into a
   shared frames dir. Framewise Lambda goes further — workers on _separate machines_

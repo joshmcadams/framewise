@@ -189,6 +189,55 @@ For `WithAudio` this produces exactly:
 — the blip correctly placed at 2.0s and clipped to its 15-frame window, straight
 from the `<Sequence from={60} durationInFrames={15}>`.
 
+## How sample-accurate is it? (measured)
+
+"Best-effort, not sample-accurate" deserves numbers. Video frames are
+pixel-exact by construction — each PNG _is_ the frame — so audio placement can
+be measured against a perfect reference. The method: render `WithAudio` (blip
+expected at exactly frame 60 = 2.000000 s), then find the blip's actual onset
+in the encoded file. The background tone sits below −25 dBFS, so a threshold
+there isolates the blip:
+
+```bash
+ffmpeg -i out/sync-analysis.mp4 \
+  -af "atrim=0:4,silencedetect=noise=-25dB:d=0.05" -f null -
+#   silence_end: 2.000113        ← the blip enters
+
+ffprobe -v error -select_streams a:0 -show_entries stream=start_time -of csv=p=0 out/sync-analysis.mp4
+#   0.000000
+```
+
+Measured on a real render (AAC 44.1 kHz in mp4):
+
+| Quantity               | Expected              | Measured                                | Error           |
+| ---------------------- | --------------------- | --------------------------------------- | --------------- |
+| Blip onset             | 2.000000 s (frame 60) | 2.00011–2.00027 s (threshold-dependent) | **+0.1–0.3 ms** |
+| Blip end (15 frames)   | 2.500000 s            | 2.49984–2.49991 s                       | **−0.1–0.2 ms** |
+| Container `start_time` | 0                     | 0.000000                                | 0               |
+
+Where the remaining error comes from, by stage:
+
+1. **Segment placement quantizes to whole milliseconds** — `adelay` takes
+   integer ms and placements are `Math.round(startFrame / fps * 1000)`, so the
+   worst case is ±0.5 ms per segment (e.g. frame 121 → 4033.33 ms → 4033).
+2. **Trim points are exact** — `atrim=start=frame/fps` uses exact rationals.
+3. **AAC framing** adds sub-0.1 ms sample-grid rounding at decode; the encoder's
+   priming samples (~2048 ≈ 46 ms @44.1 kHz worst case) are handled via mp4
+   edit lists that ffmpeg-based players honor — a player ignoring gapless
+   metadata could shift perception by that amount, but that is a player defect,
+   not an error this pipeline introduces.
+4. **Volume automation steps at frame boundaries** — gain can change up to half
+   a frame (16.7 ms @30 fps) "late" relative to ideal continuous automation;
+   bounded and matching the visual frame granularity.
+
+**Verdict:** render-path audio placement is accurate to ~±0.5 ms end-to-end —
+below the ~1 ms audibility threshold even for sharp transients, and three
+orders of magnitude inside lip-sync tolerance (~20+ ms). What remains honestly
+_not_ sample-accurate here is (a) the per-frame granularity of volume
+automation above, and (b) the preview path, whose drift-tolerance policy snaps
+the element only when it strays >0.3 s ([chapter 5](05-player.md)) — fine for
+scrubbing, never meant for monitoring.
+
 ## Volume automation
 
 `volume` accepts a **function of the current frame** as well as a number:
