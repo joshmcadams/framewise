@@ -48,6 +48,8 @@ plans cite them.
 | 032  | Distributed chunks follow the output format — `--distributed --format webm` (backlog Round 2 #11) | P2 | S | 030 | DONE (executed; per-format chunk codec/container via chunkContainerFor + planChunkVideoEncode format arg, mp4 concat +faststart; live-verified: webm probes vp9/150f/5.000s, mp4 hash identical, gif falls back; 8 new tests) |
 | 033  | React → peerDependency (backlog Round 2 #12) | P2 | S | 028 | DONE (executed; react/react-dom → peer ">=19" + dev; scratch install w/ pre-existing React 19 = exactly one react; SSR Player smoke proves hooks+context across boundary) |
 | 034  | Volume automation → single segment + in-ffmpeg gain envelope (backlog Round 2 #13) | P2 | M | 022 | DONE (executed; segments merge across volume changes, telescoped gte() step-sum envelope via volumeFilterToken; nested-if encoding rejected by ffmpeg at ~90 levels — caught live, flat form shipped; WithAudio 31→2 segments, fade maxΔ 1043→115 vs ref 49; A/B vs pre-fix worktree) |
+| 035  | OffthreadVideo UTF-8-safe source keys (backlog Round 2 #14) | P2 | S | 021 | DONE (executed; extractKey TextEncoder→btoa, round-trip tests via real parseExtractUrl incl. CJK; server-side UTF-8 case pinned) |
+| 036  | Node-side backstop for the in-page frame wait (backlog Round 2 #15) | P2 | S | 024 | DONE (executed; raceWithBackstop + 40s Node race on per-frame evaluate, protocolTimeout 45s explicit, ready-wait explicit 60s; live-verified named backstop error at ~40s on wedged comp; invariant #5 + ch.8 layering updated) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

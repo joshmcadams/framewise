@@ -2,6 +2,7 @@
 
 **Type:** Regression (diagnostics) · **Severity:** Medium
 **Introduced by:** plan 024 (`40a8e38`)
+**Status:** DONE — fixed by plan 036 (`raceWithBackstop` races the per-frame evaluate against a Node timer at 40 s; `protocolTimeout` explicit at 45 s; the ready-wait also lost its puppeteer-default timeout. Live-verified: a frame-wedging composition fails with `renderer backstop: frame N never returned` at ~40 s.)
 
 ## Problem
 

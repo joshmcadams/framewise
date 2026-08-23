@@ -8,6 +8,10 @@ import {CompositionHost} from './CompositionHost';
 import {OffthreadVideo} from './OffthreadVideo';
 import {PlaybackProvider} from './playback';
 import {beginAudioFrame, readAudioFrame} from './audio-registry';
+// The server side is the other half of the contract: the URL the component
+// emits must parse back to the exact source string there.
+// @ts-expect-error scripts/*.mjs has no .d.ts; its behavior is pinned by its own suite
+import {parseExtractUrl} from '../../scripts/offthread-server.mjs';
 
 (globalThis as {IS_REACT_ACT_ENVIRONMENT?: boolean}).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -53,6 +57,22 @@ describe('OffthreadVideo — render mode', () => {
     const img = container.querySelector('img');
     expect(img?.getAttribute('src')).toBe(`/__framewise_extract/${b64('/clip.mp4')}/75.png?fps=30`);
   });
+
+  // Regression (backlog #14): btoa alone is Latin-1 while the server decodes
+  // UTF-8 — accented paths round-tripped as mojibake and CJK paths threw
+  // InvalidCharacterError mid-render.
+  it.each([['/vidéo.mp4'], ['/日本語クリップ.mp4']])(
+    'encodes %s so parseExtractUrl decodes back to the exact source',
+    async (src) => {
+      await renderAt(75, <OffthreadVideo src={src} />);
+      const img = container.querySelector('img');
+      expect(img).not.toBeNull();
+      const parsed = parseExtractUrl(img!.getAttribute('src')!.replace('/__framewise_extract', ''));
+      expect(parsed.src).toBe(src);
+      expect(parsed.frame).toBe(75);
+      expect(parsed.fps).toBe(30);
+    },
+  );
 
   it('blocks the capture through <Img> until the extracted PNG loads', async () => {
     await renderAt(10, <OffthreadVideo src="/clip.mp4" />);

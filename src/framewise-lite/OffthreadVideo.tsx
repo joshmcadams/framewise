@@ -22,6 +22,21 @@ import {Video, type VideoProps} from './Video';
  * The audio track still rides Stage 4: identical reportAudio call as `<Video>`,
  * so ffmpeg muxes it with zero renderer changes.
  */
+/**
+ * Cache-stable URL key for an extraction request. UTF-8-safe: btoa alone is
+ * Latin-1, so a path like /vidéo.mp4 round-tripped as mojibake (ffmpeg
+ * ENOENT) and any CJK path threw InvalidCharacterError mid-render. The server
+ * side decodes base64url as UTF-8 (parseExtractUrl) — this is its exact
+ * inverse for every string.
+ */
+export const extractKey = (src: string): string => {
+  let latin = '';
+  for (const byte of new TextEncoder().encode(src)) {
+    latin += String.fromCharCode(byte);
+  }
+  return btoa(latin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
 export const OffthreadVideo = ({
   src,
   volume = 1,
@@ -53,7 +68,7 @@ export const OffthreadVideo = ({
   // RENDER: serve this video frame as an extracted PNG. The URL is cache-
   // stable per (source, frame) so parallel workers dedupe naturally.
   const videoFrame = frame + startFrom;
-  const key = btoa(src).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const key = extractKey(src);
   const extractUrl = `/__framewise_extract/${key}/${videoFrame}.png?fps=${fps}`;
 
   return (

@@ -1,6 +1,7 @@
 # 14 — `<OffthreadVideo>` breaks on non-ASCII asset paths
 
 **Type:** Bug (correctness) · **Severity:** Medium · **Introduced by:** plan 021 (`5c4b81a`)
+**Status:** DONE — fixed by plan 035 (UTF-8 encode before base64 via `extractKey`; round-trip tests through `parseExtractUrl`).
 
 ## Problem
 

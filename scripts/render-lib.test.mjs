@@ -13,6 +13,7 @@ import {
   planEncode,
   planOutput,
   readFlag,
+  raceWithBackstop,
   volumeFilterToken,
 } from './render-lib.mjs';
 
@@ -848,5 +849,33 @@ describe('buildConcatList', () => {
       "file '/tmp/a.mp4'\nfile '/tmp/b.mp4'\n",
     );
     expect(buildConcatList([])).toBe('\n');
+  });
+});
+
+describe('raceWithBackstop', () => {
+  it('passes the promise result through when it settles in time', async () => {
+    await expect(raceWithBackstop(Promise.resolve('ok'), 1000, 'late')).resolves.toBe('ok');
+  });
+
+  it('rejects with the named message when the deadline passes first', async () => {
+    const pending = new Promise(() => {}); // never settles — the wedged case
+    await expect(raceWithBackstop(pending, 5, 'frame 7 never returned')).rejects.toThrow(
+      /frame 7 never returned/,
+    );
+  });
+
+  it('prefers a rejection from the wrapped promise over the backstop', async () => {
+    const boom = new Promise((_, rej) => setTimeout(() => rej(new Error('in-page: stuck')), 5));
+    await expect(raceWithBackstop(boom, 10_000, 'late')).rejects.toThrow(/in-page: stuck/);
+  });
+
+  it('clears the timer so it never keeps the process alive', async () => {
+    vi.useFakeTimers();
+    try {
+      await raceWithBackstop(Promise.resolve(), 60_000, 'late');
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

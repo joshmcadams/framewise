@@ -52,8 +52,14 @@ Two details worth noting:
 - **The timeout.** A forgotten `continueRender()` would otherwise hang the render
   forever. Each handle self-destructs after 30s (Framewise's default) with a loud
   error naming the label — so "my render is stuck" becomes "handle X (`<Img>
-/photo.png`) never cleared." The renderer's own `waitForFunction` timeout is
-  the hard backstop.
+/photo.png`) never cleared." Behind it sit three more deadlines, each strictly
+  longer, each covering the previous one's blind spot: the in-page wait gives up
+  at 35s with the stuck handles named; a **Node-side race timer** at 40s covers
+  the case the in-page timer cannot see (a composition that wedged the main
+  thread kills every in-page `setTimeout`, so without the Node backstop the
+  failure would surface as puppeteer's generic protocol-timeout error ~180s
+  later); and `protocolTimeout` sits at 45s as puppeteer's own ceiling. The
+  constants all derive from `delay-render-defaults.mjs` — never literals.
 - **`notify()` / `subscribeToDelayRenders`.** A listener set lets the Player show
   a live "pending" badge. `useDelayRenderPending()` wraps it in
   `useSyncExternalStore` so React components can read the count reactively.

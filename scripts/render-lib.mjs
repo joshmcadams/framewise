@@ -337,3 +337,17 @@ export function planChunkVideoEncode({
 export function buildConcatList(chunkPaths) {
   return chunkPaths.map((p) => `file '${p}'`).join('\n') + '\n';
 }
+
+// Race a promise against a Node-side timer so a wedged target cannot stall
+// past a deadline we control. The in-page frame wait polls with setTimeout —
+// which never fires if a composition froze the main thread — and without this
+// the failure surfaces as puppeteer's generic protocolTimeout error instead
+// of a named one. The timer is cleared once settled either way, so it never
+// keeps the process alive.
+export function raceWithBackstop(promise, timeoutMs, message) {
+  let timer;
+  const backstop = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, backstop]).finally(() => clearTimeout(timer));
+}

@@ -50,6 +50,7 @@ import {
   planChunkVideoEncode,
   chunkContainerFor,
   buildConcatList,
+  raceWithBackstop,
 } from './render-lib.mjs';
 import {framewiseExtract} from './offthread-server.mjs';
 
@@ -74,6 +75,13 @@ const LAUNCH_ARGS = [
 // a generic TimeoutError. Both constants come from delay-render-defaults.mjs —
 // single source of truth, no second literal.
 const DELAY_RENDER_TIMEOUT = DEFAULT_DELAY_RENDER_TIMEOUT + RENDERER_TIMEOUT_MARGIN_MS;
+// Timeout layering for one frame (all from delay-render-defaults.mjs):
+//   30 s  in-app labeled console.error per stuck handle
+//   35 s  in-page waitForPendingEmpty deadline (dies with the main thread)
+//   40 s  NODE_BACKSTOP_MS — Node-side race timer, immune to a wedged page
+//   45 s  protocolTimeout — puppeteer's own ceiling, kept above ours so its
+//         generic ProtocolError is never what decides
+const NODE_BACKSTOP_MS = DELAY_RENDER_TIMEOUT + RENDERER_TIMEOUT_MARGIN_MS;
 
 // --- arg parsing ---------------------------------------------------------
 const args = process.argv.slice(2);
@@ -314,6 +322,7 @@ async function openWorker(url) {
       executablePath: CHROME,
       headless: true,
       args: LAUNCH_ARGS,
+      protocolTimeout: NODE_BACKSTOP_MS + 5000,
       handleSIGINT: false,
       handleSIGTERM: false,
       handleSIGHUP: false,
@@ -333,10 +342,13 @@ async function openWorker(url) {
     const page = await browser.newPage();
     await page.goto(url, {waitUntil: 'load'});
     // Ready means metadata resolved OR definitively failed (fast, named error).
-    await page.waitForFunction(() =>
-      Boolean(
-        window.framewiseLite && (window.framewiseLite.config || window.framewiseLite.configError),
-      ),
+    // Explicit timeout: a puppeteer default must never be what decides.
+    await page.waitForFunction(
+      () =>
+        Boolean(
+          window.framewiseLite && (window.framewiseLite.config || window.framewiseLite.configError),
+        ),
+      {timeout: 60_000},
     );
     return {browser, page};
   } catch (e) {
@@ -366,23 +378,30 @@ async function renderFrames(page, startFrame, endFrame, {framesDir, label}) {
   for (let f = startFrame; f < endFrame; f++) {
     // ONE round trip per frame: render, block until delayRender drains (or
     // timeout with the stuck handles named), wait for paint, then read both
-    // the at-capture pending labels and this frame's audio reports.
-    const {pendingAtCapture, reports} = await page.evaluate(
-      async ({frame, wait, timeoutMs}) => {
-        const fw = window.framewiseLite;
-        fw.renderFrame(frame);
-        if (wait) {
-          await fw.waitForPendingEmpty(timeoutMs).catch((e) => {
-            throw new Error(`delayRender timeout at frame ${frame}; pending: ${e.message}`);
-          });
-        }
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        return {
-          pendingAtCapture: fw.getPending().map((p) => p.label),
-          reports: fw.getAudioFrame(),
-        };
-      },
-      {frame: f, wait: !noWait, timeoutMs: DELAY_RENDER_TIMEOUT},
+    // the at-capture pending labels and this frame's audio reports. The Node
+    // backstop races the evaluate: if the composition wedged the main thread,
+    // the in-page deadline timer dies with it and this is what fails — named,
+    // at 40 s, instead of a generic protocolTimeout at 180 s.
+    const {pendingAtCapture, reports} = await raceWithBackstop(
+      page.evaluate(
+        async ({frame, wait, timeoutMs}) => {
+          const fw = window.framewiseLite;
+          fw.renderFrame(frame);
+          if (wait) {
+            await fw.waitForPendingEmpty(timeoutMs).catch((e) => {
+              throw new Error(`delayRender timeout at frame ${frame}; pending: ${e.message}`);
+            });
+          }
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          return {
+            pendingAtCapture: fw.getPending().map((p) => p.label),
+            reports: fw.getAudioFrame(),
+          };
+        },
+        {frame: f, wait: !noWait, timeoutMs: DELAY_RENDER_TIMEOUT},
+      ),
+      NODE_BACKSTOP_MS,
+      `renderer backstop: frame ${f} never returned within ${NODE_BACKSTOP_MS}ms — the composition likely wedged the main thread`,
     );
 
     if (reports.length) audioByFrame.push({frame: f, reports});

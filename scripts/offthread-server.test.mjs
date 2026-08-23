@@ -21,6 +21,12 @@ describe('parseExtractUrl', () => {
     expect(a.cacheKey).toBe(b.cacheKey);
   });
 
+  it('decodes UTF-8 sources exactly (server side of the non-ASCII contract)', () => {
+    for (const src of ['/vidéo.mp4', '/日本語クリップ.mp4']) {
+      expect(parseExtractUrl(`/${b64(src)}/75.png?fps=30`).src).toBe(src);
+    }
+  });
+
   it('rejects malformed paths, bad keys, and bad fps', () => {
     expect(() => parseExtractUrl('/nope.png?fps=30')).toThrow(/Malformed/);
     expect(() => parseExtractUrl('///75.png?fps=30')).toThrow();

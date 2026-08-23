@@ -51,8 +51,10 @@ say which, and re-check the mechanism, not the numbers.
 
 5. **`delayRender` timeout constants have a single source of truth:**
    `src/framewise-lite/delay-render-defaults.mjs` (+ `.d.mts`), shared by TS and
-   `render.mjs`. The renderer's backstop must fire AFTER the in-app labeled error
-   (ordering contract: `delay-render-defaults.mjs:5-8`).
+   `render.mjs`. The timeout layers must keep their order — in-app labeled error
+   30 s → in-page deadline 35 s → Node race backstop 40 s → `protocolTimeout`
+   45 s — so the user always gets a named error before a generic one
+   (ordering contract: `delay-render-defaults.mjs` header comment).
 
 ## Deliberate decisions — do not "fix" these
 
