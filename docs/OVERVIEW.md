@@ -34,7 +34,8 @@ of a programmatic video engine:
 
 What it deliberately does _not_ implement (each omission is explained in its
 chapter): ffmpeg-based frame extraction (`<OffthreadVideo>`-style), per-frame
-volume automation and sample-accurate A/V sync, and distributed rendering
+volume automation and sample-accurate A/V sync (both since shipped — plans 022
+and 023), and distributed rendering
 across machines. See [§14](#14-roadmap-status-and-proposal).
 
 ### Status snapshot
@@ -506,13 +507,13 @@ Every item from the repo's deferred lists now ships: `<Series>`/`<Loop>` (plan
 `interpolate` outputs plus `interpolateColors` (plan 020 — backlog item B, the
 last one). Phase 2 is next in line.
 
-### Phase 2 — Media fidelity (close the documented gaps) — items 1–2 shipped
+### Phase 2 — Media fidelity ✅ COMPLETE
 
-| Item                                                  | Origin                                                   | Notes                                                                                                                                                          |
-| ----------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ~~OffthreadVideo-style frame extraction~~ ✅ plan 021 | README "deliberately omitted"; ch. 10 names the approach | Shipped as `<OffthreadVideo>`: on-demand ffmpeg extraction served by the renderer, rendered through `<Img>`; verified frame-accurate at comp frames 30/75/120. |
-| ~~Per-frame volume automation~~ ✅ plan 022           | README "deliberately omitted"                            | `volume` accepts a function of the local frame on all three media components; aggregation splits segments on volume change so ffmpeg mixes each step.          |
-| Sample-accurate A/V sync investigation                | README "deliberately omitted"                            | Scope it honestly — even a written analysis with measurements would upgrade chapter 9/10 (plan 023).                                                           |
+| Item                                                   | Origin                                                   | Notes                                                                                                                                                              |
+| ------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ~~OffthreadVideo-style frame extraction~~ ✅ plan 021  | README "deliberately omitted"; ch. 10 names the approach | Shipped as `<OffthreadVideo>`: on-demand ffmpeg extraction served by the renderer, rendered through `<Img>`; verified frame-accurate at comp frames 30/75/120.     |
+| ~~Per-frame volume automation~~ ✅ plan 022            | README "deliberately omitted"                            | `volume` accepts a function of the local frame on all three media components; aggregation splits segments on volume change so ffmpeg mixes each step.              |
+| ~~Sample-accurate A/V sync investigation~~ ✅ plan 023 | README "deliberately omitted"                            | Measured: render-path placement lands at ±0.5 ms end-to-end (blip onset within +0.3 ms of its exact frame time); analysis and reproducible commands live in ch. 9. |
 
 ### Phase 3 — Renderer capability and performance
 
