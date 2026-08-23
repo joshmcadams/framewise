@@ -326,18 +326,18 @@ system Chrome/Chromium and ffmpeg on PATH.
 
 ### Command reference
 
-| Command                | What it does                                                               |
-| ---------------------- | -------------------------------------------------------------------------- |
-| `npm test`             | Vitest once (all 291 tests)                                                |
-| `npm run test:watch`   | Vitest in watch mode                                                       |
-| `npm run typecheck`    | `tsc -b`                                                                   |
-| `npm run lint`         | ESLint (flat config)                                                       |
-| `npm run format`       | Prettier write                                                             |
-| `npm run format:check` | Prettier check                                                             |
-| `npm run build`        | Typecheck + production bundle                                              |
-| `npm run verify`       | **The gate:** typecheck + lint + prettier + tests + build                  |
-| `npm run build:lib`    | Build the publishable library (`dist/framewise-lite.js` + types, plan 028) |
-| `npm run render -- …`  | Export compositions (see §7)                                               |
+| Command                | What it does                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------ |
+| `npm test`             | Vitest once (all 291 tests)                                                    |
+| `npm run test:watch`   | Vitest in watch mode                                                           |
+| `npm run typecheck`    | `tsc -b`                                                                       |
+| `npm run lint`         | ESLint (flat config)                                                           |
+| `npm run format`       | Prettier write                                                                 |
+| `npm run format:check` | Prettier check                                                                 |
+| `npm run build`        | Typecheck + production bundle                                                  |
+| `npm run verify`       | **The gate:** typecheck + lint + prettier + tests + build                      |
+| `npm run build:lib`    | Build the publishable library (`dist-lib/framewise-lite.js` + types, plan 028) |
+| `npm run render -- …`  | Export compositions (see §7)                                                   |
 
 CI runs `npm run verify` on Node 20.x and 22.x. Run it locally before pushing;
 it is the definition of "done" used throughout the docs and plans.
@@ -540,11 +540,11 @@ last one).
 
 ### Phase 4 — Authoring experience and packaging ✅ COMPLETE
 
-| Item                                          | Origin                                                               | Notes                                                                                                                                                                                  |
-| --------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ~~Preview props editor~~ ✅ plan 027          | audit direction item, not selected                                   | Live JSON textarea in App, same resolver as renderer; Countdown demonstrates dynamic duration.                                                                                         |
-| ~~Publishable library packaging~~ ✅ plan 028 | the source-tree comment calls `framewise-lite/` "what you'd publish" | `vite.lib.config.ts` + `tsconfig.lib.json` → `dist/framewise-lite.js` + `dist/index.d.ts`; `package.json` exports/files/sideEffects; `npm run build:lib` smoke-tested via node import. |
-| ~~Composition gallery~~ ✅ plan 029           | new suggestion                                                       | Toggle Single/Gallery in App; static `CompositionHost` posters (no clock/audio) per registry entry; click poster jumps to single.                                                      |
+| Item                                          | Origin                                                               | Notes                                                                                                                                                                                                                                                                           |
+| --------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~Preview props editor~~ ✅ plan 027          | audit direction item, not selected                                   | Live JSON textarea in App, same resolver as renderer; Countdown demonstrates dynamic duration.                                                                                                                                                                                  |
+| ~~Publishable library packaging~~ ✅ plan 028 | the source-tree comment calls `framewise-lite/` "what you'd publish" | `vite.lib.config.ts` + `tsconfig.lib.json` → `dist-lib/framewise-lite.js` + `dist-lib/index.d.ts`; `package.json` exports/files/sideEffects; `npm run build:lib` smoke-tested via node import. (Plan 031 later moved the output to `dist-lib/` so the app build can't wipe it.) |
+| ~~Composition gallery~~ ✅ plan 029           | new suggestion                                                       | Toggle Single/Gallery in App; static `CompositionHost` posters (no clock/audio) per registry entry; click poster jumps to single.                                                                                                                                               |
 
 ### Phase 5 — Scale out ✅ COMPLETE
 

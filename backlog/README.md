@@ -12,7 +12,7 @@ was reproduced rather than inferred.
 
 | # | Item | Type | Severity | Status |
 |---|------|------|----------|--------|
-| 10 | [`npm run build` destroys the `build:lib` output](10-lib-build-clobbered-by-app-build.md) | Bug (packaging) | High | OPEN |
+| 10 | [`npm run build` destroys the `build:lib` output](10-lib-build-clobbered-by-app-build.md) | Bug (packaging) | High | DONE (plan 031 — lib output moved to `dist-lib/`, exports/files repointed) |
 | 11 | [`--distributed --format webm` fails at the concat step](11-distributed-webm-codec-container-mismatch.md) | Bug (correctness) | High | OPEN |
 | 12 | [React is a `dependency`, not a `peerDependency`](12-react-should-be-peer-dependency.md) | Bug (packaging) | High | OPEN |
 | 13 | [Per-frame volume automation splices audio once per frame](13-volume-automation-splices-audio-per-frame.md) | Bug (audio) / scalability | Medium | OPEN |

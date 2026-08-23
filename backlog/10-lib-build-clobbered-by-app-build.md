@@ -1,6 +1,7 @@
 # 10 — `npm run build` destroys the `build:lib` output
 
 **Type:** Bug (packaging) · **Severity:** High · **Introduced by:** plan 028 (`5ff0210`)
+**Status:** DONE — fixed by plan 031 (`dist-lib/` output dir, exports/files repointed).
 
 ## Problem
 

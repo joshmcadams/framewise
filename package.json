@@ -10,12 +10,12 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/framewise-lite.js"
+      "types": "./dist-lib/index.d.ts",
+      "import": "./dist-lib/framewise-lite.js"
     }
   },
   "files": [
-    "dist"
+    "dist-lib"
   ],
   "scripts": {
     "dev": "vite",

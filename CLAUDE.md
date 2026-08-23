@@ -17,7 +17,7 @@ in preview and export.
 | test         | `npm test`                                   | vitest run                                                           |
 | typecheck    | `npm run typecheck`                          | tsc -b                                                               |
 | build        | `npm run build`                              | tsc -b && vite build                                                 |
-| build:lib    | `npm run build:lib`                          | Publishable library → dist/framewise-lite.js + dist/*.d.ts           |
+| build:lib    | `npm run build:lib`                          | Publishable library → dist-lib/framewise-lite.js + dist-lib/*.d.ts   |
 | render       | `npm run render -- --comp <id> --out <path>` | Needs system Chrome + ffmpeg; `--list` needs neither                 |
 | verify       | `npm run verify`                             | tsc -b && eslint . && prettier --check . && vitest run && vite build |
 | lint         | `npm run lint`                               | eslint .                                                             |
