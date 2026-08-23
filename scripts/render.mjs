@@ -288,8 +288,11 @@ async function assertFfmpeg(codec) {
 // browser AND tearing down shared resources) in one place: `cleanup()`.
 const liveBrowsers = new Set();
 
-// Read the static composition metadata from a throwaway page.
-async function probeConfig(url) {
+// Open a worker: launch a browser, load the render page, wait for the app.
+// Returns {browser, page} — registered in liveBrowsers so cleanup owns it.
+// Viewport/fonts are applied separately (applyViewport) because the FIRST
+// worker is opened before the composition's dimensions are probed.
+async function openWorker(url) {
   let browser;
   try {
     browser = await puppeteer.launch({
@@ -315,81 +318,94 @@ async function probeConfig(url) {
     const page = await browser.newPage();
     await page.goto(url, {waitUntil: 'load'});
     await page.waitForFunction(() => Boolean(window.framewiseLite?.config));
-    return await page.evaluate(() => window.framewiseLite.config);
-  } finally {
+    return {browser, page};
+  } catch (e) {
     liveBrowsers.delete(browser);
-    await browser.close();
+    try {
+      await browser.close();
+    } catch {
+      // best-effort — the original error matters more
+    }
+    throw e;
   }
 }
 
-// Render one contiguous chunk [startFrame, endFrame) in its own browser. Returns
-// the chunk's audio reports. Owns its browser so a failure can't leak it.
-async function renderChunk(url, startFrame, endFrame, {width, height, framesDir, label}) {
-  const browser = await puppeteer.launch({
-    executablePath: CHROME,
-    headless: true,
-    args: LAUNCH_ARGS,
-    handleSIGINT: false,
-    handleSIGTERM: false,
-    handleSIGHUP: false,
-  });
-  liveBrowsers.add(browser);
-  try {
-    const page = await browser.newPage();
-    await page.goto(url, {waitUntil: 'load'});
-    await page.waitForFunction(() => Boolean(window.framewiseLite?.config));
-    await page.setViewport({width, height, deviceScaleFactor: 1});
-    const rootHandle = await page.$('#render-root');
-    await page.evaluate(() => document.fonts.ready);
+// Size the page to the composition box and wait for fonts, exactly as the
+// pre-perf-trio code did between page load and the frame loop.
+async function applyViewport(page, {width, height}) {
+  await page.setViewport({width, height, deviceScaleFactor: 1});
+  await page.evaluate(() => document.fonts.ready);
+}
 
-    const audioByFrame = [];
-    for (let f = startFrame; f < endFrame; f++) {
-      await page.evaluate((frame) => window.framewiseLite.renderFrame(frame), f);
+// Render one contiguous chunk [startFrame, endFrame) on an already-open page.
+// Returns the chunk's audio reports. The caller owns closing the browser.
+async function renderFrames(page, startFrame, endFrame, {framesDir, label}) {
+  const rootHandle = await page.$('#render-root');
 
-      if (!noWait) {
-        await page
-          .waitForFunction(() => window.framewiseLite.getPending().length === 0, {
-            timeout: DELAY_RENDER_TIMEOUT,
-          })
-          .catch(async () => {
-            const stuck = await page.evaluate(() => window.framewiseLite.getPending());
-            throw new Error(`delayRender timeout at frame ${f}; pending: ${JSON.stringify(stuck)}`);
+  const audioByFrame = [];
+  for (let f = startFrame; f < endFrame; f++) {
+    // ONE round trip per frame: render, block until delayRender drains (or
+    // timeout with the stuck handles named), wait for paint, then read both
+    // the at-capture pending labels and this frame's audio reports.
+    const {pendingAtCapture, reports} = await page.evaluate(
+      async ({frame, wait, timeoutMs}) => {
+        const fw = window.framewiseLite;
+        fw.renderFrame(frame);
+        if (wait) {
+          await fw.waitForPendingEmpty(timeoutMs).catch((e) => {
+            throw new Error(`delayRender timeout at frame ${frame}; pending: ${e.message}`);
           });
-      }
+        }
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        return {
+          pendingAtCapture: fw.getPending().map((p) => p.label),
+          reports: fw.getAudioFrame(),
+        };
+      },
+      {frame: f, wait: !noWait, timeoutMs: DELAY_RENDER_TIMEOUT},
+    );
 
-      await page.evaluate(
-        () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
-      );
+    if (reports.length) audioByFrame.push({frame: f, reports});
 
-      const pendingAtCapture = await page.evaluate(() =>
-        window.framewiseLite.getPending().map((p) => p.label),
-      );
-      const reports = await page.evaluate(() => window.framewiseLite.getAudioFrame());
-      if (reports.length) audioByFrame.push({frame: f, reports});
+    await rootHandle.screenshot({
+      path: join(framesDir, `frame-${String(f).padStart(5, '0')}.png`),
+    });
 
-      await rootHandle.screenshot({
-        path: join(framesDir, `frame-${String(f).padStart(5, '0')}.png`),
-      });
-
-      if (pendingAtCapture.length) {
-        console.log(
-          `  · [${label}] frame ${f} pending at capture: [${pendingAtCapture.join(', ')}]`,
-        );
-      }
-
-      // Progress: log on the first frame, every 10th, and the last.
-      const done = f - startFrame + 1;
-      const total = endFrame - startFrame;
-      if (done === 1 || done % 10 === 0 || done === total) {
-        const pct = Math.round((done / total) * 100);
-        console.log(`  [${label}] ${done}/${total} frames (${pct}%)`);
-      }
+    if (pendingAtCapture.length) {
+      console.log(`  · [${label}] frame ${f} pending at capture: [${pendingAtCapture.join(', ')}]`);
     }
-    return audioByFrame;
-  } finally {
-    liveBrowsers.delete(browser);
-    await browser.close();
+
+    // Progress: log on the first frame, every 10th, and the last.
+    const done = f - startFrame + 1;
+    const total = endFrame - startFrame;
+    if (done === 1 || done % 10 === 0 || done === total) {
+      const pct = Math.round((done / total) * 100);
+      console.log(`  [${label}] ${done}/${total} frames (${pct}%)`);
+    }
   }
+  return audioByFrame;
+}
+
+// Full worker lifecycle: open (or adopt an already-open browser), size it,
+// render its chunk, close. `adopted` lets the FIRST worker reuse the probe's
+// browser so no separate browser is ever launched just to read metadata.
+async function renderChunk(url, startFrame, endFrame, opts) {
+  const worker = opts?.adopted ?? (await openWorker(url));
+  try {
+    if (!opts?.adopted) {
+      await applyViewport(worker.page, opts.viewport);
+    }
+    return await renderFrames(worker.page, startFrame, endFrame, opts);
+  } finally {
+    liveBrowsers.delete(worker.browser);
+    await worker.browser.close();
+  }
+}
+
+// Read composition metadata through an existing page (no dedicated probe
+// browser). Kept as a function of a page so callers decide ownership.
+async function readConfigFromPage(page) {
+  return page.evaluate(() => window.framewiseLite.config);
 }
 
 // --- render --------------------------------------------------------------
@@ -423,7 +439,7 @@ for (const listener of process.listeners('SIGTERM')) {
 const started = Date.now();
 
 // Fault-isolated, idempotent teardown. Under normal completion, workers have
-// already closed their own browsers (renderChunk/probeConfig's own finally,
+// already closed their own browsers (renderChunk's own finally,
 // which also removes them from liveBrowsers) by the time this runs — but if
 // a signal cuts the run short mid-render, a browser can still be in
 // liveBrowsers here, so we take responsibility for it: force-kill rather
@@ -499,7 +515,10 @@ try {
   console.log(`▶ serving render page: ${url}`);
   if (inputProps) console.log(`▶ input props: ${JSON.stringify(inputProps)}`);
 
-  const config = await probeConfig(url);
+  // Probe through a browser we'll KEEP: this first worker reads the metadata,
+  // then renders chunk 0 on the same page — no throwaway probe launch.
+  const primary = await openWorker(url);
+  const config = await readConfigFromPage(primary.page);
   const {width, height, fps, durationInFrames} = config;
   console.log(`▶ composition: ${width}x${height} @ ${fps}fps · ${durationInFrames} frames`);
 
@@ -528,7 +547,31 @@ try {
   const renderStart = Date.now();
   const results = await Promise.allSettled(
     chunks.map(([s, e], i) =>
-      renderChunk(url, s, e, {width, height, fps, framesDir, label: `w${i}`}),
+      i === 0
+        ? // First worker reuses the probe's already-open page.
+          (async () => {
+            await applyViewport(primary.page, config);
+            try {
+              return await renderFrames(primary.page, s, e, {
+                width,
+                height,
+                fps,
+                framesDir,
+                label: 'w0',
+              });
+            } finally {
+              liveBrowsers.delete(primary.browser);
+              await primary.browser.close();
+            }
+          })()
+        : renderChunk(url, s, e, {
+            width,
+            height,
+            fps,
+            framesDir,
+            label: `w${i}`,
+            viewport: config,
+          }),
     ),
   );
   const renderSecs = ((Date.now() - renderStart) / 1000).toFixed(1);

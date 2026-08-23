@@ -27,6 +27,12 @@ declare global {
       renderFrame: (frame: number) => void;
       /** Outstanding delayRender handles — the renderer waits for this to empty. */
       getPending: () => {handle: number; label: string}[];
+      /**
+       * Resolves once every delayRender handle has cleared, or rejects with
+       * the stuck handles' JSON after timeoutMs. Lets the renderer fold
+       * render→wait into one CDP round trip.
+       */
+      waitForPendingEmpty: (timeoutMs: number) => Promise<void>;
       /** The audio active in the frame most recently rendered. */
       getAudioFrame: () => AudioReport[];
       /** All registered compositions — used by --list in render.mjs. */
@@ -99,6 +105,23 @@ window.framewiseLite = {
   config,
   renderFrame,
   getPending: getPendingDelayRenders,
+  waitForPendingEmpty: (timeoutMs: number) =>
+    new Promise<void>((resolve, reject) => {
+      const deadline = performance.now() + timeoutMs;
+      const tick = () => {
+        const pending = getPendingDelayRenders();
+        if (pending.length === 0) {
+          resolve();
+          return;
+        }
+        if (performance.now() > deadline) {
+          reject(new Error(JSON.stringify(pending)));
+          return;
+        }
+        setTimeout(tick, 10);
+      };
+      tick();
+    }),
   getAudioFrame: readAudioFrame,
   compositionIds: compositions.map((c) => c.id),
 };
