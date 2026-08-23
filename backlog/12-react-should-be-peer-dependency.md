@@ -1,6 +1,7 @@
 # 12 — React is a `dependency`, not a `peerDependency`
 
 **Type:** Bug (packaging) · **Severity:** High · **Introduced by:** plan 028 (`5ff0210`)
+**Status:** DONE — fixed by plan 033 (`peerDependencies: >=19` + devDependencies; verified with a scratch-project install and an SSR hook/context smoke test).
 
 ## Problem
 

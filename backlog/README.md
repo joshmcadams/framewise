@@ -14,7 +14,7 @@ was reproduced rather than inferred.
 |---|------|------|----------|--------|
 | 10 | [`npm run build` destroys the `build:lib` output](10-lib-build-clobbered-by-app-build.md) | Bug (packaging) | High | DONE (plan 031 — lib output moved to `dist-lib/`, exports/files repointed) |
 | 11 | [`--distributed --format webm` fails at the concat step](11-distributed-webm-codec-container-mismatch.md) | Bug (correctness) | High | DONE (plan 032 — chunk codec/container derived from format; ffprobe end-to-end check added) |
-| 12 | [React is a `dependency`, not a `peerDependency`](12-react-should-be-peer-dependency.md) | Bug (packaging) | High | OPEN |
+| 12 | [React is a `dependency`, not a `peerDependency`](12-react-should-be-peer-dependency.md) | Bug (packaging) | High | DONE (plan 033 — peer ">=19" + dev; verified single-React install + hook/context smoke in a scratch project) |
 | 13 | [Per-frame volume automation splices audio once per frame](13-volume-automation-splices-audio-per-frame.md) | Bug (audio) / scalability | Medium | OPEN |
 | 14 | [`<OffthreadVideo>` breaks on non-ASCII asset paths](14-offthreadvideo-non-ascii-paths.md) | Bug (correctness) | Medium | OPEN |
 | 15 | [delayRender backstop moved entirely in-page](15-delayrender-backstop-moved-in-page.md) | Regression (diagnostics) | Medium | OPEN |
