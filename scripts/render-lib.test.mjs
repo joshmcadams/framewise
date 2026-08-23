@@ -237,6 +237,7 @@ describe('parseRegistryIds', () => {
       'WithVideo',
       'WithSeries',
       'WithOffthread',
+      'Countdown',
     ]);
   });
 
