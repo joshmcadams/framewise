@@ -63,10 +63,13 @@ export const hasEncoderToken = (encodersOutput, codec) =>
   encodersOutput.split(/\s+/).includes(codec);
 
 // Turn per-frame audio reports into contiguous segments. Keyed by the <Audio>'s
-// stable instance id (so the same file used twice yields two segments), and
-// split whenever the active frames have a gap OR the reported volume changes
-// (volume callbacks — fades, ducks — thus become one segment per distinct
-// value; planEncode already emits per-segment volume= filters).
+// stable instance id (so the same file used twice yields two segments), split
+// only on gaps in the active frames. Volume is NOT a split condition: a volume
+// callback returning per-frame values would otherwise splice the audio once
+// per frame (integer-ms adelay quantization + amix overlap-summing = audible
+// discontinuities). Instead each segment carries `volumes`, one value per
+// frame, and planEncode expresses automation as a single in-ffmpeg gain
+// envelope.
 export function aggregateAudioSegments(audioByFrame) {
   const byId = new Map();
   for (const {frame, reports} of audioByFrame) {
@@ -81,8 +84,9 @@ export function aggregateAudioSegments(audioByFrame) {
     points.sort((a, b) => a.frame - b.frame);
     let run = null;
     for (const p of points) {
-      if (run && p.frame === run.endFrame + 1 && p.volume === run.volume) {
+      if (run && p.frame === run.endFrame + 1) {
         run.endFrame = p.frame;
+        run.volumes.push(p.volume);
       } else {
         if (run) segments.push(run);
         run = {
@@ -90,7 +94,7 @@ export function aggregateAudioSegments(audioByFrame) {
           startFrame: p.frame,
           endFrame: p.frame,
           trimStart: p.mediaTime,
-          volume: p.volume,
+          volumes: [p.volume],
         };
       }
     }
@@ -98,6 +102,33 @@ export function aggregateAudioSegments(audioByFrame) {
   }
 
   return segments.sort((a, b) => a.startFrame - b.startFrame);
+}
+
+// Build the volume filter token for a segment's per-frame gains. Constant runs
+// get the plain scalar form; varying runs get a piecewise-constant expression
+// evaluated per audio frame (`eval=frame`), in TELESCOPED step form:
+//
+//   gain(t) = v0 + Σ (v_k − v_{k−1})·gte(t, k/fps)
+//
+// Frame k of the segment occupies local time [k/fps, (k+1)/fps). Both edges of
+// a step are inclusive (`gte`), but the deltas cancel exactly there, so each t
+// has exactly one owning value — including timestamps that land precisely on a
+// boundary. The form is flat on purpose: ffmpeg's expression parser rejects
+// nested if() past ~90 levels (measured), which a per-frame fade outgrows;
+// equal neighbours contribute no term at all.
+// Returns e.g.
+//   "volume=0.5"                                            (constant)
+//   "volume=volume='0.90000000-0.10000000*gte(t,0.033333)':eval=frame"
+export function volumeFilterToken(volumes, fps) {
+  const distinct = new Set(volumes);
+  if (distinct.size === 1) return `volume=${volumes[0]}`;
+  let expr = volumes[0].toFixed(8);
+  for (let k = 1; k < volumes.length; k++) {
+    const d = volumes[k] - volumes[k - 1];
+    if (Math.abs(d) < 1e-12) continue;
+    expr += `${d > 0 ? '+' : '-'}${Math.abs(d).toFixed(8)}*gte(t,${(k / fps).toFixed(6)})`;
+  }
+  return `volume=volume='${expr}':eval=frame`;
 }
 
 // Build ffmpeg args for a format. Returns null for formats that don't invoke
@@ -153,7 +184,7 @@ export function planEncode({
       const delayMs = Math.round((seg.startFrame / fps) * 1000);
       filters.push(
         `[${idx}:a]atrim=start=${seg.trimStart.toFixed(6)}:duration=${dur.toFixed(6)},` +
-          `asetpts=PTS-STARTPTS,volume=${seg.volume},adelay=${delayMs}:all=1[s${k}]`,
+          `asetpts=PTS-STARTPTS,${volumeFilterToken(seg.volumes, fps)},adelay=${delayMs}:all=1[s${k}]`,
       );
     });
 

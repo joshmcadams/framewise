@@ -13,6 +13,7 @@ import {
   planEncode,
   planOutput,
   readFlag,
+  volumeFilterToken,
 } from './render-lib.mjs';
 
 describe('planChunks', () => {
@@ -86,7 +87,7 @@ describe('aggregateAudioSegments', () => {
       {frame: 2, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0.06, volume: 1}]},
     ];
     expect(aggregateAudioSegments(audioByFrame)).toEqual([
-      {src: 'bg.wav', startFrame: 0, endFrame: 2, trimStart: 0, volume: 1},
+      {src: 'bg.wav', startFrame: 0, endFrame: 2, trimStart: 0, volumes: [1, 1, 1]},
     ]);
   });
 
@@ -98,8 +99,8 @@ describe('aggregateAudioSegments', () => {
       {frame: 3, reports: [{id: 'a', src: 'bg.wav', mediaTime: 2, volume: 1}]},
     ];
     expect(aggregateAudioSegments(audioByFrame)).toEqual([
-      {src: 'bg.wav', startFrame: 0, endFrame: 1, trimStart: 0, volume: 1},
-      {src: 'bg.wav', startFrame: 3, endFrame: 3, trimStart: 2, volume: 1},
+      {src: 'bg.wav', startFrame: 0, endFrame: 1, trimStart: 0, volumes: [1, 1]},
+      {src: 'bg.wav', startFrame: 3, endFrame: 3, trimStart: 2, volumes: [1]},
     ]);
   });
 
@@ -124,8 +125,8 @@ describe('aggregateAudioSegments', () => {
     expect(segments).toHaveLength(2);
     expect(segments).toEqual(
       expect.arrayContaining([
-        {src: 'bg.wav', startFrame: 0, endFrame: 1, trimStart: 0, volume: 1},
-        {src: 'bg.wav', startFrame: 0, endFrame: 1, trimStart: 5, volume: 0.5},
+        {src: 'bg.wav', startFrame: 0, endFrame: 1, trimStart: 0, volumes: [1, 1]},
+        {src: 'bg.wav', startFrame: 0, endFrame: 1, trimStart: 5, volumes: [0.5, 0.5]},
       ]),
     );
   });
@@ -137,7 +138,7 @@ describe('aggregateAudioSegments', () => {
       {frame: 1, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0.03, volume: 1}]},
     ];
     expect(aggregateAudioSegments(audioByFrame)).toEqual([
-      {src: 'bg.wav', startFrame: 0, endFrame: 2, trimStart: 0, volume: 1},
+      {src: 'bg.wav', startFrame: 0, endFrame: 2, trimStart: 0, volumes: [1, 1, 1]},
     ]);
   });
 
@@ -150,31 +151,62 @@ describe('aggregateAudioSegments', () => {
     expect(segments.map((s) => s.startFrame)).toEqual([0, 5]);
   });
 
-  it('splits a run when the reported volume changes (volume automation)', () => {
-    // Volume callbacks report a per-frame value; a change must split so each
-    // segment carries its own constant volume for ffmpeg's volume= filter.
+  // Regression (backlog #13): volume changes used to split the run, so a
+  // per-frame fade became one ffmpeg input + adelay per frame — splice
+  // artifacts from integer-ms quantization, and unbounded input count.
+  it('merges a volume-varying run into ONE segment carrying per-frame volumes', () => {
     const audioByFrame = [
       {frame: 0, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0, volume: 0.8}]},
       {frame: 1, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0.03, volume: 0.9}]},
     ];
     expect(aggregateAudioSegments(audioByFrame)).toEqual([
-      {src: 'bg.wav', startFrame: 0, endFrame: 0, trimStart: 0, volume: 0.8},
-      {src: 'bg.wav', startFrame: 1, endFrame: 1, trimStart: 0.03, volume: 0.9},
+      {src: 'bg.wav', startFrame: 0, endFrame: 1, trimStart: 0, volumes: [0.8, 0.9]},
     ]);
   });
 
-  it('keeps equal volumes merged but splits on every distinct value', () => {
-    const audioByFrame = [
-      {frame: 0, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0, volume: 0.5}]},
-      {frame: 1, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0.03, volume: 0.5}]},
-      {frame: 2, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0.06, volume: 0.25}]},
-      {frame: 3, reports: [{id: 'a', src: 'bg.wav', mediaTime: 0.09, volume: 0}]},
-    ];
-    expect(aggregateAudioSegments(audioByFrame)).toEqual([
-      {src: 'bg.wav', startFrame: 0, endFrame: 1, trimStart: 0, volume: 0.5},
-      {src: 'bg.wav', startFrame: 2, endFrame: 2, trimStart: 0.06, volume: 0.25},
-      {src: 'bg.wav', startFrame: 3, endFrame: 3, trimStart: 0.09, volume: 0},
-    ]);
+  it('a whole 30-frame fade stays one segment; a gap still splits it', () => {
+    const frames = [];
+    for (let f = 0; f < 30; f++) {
+      frames.push({
+        frame: f,
+        reports: [{id: 'a', src: 'bg.wav', mediaTime: f * 0.03, volume: 1 - f / 30}],
+      });
+    }
+    frames.push({frame: 40, reports: [{id: 'a', src: 'bg.wav', mediaTime: 12, volume: 0.5}]});
+    const segments = aggregateAudioSegments(frames);
+    expect(segments).toHaveLength(2);
+    expect(segments[0]).toEqual({
+      src: 'bg.wav',
+      startFrame: 0,
+      endFrame: 29,
+      trimStart: 0,
+      volumes: frames.slice(0, 30).map((f) => f.reports[0].volume),
+    });
+    expect(segments[1].startFrame).toBe(40);
+  });
+});
+
+describe('volumeFilterToken', () => {
+  it('emits the scalar form for constant volumes', () => {
+    expect(volumeFilterToken([0.5, 0.5], 30)).toBe('volume=0.5');
+    expect(volumeFilterToken([1], 30)).toBe('volume=1');
+  });
+
+  it('emits an eval=frame piecewise expression for varying volumes', () => {
+    // Frames at fps 30: frame k occupies [k/30, (k+1)/30). Values 0.9 then 0.8.
+    expect(volumeFilterToken([0.9, 0.8], 30)).toBe(
+      "volume=volume='0.90000000-0.10000000*gte(t,0.033333)':eval=frame",
+    );
+  });
+
+  it('telescopes one gte() step per value change; constant runs add nothing', () => {
+    // [1, 0.5, 0] @60: boundaries at 1/60 and 2/60, deltas −0.5 each.
+    expect(volumeFilterToken([1, 0.5, 0], 60)).toBe(
+      "volume=volume='1.00000000-0.50000000*gte(t,0.016667)-0.50000000*gte(t,0.033333)':eval=frame",
+    );
+    // A long constant tail contributes no terms (deltas are zero).
+    const token = volumeFilterToken([1, ...Array(200).fill(0.5), 0], 30);
+    expect(token.match(/gte\(/g)).toHaveLength(2);
   });
 });
 
@@ -332,7 +364,7 @@ describe('planEncode', () => {
       const withAudio = planEncode({
         ...base,
         format: 'mp4',
-        segments: [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}],
+        segments: [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volumes: [1]}],
         assetPaths: ['/tmp/a.wav'],
       });
       for (const plan of [noAudio, withAudio]) {
@@ -349,8 +381,8 @@ describe('planEncode', () => {
 
     it('with 2 segments: includes amix in filter complex', () => {
       const segments = [
-        {src: 'a.wav', startFrame: 0, endFrame: 149, trimStart: 0, volume: 1},
-        {src: 'b.wav', startFrame: 30, endFrame: 89, trimStart: 5, volume: 0.5},
+        {src: 'a.wav', startFrame: 0, endFrame: 149, trimStart: 0, volumes: [1]},
+        {src: 'b.wav', startFrame: 30, endFrame: 89, trimStart: 5, volumes: [0.5]},
       ];
       const plan = planEncode({
         ...base,
@@ -368,7 +400,7 @@ describe('planEncode', () => {
     });
 
     it('with 1 segment: no amix, uses [s0] label', () => {
-      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 149, trimStart: 0, volume: 1}];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 149, trimStart: 0, volumes: [1]}];
       const plan = planEncode({
         ...base,
         format: 'mp4',
@@ -384,7 +416,7 @@ describe('planEncode', () => {
     });
 
     it('includes -c:a aac when audio is present', () => {
-      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volumes: [1]}];
       const plan = planEncode({
         ...base,
         format: 'mp4',
@@ -397,7 +429,9 @@ describe('planEncode', () => {
     });
 
     it('delay in filter matches (startFrame / fps) * 1000 rounded', () => {
-      const segments = [{src: 'a.wav', startFrame: 60, endFrame: 120, trimStart: 1.5, volume: 0.8}];
+      const segments = [
+        {src: 'a.wav', startFrame: 60, endFrame: 120, trimStart: 1.5, volumes: [0.8]},
+      ];
       const plan = planEncode({
         ...base,
         format: 'mp4',
@@ -410,6 +444,37 @@ describe('planEncode', () => {
       expect(filterGraph).toContain('adelay=2000:all=1');
       expect(filterGraph).toContain('volume=0.8');
       expect(filterGraph).toContain('atrim=start=1.500000');
+    });
+
+    // Regression (backlog #13): a per-frame fade used to become one input +
+    // adelay per frame; it must stay one input whose gain is an in-ffmpeg
+    // envelope.
+    it('constant segment keeps the scalar volume token (no eval)', () => {
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 29, trimStart: 0, volumes: [1]}];
+      const plan = planEncode({...base, format: 'mp4', segments, assetPaths: ['/tmp/a.wav']});
+      const filterGraph = plan.args[plan.args.indexOf('-filter_complex') + 1];
+      expect(filterGraph).toContain('volume=1');
+      expect(filterGraph).not.toContain('eval=frame');
+    });
+
+    it('automated segment emits ONE input with an eval=frame gain envelope', () => {
+      const volumes = Array.from({length: 30}, (_, k) => 1 - k / 30);
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 29, trimStart: 0, volumes}];
+      const plan = planEncode({
+        ...base,
+        fps: 30,
+        format: 'mp4',
+        segments,
+        assetPaths: ['/tmp/a.wav'],
+      });
+      // One video input + ONE audio input — not one per frame.
+      const inputCount = plan.args.filter((a) => a === '-i').length;
+      expect(inputCount).toBe(2);
+      const filterGraph = plan.args[plan.args.indexOf('-filter_complex') + 1];
+      expect(filterGraph).toContain("volume=volume='");
+      expect(filterGraph).toContain('*gte(t,0.033333)');
+      expect(filterGraph).toContain(':eval=frame');
+      expect(filterGraph).not.toContain('amix');
     });
   });
 
@@ -428,7 +493,7 @@ describe('planEncode', () => {
     });
 
     it('with audio: uses libopus not aac', () => {
-      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volumes: [1]}];
       const plan = planEncode({
         ...base,
         format: 'webm',
@@ -440,7 +505,7 @@ describe('planEncode', () => {
     });
 
     it('explicit codec overrides libvpx-vp9 but keeps libopus for audio', () => {
-      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volumes: [1]}];
       const plan = planEncode({
         ...base,
         format: 'webm',
@@ -505,7 +570,7 @@ describe('planEncode', () => {
     });
 
     it('with segments: dropsAudio is true but audio args omitted', () => {
-      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volumes: [1]}];
       const plan = planEncode({
         ...base,
         format: 'gif',
@@ -541,7 +606,7 @@ describe('planEncode', () => {
     });
 
     it('returns null even with segments', () => {
-      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volume: 1}];
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 10, trimStart: 0, volumes: [1]}];
       const plan = planEncode({
         ...base,
         format: 'png-seq',

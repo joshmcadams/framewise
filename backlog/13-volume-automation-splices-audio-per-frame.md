@@ -3,6 +3,8 @@
 **Type:** Bug (audio quality) + scalability · **Severity:** Medium
 **Introduced by:** plan 022 (`52e320d`)
 
+**Status:** DONE — fixed by plan 034 (segments merge across volume changes; automation expressed as one telescoped `gte()` step-sum `volume=…:eval=frame` envelope. Note: the suggested nested-`if()` encoding hits ffmpeg's ~90-level expression-depth limit on long fades — measured, and replaced with the flat form.)
+
 ## Problem
 
 `aggregateAudioSegments` now splits a run whenever the reported volume changes

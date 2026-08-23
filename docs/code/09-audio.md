@@ -256,13 +256,14 @@ animation input. Both jobs consume the evaluated number per commit: preview
 sets `el.volume` on every tick (the curve is audible while scrubbing), render
 reports it into the registry.
 
-Because aggregation splits on volume changes, a smooth fade becomes one
-segment per distinct value — `WithAudio`'s one-second fade-out yields ~30
-one-frame segments after its constant run. That's comfortable for ffmpeg's
-`amix` at this scale and keeps each step's volume exact; production engines
-instead build continuous volume curves for ffmpeg's `eval=frame` expressions.
-No stair-stepping is audible here because consecutive steps differ by well
-under 0.1 dB of signal.
+Volume changes are **not** a split condition. An earlier design split the run
+on every distinct value, so a per-frame fade became one ffmpeg input + `adelay`
+per frame — and integer-millisecond delays (33.333 ms frames) made each splice
+land ±0.33 ms off, which `amix`'s summing turned into audible discontinuities
+(measured: max adjacent-sample jump 21× the reference level inside the fade
+window). Instead, contiguous frames merge into **one** segment carrying a
+per-frame `volumes` array, and the automation is expressed _inside_ ffmpeg as a
+single gain envelope — see the filter graph below.
 
 ### The ffmpeg filter graph
 
@@ -271,12 +272,31 @@ Each segment becomes one input and one filter chain:
 ```
 [k:a] atrim=start={trimStart}:duration={dur},   // take the right slice of the file
       asetpts=PTS-STARTPTS,                       // reset timestamps to 0
-      volume={volume},                            // scale it
+      volume={…},                                 // scalar, or the envelope below
       adelay={startFrame/fps*1000}:all=1          // place it on the timeline (all channels)
       [sK]
 ```
 
-then, if there's more than one, mix them:
+For an automated segment, `{…}` is not a scalar but a piecewise-constant
+expression evaluated once per audio frame:
+
+```
+volume=volume='v0 + Δv1*gte(t,B1) + Δv2*gte(t,B2) …':eval=frame
+```
+
+The telescoped step-sum form has three properties that matter:
+
+- **Flat depth.** Frame k occupies `[k/fps, (k+1)/fps)`; the naive encoding is
+  one nested `if()` per boundary, but ffmpeg's expression parser rejects
+  nesting past ~90 levels (measured) — a 150-frame fade outgrows it. The
+  telescoped form (`v₀ + Σ Δvₖ·gte(t,Bₖ)`) is depth-O(1).
+- **Exact boundaries.** Both edges of a step are inclusive (`gte`), but the
+  deltas cancel exactly there, so every timestamp — including one landing
+  precisely on a boundary — has exactly one owning value.
+- **Constant runs are free.** Equal neighbours produce zero delta and no term;
+  a 150-frame track with a 30-frame fade emits ~31 terms, not 150.
+
+then, if there's more than one segment, mix them:
 
 ```
 [s0][s1]…amix=inputs=N:normalize=0[aout]
@@ -319,6 +339,17 @@ Rendering `WithAudio` and probing the output:
 - **Preview** — selecting `WithAudio` and pressing play, the `<audio>` element's
   `currentTime` advanced with the clock and no errors fired; the blip's element
   was correctly absent at frame 0 (its `<Sequence>` hadn't started).
+
+After the volume-envelope rework (backlog #13), a before/after A/B on the fade
+window added:
+
+- **No splice artifacts** — decoding both renders to PCM and diffing adjacent
+  samples: inside the fade window the split-per-frame version's max jump was
+  **21×** the reference window's (splices); the envelope version sits at ~2×,
+  i.e. near codec noise.
+- **Envelope still ramps** — RMS across the fade drops ~14 dB start→end, and
+  the aggregate log shows the whole track as **one** segment carrying 150
+  per-frame volumes (was 31 segments / one ffmpeg input per frame).
 
 ## What's intentionally simplified
 

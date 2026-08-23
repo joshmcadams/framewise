@@ -524,11 +524,11 @@ last one).
 
 ### Phase 2 — Media fidelity ✅ COMPLETE
 
-| Item                                                   | Origin                                                   | Notes                                                                                                                                                              |
-| ------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ~~OffthreadVideo-style frame extraction~~ ✅ plan 021  | README "deliberately omitted"; ch. 10 names the approach | Shipped as `<OffthreadVideo>`: on-demand ffmpeg extraction served by the renderer, rendered through `<Img>`; verified frame-accurate at comp frames 30/75/120.     |
-| ~~Per-frame volume automation~~ ✅ plan 022            | README "deliberately omitted"                            | `volume` accepts a function of the local frame on all three media components; aggregation splits segments on volume change so ffmpeg mixes each step.              |
-| ~~Sample-accurate A/V sync investigation~~ ✅ plan 023 | README "deliberately omitted"                            | Measured: render-path placement lands at ±0.5 ms end-to-end (blip onset within +0.3 ms of its exact frame time); analysis and reproducible commands live in ch. 9. |
+| Item                                                   | Origin                                                   | Notes                                                                                                                                                                                                           |
+| ------------------------------------------------------ | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~OffthreadVideo-style frame extraction~~ ✅ plan 021  | README "deliberately omitted"; ch. 10 names the approach | Shipped as `<OffthreadVideo>`: on-demand ffmpeg extraction served by the renderer, rendered through `<Img>`; verified frame-accurate at comp frames 30/75/120.                                                  |
+| ~~Per-frame volume automation~~ ✅ plan 022            | README "deliberately omitted"                            | `volume` accepts a function of the local frame on all three media components; automation renders as one segment with an in-ffmpeg gain envelope (`volume=…:eval=frame`, plan 034) instead of per-frame splices. |
+| ~~Sample-accurate A/V sync investigation~~ ✅ plan 023 | README "deliberately omitted"                            | Measured: render-path placement lands at ±0.5 ms end-to-end (blip onset within +0.3 ms of its exact frame time); analysis and reproducible commands live in ch. 9.                                              |
 
 ### Phase 3 — Renderer capability and performance ✅ COMPLETE
 

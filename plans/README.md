@@ -47,6 +47,7 @@ plans cite them.
 | 031  | Library build gets its own output dir `dist-lib` (backlog Round 2 #10) | P2 | S | 028 | DONE (executed; lib output → dist-lib/, exports/files repointed, .gitignore + eslint ignores updated; both build orders leave both artifacts intact; pack = lib-only, smoke import OK; caught eslint scanning emitted output) |
 | 032  | Distributed chunks follow the output format — `--distributed --format webm` (backlog Round 2 #11) | P2 | S | 030 | DONE (executed; per-format chunk codec/container via chunkContainerFor + planChunkVideoEncode format arg, mp4 concat +faststart; live-verified: webm probes vp9/150f/5.000s, mp4 hash identical, gif falls back; 8 new tests) |
 | 033  | React → peerDependency (backlog Round 2 #12) | P2 | S | 028 | DONE (executed; react/react-dom → peer ">=19" + dev; scratch install w/ pre-existing React 19 = exactly one react; SSR Player smoke proves hooks+context across boundary) |
+| 034  | Volume automation → single segment + in-ffmpeg gain envelope (backlog Round 2 #13) | P2 | M | 022 | DONE (executed; segments merge across volume changes, telescoped gte() step-sum envelope via volumeFilterToken; nested-if encoding rejected by ffmpeg at ~90 levels — caught live, flat form shipped; WithAudio 31→2 segments, fade maxΔ 1043→115 vs ref 49; A/B vs pre-fix worktree) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

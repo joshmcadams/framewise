@@ -646,8 +646,11 @@ try {
     if (segments.length) {
       console.log(`▶ audio: ${segments.length} segment(s)`);
       for (const s of segments) {
+        const first = s.volumes[0];
+        const last = s.volumes[s.volumes.length - 1];
+        const vol = first === last ? `${first}` : `${first}→${last} (${s.volumes.length} values)`;
         console.log(
-          `  · ${s.src}  frames ${s.startFrame}–${s.endFrame}  @${(s.startFrame / fps).toFixed(2)}s  trim ${s.trimStart.toFixed(2)}s  vol ${s.volume}`,
+          `  · ${s.src}  frames ${s.startFrame}–${s.endFrame}  @${(s.startFrame / fps).toFixed(2)}s  trim ${s.trimStart.toFixed(2)}s  vol ${vol}`,
         );
       }
     }
