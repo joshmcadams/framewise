@@ -256,14 +256,20 @@ What changed:
    before composition dimensions are known, so probing reads config through
    _that_ browser and then hands it to chunk 0. Concurrency-1 renders launch
    one Chrome instead of two; N-worker renders save one launch each run.
-3. **Dev server vs prebuilt bundle: verdict — keep the dev server.** Measured
-   fixed overhead after the two fixes above is ~8 s for c4 (server start +
-   browser launches + ffmpeg encode), of which dev-server module serving is a
-   few hundred ms per page load. A production bundle would trade that for a
-   ~2 s `vite build` on every invocation plus a second code path to maintain —
-   a net loss at educational scale, and the break-even render length is far
-   beyond anything this repo produces. Revisit only if page-load cost ever
-   shows up in profiles (it scales with worker count, not frame count).
+
+The probe is also what makes **dynamic metadata** (`calculateMetadata`,
+chapter 6) work with zero renderer code: the page runs the hook before first
+paint and publishes the final config — or a `configError` naming why metadata
+could not be resolved, which turns bad `--props` into an immediate, named
+failure instead of a probe timeout. The renderer never needs to know whether
+the numbers it chunked were static literals or computed from props. 3. **Dev server vs prebuilt bundle: verdict — keep the dev server.** Measured
+fixed overhead after the two fixes above is ~8 s for c4 (server start +
+browser launches + ffmpeg encode), of which dev-server module serving is a
+few hundred ms per page load. A production bundle would trade that for a
+~2 s `vite build` on every invocation plus a second code path to maintain —
+a net loss at educational scale, and the break-even render length is far
+beyond anything this repo produces. Revisit only if page-load cost ever
+shows up in profiles (it scales with worker count, not frame count).
 
 Determinism is unaffected by all of it: the frame-set sha256 was identical
 before and after at both concurrency levels (`3203283d21148710`), exactly what

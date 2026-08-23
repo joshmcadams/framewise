@@ -111,9 +111,10 @@ src/
 │   ├── WithAudio.tsx        audio demo (bg tone + offset blip) (ch. 9)
 │   ├── WithVideo.tsx        embedded-video demo               (ch. 10)
 │   ├── WithSeries.tsx       <Series>/<Loop> timeline demo     (ch. 4)
-│   └── WithOffthread.tsx    <OffthreadVideo> demo             (ch. 10)
+│   ├── WithOffthread.tsx    <OffthreadVideo> demo             (ch. 10)
+│   └── Countdown.tsx        calculateMetadata demo            (ch. 6, 7)
 ├── render/                 ← Stage 2 renderer (ch. 7)
-│   ├── registry.ts          the composition registry
+│   ├── registry.ts          composition registry + calculateMetadata resolver
 │   └── main-render.tsx      chrome-less render entry (window.framewiseLite)
 ├── App.tsx                  host page that embeds the Player   (ch. 6)
 └── main.tsx                 React entry point                 (ch. 6)

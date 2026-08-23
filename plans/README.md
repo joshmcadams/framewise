@@ -38,6 +38,7 @@ plans cite them.
 | 022  | Per-frame volume automation for `<Audio>`/`<Video>` (Phase 2 item 2) | P2 | M | — | DONE (executed; VolumeProp callbacks on all three media components, split-on-volume-change aggregation, WithAudio fade-out demo; live-verified −32.1→−41.9 dB across fade window) |
 | 023  | Sample-accurate A/V sync analysis with measurements (Phase 2 item 3) | P3 | S | — | DONE (measured: blip onset +0.11–0.27 ms vs exact frame time, container start_time 0, adelay bound ±0.5 ms; chapter 9 gained a "How sample-accurate is it?" section with reproducible commands; no code change warranted; Phase 2 complete) |
 | 024  | Renderer perf trio: fold per-frame CDP round-trips, probe without a spare browser, bundle-vs-devserver verdict (Phase 3 item 1) | P2 | M | — | DONE (executed; one CDP evaluate/frame via waitForPendingEmpty, probe adopts first worker's browser, dev-server verdict recorded in ch. 7; c4 −69% / c1 −58% wall time, sha256 identical pre/post) |
+| 025  | Dynamic composition metadata (`calculateMetadata` analog) (Phase 3 item 2) | P2 | M | — | DONE (executed; calculateMetadata on registry entries + shared resolver in preview & render, Countdown demo derives duration from props.seconds, fast named failures via configError; 9 tests; verified 150→90 frames via --props) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 
