@@ -56,6 +56,7 @@ plans cite them.
 | 040  | `calculateMetadata` can be async (backlog #20) | P2 | M | 025 | DONE (executed; probe-media.ts + MediaSized demo, App resolving state, named 30s in-page deadline ahead of the 60s ready-wait; live: 5.000s probed render, --props crossing both ways, named failure ~3.4s) |
 | 041  | Bound `spring`'s integer-chain cache (backlog #21) | P2 | S | 006 | DONE (executed; LRU cap 8 whole keys — 16 measured 1.27MB so tightened; live: animated-config heap +22MB → +0.64MB, static flat; evict-recompute identity pinned by test) |
 | 042  | jsdom media stubs: silence stderr noise (backlog #22) | P3 | S | — | DONE (executed; per-suite beforeEach stubs of play/pause — per-test because App.test's restoreAllMocks strips beforeAll spies; npm test now emits zero stderr) |
+| 043  | Provenance, attribution, and licensing (backlog item 00) | P1 | S | — | BLOCKED ON OWNER (investigation done 2026-08-24; upstream is Remotion under the source-available Remotion License, not the `framewise.dev` agency the README credits; `spring.ts` is a verbatim port with no MIT ancestor, `interpolate.ts`/`easing.ts` trace to React Native (MIT); findings in `docs/PROVENANCE.md`; remediation needs owner decisions) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 
