@@ -2,10 +2,13 @@
 
 Canonical guidance for AI agents working in this repo (Claude Code, opencode,
 Codex, Cursor, …). `CLAUDE.md` is a one-line stub that imports this file via
-`@AGENTS.md` — edit here, never there. Directory-specific playbooks:
-[`scripts/`](scripts/AGENTS.md) (renderer + audio measurement) and
-[`src/framewise-lite/`](src/framewise-lite/AGENTS.md) (component authoring +
-test traps); they add operational detail and never override this file.
+`@AGENTS.md` — edit here, never there. Source-local playbooks exist for
+[`scripts/`](scripts/AGENTS.md) (renderer + audio measurement),
+[`src/framewise-lite/`](src/framewise-lite/AGENTS.md) (library authoring +
+test traps), [`src/render/`](src/render/AGENTS.md) (registry + page boot +
+probing), and [`src/compositions/`](src/compositions/AGENTS.md) (demo
+compositions); they add operational detail and never override this file.
+Each has a peer `CLAUDE.md` stub importing it the same way.
 
 ## What this is
 
