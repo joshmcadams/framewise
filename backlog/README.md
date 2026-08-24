@@ -4,25 +4,25 @@ Code-review findings for framewise-lite, ordered most-impactful first within eac
 round. Open items have a prompt file next to this README; completed rounds keep
 only their summary here.
 
-## Round 2 — open (review of `421a091..071f754`, 2026-08-24)
+## Round 2 — complete (2026-08-24)
 
 Review of the 36-commit roadmap run (OVERVIEW + plans 017–030). Gates were green
 at review time — `tsc -b` clean, 291 tests in 22 files — and every finding below
-was reproduced rather than inferred.
+was reproduced rather than inferred. All nine items closed across plans 031–037;
+suite grew 291 → 315 tests. Individual prompt files have been removed; this
+summary (and each fix's plan file) is the record.
 
-| # | Item | Type | Severity | Status |
-|---|------|------|----------|--------|
-| 10 | [`npm run build` destroys the `build:lib` output](10-lib-build-clobbered-by-app-build.md) | Bug (packaging) | High | DONE (plan 031 — lib output moved to `dist-lib/`, exports/files repointed) |
-| 11 | [`--distributed --format webm` fails at the concat step](11-distributed-webm-codec-container-mismatch.md) | Bug (correctness) | High | DONE (plan 032 — chunk codec/container derived from format; ffprobe end-to-end check added) |
-| 12 | [React is a `dependency`, not a `peerDependency`](12-react-should-be-peer-dependency.md) | Bug (packaging) | High | DONE (plan 033 — peer ">=19" + dev; verified single-React install + hook/context smoke in a scratch project) |
-| 13 | [Per-frame volume automation splices audio once per frame](13-volume-automation-splices-audio-per-frame.md) | Bug (audio) / scalability | Medium | DONE (plan 034 — one segment + telescoped `gte()` gain envelope; A/B verified splice removal) |
-| 14 | [`<OffthreadVideo>` breaks on non-ASCII asset paths](14-offthreadvideo-non-ascii-paths.md) | Bug (correctness) | Medium | DONE (plan 035 — UTF-8 before base64, round-trip tests through parseExtractUrl) |
-| 15 | [delayRender backstop moved entirely in-page](15-delayrender-backstop-moved-in-page.md) | Regression (diagnostics) | Medium | DONE (plan 036 — Node race backstop at 40 s, explicit protocolTimeout, live-verified on a wedged comp) |
-| 16 | [`interpolateColors` output validity + parsing gaps](16-interpolatecolors-output-validity-and-parsing.md) | Correctness / polish | Low | DONE (plan 037 — gamut-clamped output, case-insensitive parse, empty components rejected) |
-| 17 | [Renderer and config minor cleanups](17-renderer-and-config-minor-cleanups.md) | Robustness / hygiene | Low | DONE (plan 037 — concat-list quote escaping, dead catch dropped, target=lib=ES2022) |
-| 18 | [`App.tsx` silences two hooks rules file-wide](18-app-tsx-blanket-eslint-disable.md) | Quality / teaching | Low | DONE (plan 037 — zero disables: key-remount editor subtree + handler-side resolution replaced the render-phase ref entirely) |
-
-**Round 2 complete — all nine items closed.**
+| #   | Item                                                       | Type                       | Severity | Fix                                                                                              |
+| --- | ---------------------------------------------------------- | -------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| 10  | `npm run build` destroys the `build:lib` output            | Bug (packaging)            | High     | plan 031 (`3db2d69`) — lib output moved to `dist-lib/`, exports/files repointed                  |
+| 11  | `--distributed --format webm` fails at the concat step     | Bug (correctness)          | High     | plan 032 (`6304768`) — chunk codec/container derived from format; ffprobe end-to-end check       |
+| 12  | React is a `dependency`, not a `peerDependency`             | Bug (packaging)            | High     | plan 033 (`8d777dd`) — peer `>=19`; verified single-React install + hook/context smoke           |
+| 13  | Per-frame volume automation splices audio once per frame   | Bug (audio) / scalability  | Medium   | plan 034 (`cd07ad2`) — one segment + telescoped `gte()` gain envelope; A/B-verified              |
+| 14  | `<OffthreadVideo>` breaks on non-ASCII asset paths         | Bug (correctness)          | Medium   | plan 035 (`dc63ce0`) — UTF-8 before base64; round-trip tests through `parseExtractUrl`           |
+| 15  | delayRender backstop moved entirely in-page                | Regression (diagnostics)   | Medium   | plan 036 (`dc63ce0`) — Node race backstop at 40 s, explicit protocolTimeout; live-verified       |
+| 16  | `interpolateColors` output validity + parsing gaps         | Correctness / polish       | Low      | plan 037 (`e1105d5`) — gamut-clamped output, case-insensitive parse, empty components rejected   |
+| 17  | Renderer and config minor cleanups                         | Robustness / hygiene       | Low      | plan 037 (`e1105d5`) — concat-list quote escaping, dead catch dropped, target=lib=ES2022         |
+| 18  | `App.tsx` silences two hooks rules file-wide               | Quality / teaching         | Low      | plan 037 (`e1105d5`) — zero disables: key-remount editor + handler-side resolution               |
 
 ### Not findings — verified and holding
 
