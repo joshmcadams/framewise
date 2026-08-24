@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {measureSpring, spring} from './spring';
+import {measureSpring, spring, springCacheKeysForTest} from './spring';
 
 const fps = 30;
 
@@ -280,5 +280,35 @@ describe('spring — reverse', () => {
     );
     expect(Math.min(...values)).toBeGreaterThanOrEqual(0);
     expect(Math.max(...values)).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('spring — bounded integer-chain cache (plan 041 / backlog #21)', () => {
+  it('never retains more than the key cap while an ANIMATED config mints keys', () => {
+    // 600 frames of animated damping = 600 distinct cache keys in the old
+    // unbounded map. The LRU cap must hold throughout.
+    for (let f = 0; f < 600; f++) {
+      spring({frame: f, fps, config: {damping: 10 + f * 0.01}});
+      expect(springCacheKeysForTest()).toBeLessThanOrEqual(8);
+    }
+    expect(springCacheKeysForTest()).toBe(8);
+  });
+
+  it('an evicted-then-recomputed chain returns identical values', () => {
+    // Walk a config deep enough to matter, flood the cache with enough other
+    // configs to force its eviction, then walk it again: eviction must only
+    // ever cost recompute, never change output.
+    const walk = () =>
+      Array.from({length: 120}, (_, f) =>
+        spring({frame: f, fps, config: {stiffness: 137, mass: 1.5}}),
+      );
+    const before = walk();
+    for (let i = 0; i < 24; i++) {
+      // Distinct keys, walked deep so each eviction victim is fully populated.
+      Array.from({length: 130}, (_, f) =>
+        spring({frame: f, fps, config: {stiffness: 200 + i * 3, damping: 12}}),
+      );
+    }
+    expect(walk()).toEqual(before);
   });
 });

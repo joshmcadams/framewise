@@ -54,6 +54,7 @@ plans cite them.
 | 038  | Gain envelope evaluated per video frame, not audio frame (backlog Round 3 #19) | P3 | S | 034 | DONE (executed; aresample=48000 + asetnsamples=n=round(48000/fps) on automated segments only; ordering pinned by test; measured 0.1001 → 0.0335 worst deviation through real ffmpeg; WithAudio e2e green) |
 | 039  | Gain envelope: place each step at the frame midpoint | P3 | S | 038 | DONE (executed; `gte(t,(k−0.5)/fps)` — boundary rounding/equality made 4 of 30 frames lag; worst deviation 0.0346 → 0.0001 measured through real ffmpeg; invariant pinned by test, ch. 9 note) |
 | 040  | `calculateMetadata` can be async (backlog #20) | P2 | M | 025 | DONE (executed; probe-media.ts + MediaSized demo, App resolving state, named 30s in-page deadline ahead of the 60s ready-wait; live: 5.000s probed render, --props crossing both ways, named failure ~3.4s) |
+| 041  | Bound `spring`'s integer-chain cache (backlog #21) | P2 | S | 006 | DONE (executed; LRU cap 8 whole keys — 16 measured 1.27MB so tightened; live: animated-config heap +22MB → +0.64MB, static flat; evict-recompute identity pinned by test) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

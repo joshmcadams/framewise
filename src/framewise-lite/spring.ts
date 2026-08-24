@@ -116,9 +116,21 @@ const INIT_NODE: AnimationNode = {
 // across a render. This keeps a growing array of integer nodes per spring and
 // advances only as far as needed, making repeated calls amortized O(1). It is
 // byte-identical to the naive loop because it issues the exact same sequence of
-// advance() calls in the same order. (Framewise memoizes the same way; the
-// cache is keyed by static config, so animated configs simply get more keys.)
+// advance() calls in the same order.
+//
+// The cache is BOUNDED (LRU, oldest whole key evicted — plan 041 / backlog
+// #21): an ANIMATED config mints a new key per distinct value, and each key
+// retains its own chain, which is O(n²) node retention if unbounded (measured:
+// +22 MB on a 600-frame animated-damping comp). 8 keys cover any realistic
+// count of distinct static springs; eviction only forces a recompute with the
+// same advance() sequence, so output never changes. Tradeoff: more than 8
+// keys alternating per frame would recompute O(n) per miss — memory stays
+// flat, CPU is bounded by the naive loop's worst case.
+const SPRING_CACHE_MAX_KEYS = 8;
 const integerChainCache = new Map<string, AnimationNode[]>();
+
+/** Diagnostic/test hook: how many configs are currently cached. */
+export const springCacheKeysForTest = (): number => integerChainCache.size;
 
 function getIntegerNode(
   upto: number,
@@ -132,6 +144,18 @@ function getIntegerNode(
   let nodes = integerChainCache.get(key);
   if (!nodes) {
     nodes = [];
+    integerChainCache.set(key, nodes);
+    if (integerChainCache.size > SPRING_CACHE_MAX_KEYS) {
+      // Map iteration is insertion-ordered; delete() + set() below keeps
+      // recently used keys at the tail, so the first key is the coldest.
+      const oldest = integerChainCache.keys().next().value;
+      if (oldest !== undefined) {
+        integerChainCache.delete(oldest);
+      }
+    }
+  } else {
+    // Refresh recency so the hot static config is never the eviction victim.
+    integerChainCache.delete(key);
     integerChainCache.set(key, nodes);
   }
   for (let k = nodes.length; k <= upto; k++) {

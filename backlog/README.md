@@ -9,8 +9,6 @@ a fix shape, and acceptance criteria. Ordered most-impactful first.
 
 | #   | Item                                                              | Type                | Priority | Effort | Status |
 | --- | ----------------------------------------------------------------- | ------------------- | -------- | ------ | ------ |
-| 20  | [`calculateMetadata` cannot be async](20-async-calculate-metadata.md) | Feature gap (fidelity) | P2       | M      | OPEN   |
-| 21  | [`spring`'s integer-chain cache is unbounded](21-spring-cache-unbounded.md) | Bug (memory)        | P2       | S      | OPEN   |
 | 22  | [jsdom media stubs print noise on every test run](22-jsdom-media-stub-noise.md) | Test hygiene        | P3       | S      | OPEN   |
 
 ## Working an item

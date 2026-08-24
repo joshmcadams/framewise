@@ -70,7 +70,14 @@ then a final 0.4-frame step so the value is smooth rather than stair-stepped.
 (The shipped code replaces the visible loop with `integerChainCache`, which
 memoizes one growing array of nodes per `fps|damping|mass|stiffness` key and
 issues exactly the sequence above on first request — same math, no quadratic
-re-walk.)
+re-walk.) The cache is an LRU capped at **8 keys**, oldest whole key evicted
+(plan 041): an ANIMATED config mints a key per distinct value, and unbounded
+that is O(n²) node retention — measured +22 MB of heap on a 600-frame comp
+with animated damping; bounded, the same scenario measures **+0.64 MB**.
+Eviction only forces a recompute that replays the identical `advance()`
+sequence, so output stays byte-identical; more than 8 configs alternating per
+frame would recompute O(n) per miss (memory flat, CPU at the naive loop's
+worst case).
 
 Note `springCalculation` always runs from `0 → 1`. The public wrapper maps that
 unit output onto your actual `from`/`to`. Keeping the physics on a fixed `[0,1]`
