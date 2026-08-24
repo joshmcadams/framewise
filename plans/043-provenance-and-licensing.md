@@ -1,7 +1,8 @@
 # 043 — Provenance, attribution, and licensing
 
-**Status:** BLOCKED ON OWNER — 2026-08-24. Investigation complete
-(`docs/PROVENANCE.md`); remediation deliberately not started.
+**Status:** PARTIALLY DONE — 2026-08-24. Investigation complete
+(`docs/PROVENANCE.md`); the decision-independent attribution work has shipped
+(branch `fix/attribution`). The gating questions remain BLOCKED ON OWNER.
 
 **Backlog item:** `backlog/00-provenance-and-licensing.md` — TOP PRIORITY, S
 
@@ -46,15 +47,27 @@ Findings written to **`docs/PROVENANCE.md`** with sources, URLs, and read date.
 The backlog item's STOP #1: "Do not conclude the licensing is 'fine'… If the
 findings show a restrictive upstream license, say so plainly and stop." They do.
 
-Not done, deliberately, because each depends on an owner decision the executor
-is not permitted (or qualified) to make:
+### Shipped in the follow-up attribution PR
 
-- `NOTICE` / `THIRD-PARTY-LICENSES.md`
-- `LICENSE` correction
-- per-file header corrections
-- `README.md:3` attribution rewrite (the incorrect `framewise.dev` link)
-- any rename
-- any clean-room reimplementation of `spring.ts`
+Correct regardless of every open decision, so done without waiting:
+
+- `THIRD-PARTY-NOTICES.md` — React Native MIT text in full; Remotion's terms
+  recorded with the open question flagged
+- `LICENSE` — MIT now scoped to this project's original work only
+- three per-file headers naming true origins + licenses; `spring.ts` carries an
+  explicit "do not publish without resolving this" warning
+- `README.md` and `docs/OVERVIEW.md` — wrong `framewise.dev` link replaced with
+  Remotion; prominent attribution/non-affiliation notice added
+
+### Still not done, deliberately
+
+Each depends on an owner decision the executor is not permitted (or qualified)
+to make:
+
+- disposition of `spring.ts` — the gating question
+- any rename (package name and the "Framewise" stand-in throughout)
+- whether to publish at all (`backlog/17-publishing.md` 17e)
+- sweep of remaining modules for undocumented ported code
 
 ## Acceptance (for the part that ran)
 

@@ -1,14 +1,26 @@
-// Ported verbatim (math-wise) from Framewise's spring/spring-utils.ts and
-// spring/index.ts. The analytical damped-harmonic-oscillator solution is exact;
-// reconstructing it from scratch is the classic "almost right" trap, so this is
-// a faithful copy. Like Framewise we memoize the integer-frame chain (pure perf,
+// PROVENANCE — READ BEFORE REUSING THIS FILE.
+// Ported verbatim (math-wise) from REMOTION's
+//   packages/core/src/spring/spring-utils.ts and spring/index.ts
+//   https://github.com/remotion-dev/remotion
+// Remotion ships under the Remotion License — source-available, and by
+// Remotion's own documentation NOT an OSI open source license. Unlike this
+// package's interpolate.ts and easing.ts, Remotion's spring carries no
+// third-party attribution of its own, so Remotion is the origin here; there is
+// no MIT-licensed ancestor. Whether this file may be redistributed under those
+// terms is an OPEN QUESTION — see THIRD-PARTY-NOTICES.md and
+// docs/PROVENANCE.md §5. Do not publish this package without resolving it.
+//
+// The analytical damped-harmonic-oscillator solution is exact; reconstructing
+// it from scratch is the classic "almost right" trap, so this is
+// a faithful copy. Like Remotion we memoize the integer-frame chain (pure perf,
 // byte-identical output — see integerChainCache below). `from`, `to`, and
-// `delay` behave exactly like Framewise, as do the `measureSpring` family
+// `delay` behave exactly like Remotion, as do the `measureSpring` family
 // additions: `measureSpring()`, the `durationInFrames` time-warp, and
 // `reverse` — all three are thin arithmetic over the measured rest point of
 // the same normalized chain.
 //
-// Deliberate deviation from upstream: `overshootClamping`. Upstream clamps
+// Deliberate deviation from upstream (this project's own work):
+// `overshootClamping`. Upstream clamps
 // `spr.current` (normalized 0..1 space) directly against `to` (output space),
 // which silently does nothing when `to !== 1`. We clamp in output space after
 // mapping with `interpolate()`, so it works correctly for any `from`/`to` pair.

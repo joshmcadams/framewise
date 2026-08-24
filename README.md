@@ -1,6 +1,6 @@
 # framewise-lite
 
-A minimal, educational reimplementation of [Framewise](https://www.framewise.dev/)'s
+A minimal, educational reimplementation of [Remotion](https://www.remotion.dev/)'s
 **core** — the part that makes "a video is a function of the frame number" real.
 It implements the frame-as-state engine, `interpolate`, `spring`, `<Sequence>`,
 a `<Player>` clock, a **Puppeteer + ffmpeg renderer** that turns a composition
@@ -8,6 +8,27 @@ into an `.mp4`, **`delayRender`** so async assets render deterministically,
 **`<Audio>`** mixed/muxed with ffmpeg, frame-accurate embedded **`<Video>`**,
 **parallel chunked rendering**, and **distributed chunk-encode + concat**
 (`--distributed`, all stages — see [Roadmap](#roadmap)).
+
+> [!IMPORTANT]
+> **Attribution and licensing.** This is an independent educational
+> reimplementation of [Remotion](https://www.remotion.dev/). It is **not**
+> affiliated with, endorsed by, or sponsored by Remotion GmbH or Meta Platforms.
+>
+> Portions of this code derive from other projects and are **not** covered by
+> this repository's MIT license: `interpolate.ts` and `easing.ts` derive from
+> React Native (MIT, Meta Platforms), and `spring.ts` is a port of Remotion's
+> spring solver, which ships under the **source-available Remotion License** —
+> not an OSI open source license. See
+> [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and
+> [docs/PROVENANCE.md](docs/PROVENANCE.md).
+>
+> Earlier revisions of this README credited a project called "Framewise" at
+> `framewise.dev`. That was incorrect — that domain belongs to an unrelated web
+> design agency, with no connection to this project or to Remotion. The
+> `framewise-lite` name and the "Framewise" references still present throughout
+> the code and docs are a stand-in pending a naming decision
+> ([backlog item 00](backlog/00-provenance-and-licensing.md)). This package is
+> **not published** to any registry.
 
 > **New here?** [docs/tutorial.md](docs/tutorial.md) walks you through building
 > a promo video step by step — animation, springs, scenes, media, audio, props,

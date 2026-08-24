@@ -1,5 +1,9 @@
-// Ported from Framewise's Easing module (itself React Native's Easing), which
-// wraps the classic bezier-easing Newton-Raphson/bisection solver.
+// PROVENANCE: derived from React Native's `Easing`
+//   https://github.com/facebook/react-native/blob/0b9ea60b4fee8cacc36e7160e31b91fc114dbc0d/Libraries/Animated/src/Easing.js
+//   MIT License, Copyright (c) Meta Platforms, Inc. and affiliates.
+// Reached here by way of Remotion's `easing`, whose own file credits the same
+// React Native source. See THIRD-PARTY-NOTICES.md and docs/PROVENANCE.md.
+// Wraps the classic bezier-easing Newton-Raphson/bisection solver.
 
 import type {EasingFunction} from './interpolate';
 

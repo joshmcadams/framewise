@@ -1,13 +1,18 @@
-// Ported from Framewise's `interpolate`, which itself derives from React
-// Native's AnimatedInterpolation. The semantics match Framewise, including
-// the surprising default: extrapolation is "extend", so values run linearly
-// *past* the range rather than clamping.
+// PROVENANCE: derived from React Native's `AnimatedInterpolation`
+//   https://github.com/facebook/react-native/blob/0b9ea60b4fee8cacc36e7160e31b91fc114dbc0d/Libraries/Animated/src/nodes/AnimatedInterpolation.js
+//   MIT License, Copyright (c) Meta Platforms, Inc. and affiliates.
+// Reached here by way of Remotion's `interpolate`, whose own file credits the
+// same React Native source. See THIRD-PARTY-NOTICES.md and docs/PROVENANCE.md.
+//
+// The semantics match Remotion, including the surprising default:
+// extrapolation is "extend", so values run linearly *past* the range rather
+// than clamping.
 //
 // Output shapes mirror RN's interpolation: plain numbers, tuples (arrays of
 // numbers interpolated lane-by-lane), and string templates ("scale(2)") whose
 // embedded numbers are extracted, interpolated, and substituted back in order.
 //
-// Deliberate extension (not in upstream Framewise): the `posterize` option.
+// Deliberate extension (not in upstream Remotion): the `posterize` option.
 // Posterizing snaps the input to multiples of `posterize` before mapping,
 // producing a staircase effect. It's documented and tested here as an example
 // of building on top of the core without touching the ported math.
