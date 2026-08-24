@@ -7,9 +7,8 @@ the history is in git. Nothing completed is summarized here.
 Each item is a self-contained prompt: the problem with evidence, why it matters,
 a fix shape, and acceptance criteria. Ordered most-impactful first.
 
-| #   | Item                                                              | Type                | Priority | Effort | Status |
-| --- | ----------------------------------------------------------------- | ------------------- | -------- | ------ | ------ |
-| 22  | [jsdom media stubs print noise on every test run](22-jsdom-media-stub-noise.md) | Test hygiene        | P3       | S      | OPEN   |
+**The queue is empty.** New findings go here as numbered prompt files following
+the shape above.
 
 ## Working an item
 
@@ -20,6 +19,6 @@ a fix shape, and acceptance criteria. Ordered most-impactful first.
 
 ## Where finished work went
 
-Items 01–19 all shipped. To find one: `git log --oneline -- backlog/` shows
+Items 01–22 all shipped. To find one: `git log --oneline -- backlog/` shows
 when each was opened and closed, and the `plans/` file named in the closing
 commit carries the full reasoning and measurements.

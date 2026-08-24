@@ -55,6 +55,7 @@ plans cite them.
 | 039  | Gain envelope: place each step at the frame midpoint | P3 | S | 038 | DONE (executed; `gte(t,(k−0.5)/fps)` — boundary rounding/equality made 4 of 30 frames lag; worst deviation 0.0346 → 0.0001 measured through real ffmpeg; invariant pinned by test, ch. 9 note) |
 | 040  | `calculateMetadata` can be async (backlog #20) | P2 | M | 025 | DONE (executed; probe-media.ts + MediaSized demo, App resolving state, named 30s in-page deadline ahead of the 60s ready-wait; live: 5.000s probed render, --props crossing both ways, named failure ~3.4s) |
 | 041  | Bound `spring`'s integer-chain cache (backlog #21) | P2 | S | 006 | DONE (executed; LRU cap 8 whole keys — 16 measured 1.27MB so tightened; live: animated-config heap +22MB → +0.64MB, static flat; evict-recompute identity pinned by test) |
+| 042  | jsdom media stubs: silence stderr noise (backlog #22) | P3 | S | — | DONE (executed; per-suite beforeEach stubs of play/pause — per-test because App.test's restoreAllMocks strips beforeAll spies; npm test now emits zero stderr) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

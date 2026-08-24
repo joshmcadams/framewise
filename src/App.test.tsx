@@ -21,6 +21,12 @@ class ResizeObserverStub {
 
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+  // jsdom doesn't implement HTMLMediaElement.play/pause; the MediaSized and
+  // gallery suites mount <Video> components whose useMediaSync calls both, and
+  // jsdom's "Not implemented" stderr would train everyone to skim past stderr
+  // (backlog #22). Re-stubbed per-test: afterEach's restoreAllMocks strips it.
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
 });
 
 afterEach(() => {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import type {ReactNode} from 'react';
 import {act} from 'react';
 import {createRoot, type Root} from 'react-dom/client';
@@ -14,6 +14,15 @@ import {beginAudioFrame, readAudioFrame} from './audio-registry';
 import {parseExtractUrl} from '../../scripts/offthread-server.mjs';
 
 (globalThis as {IS_REACT_ACT_ENVIRONMENT?: boolean}).IS_REACT_ACT_ENVIRONMENT = true;
+
+// jsdom doesn't implement HTMLMediaElement.play/pause; useMediaSync calls both
+// in preview mode and jsdom's "Not implemented" stderr would train everyone to
+// skim past stderr (backlog #22). No assertion observes these calls — preview-
+// mode behavior is asserted through src/extraction state instead.
+beforeEach(() => {
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+});
 
 let container: HTMLDivElement;
 let root: Root;
