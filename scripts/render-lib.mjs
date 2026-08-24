@@ -177,14 +177,26 @@ export function planEncode({
 
     const inputArgs = [];
     const filters = [];
+    // The envelope is only as fine as the audio frames it evaluates on.
+    // eval=frame runs once per DECODER buffer (~4096 samples ≈ 85 ms at 48
+    // kHz), so a per-video-frame curve would hold for 2–3 frames at a time
+    // (measured worst deviation 0.104 on a 30-frame fade). Automated segments
+    // therefore pin the rate and force one video frame's worth of samples per
+    // audio frame (deviation drops to one step, ≤ ~0.035). Constant segments
+    // skip both — nothing to re-evaluate, no needless resample. 48 kHz is the
+    // encode target either way (aac/libopus output at this rate); ffprobe
+    // probing the source rate was rejected as complexity without a win.
+    const samplesPerVideoFrame = Math.round(48000 / fps);
     segments.forEach((seg, k) => {
       inputArgs.push('-i', assetPaths[k]);
       const idx = k + 1;
       const dur = (seg.endFrame - seg.startFrame + 1) / fps;
       const delayMs = Math.round((seg.startFrame / fps) * 1000);
+      const automated = new Set(seg.volumes).size > 1;
+      const grid = automated ? `aresample=48000,asetnsamples=n=${samplesPerVideoFrame},` : '';
       filters.push(
         `[${idx}:a]atrim=start=${seg.trimStart.toFixed(6)}:duration=${dur.toFixed(6)},` +
-          `asetpts=PTS-STARTPTS,${volumeFilterToken(seg.volumes, fps)},adelay=${delayMs}:all=1[s${k}]`,
+          `asetpts=PTS-STARTPTS,${grid}${volumeFilterToken(seg.volumes, fps)},adelay=${delayMs}:all=1[s${k}]`,
       );
     });
 

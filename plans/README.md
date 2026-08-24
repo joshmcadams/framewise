@@ -51,6 +51,7 @@ plans cite them.
 | 035  | OffthreadVideo UTF-8-safe source keys (backlog Round 2 #14) | P2 | S | 021 | DONE (executed; extractKey TextEncoder→btoa, round-trip tests via real parseExtractUrl incl. CJK; server-side UTF-8 case pinned) |
 | 036  | Node-side backstop for the in-page frame wait (backlog Round 2 #15) | P2 | S | 024 | DONE (executed; raceWithBackstop + 40s Node race on per-frame evaluate, protocolTimeout 45s explicit, ready-wait explicit 60s; live-verified named backstop error at ~40s on wedged comp; invariant #5 + ch.8 layering updated) |
 | 037  | Round 2 tail: interpolateColors polish + renderer cleanups + App.tsx disables (#16, #17, #18) | P3 | S | 020, 027 | DONE (executed; 16: gamut-clamped formatColor + case-insensitive parseColor + empty-component rejection; 17: concat quote escaping, dead catch dropped, target=lib=ES2022; 18: zero disables — key-remount CompositionView + handler-side resolution replaces the render-phase ref entirely) |
+| 038  | Gain envelope evaluated per video frame, not audio frame (backlog Round 3 #19) | P3 | S | 034 | DONE (executed; aresample=48000 + asetnsamples=n=round(48000/fps) on automated segments only; ordering pinned by test; measured 0.1001 → 0.0335 worst deviation through real ffmpeg; WithAudio e2e green) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

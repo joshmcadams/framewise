@@ -2,6 +2,7 @@
 
 **Type:** Correctness (residual) / docs precision · **Severity:** Low
 **Follows:** round 2 #13, plan 034 (`cd07ad2`)
+**Status:** DONE — fixed by plan 038 (backlog option 1: `aresample=48000,asetnsamples=n=round(48000/fps)` on automated segments; measured worst deviation 0.1001 → 0.0335 through real ffmpeg; ordering pinned by test; chapter 9 states the achieved resolution with the measurement).
 
 ## Context
 

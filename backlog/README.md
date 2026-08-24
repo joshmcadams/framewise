@@ -4,6 +4,12 @@ Code-review findings for framewise-lite, ordered most-impactful first within eac
 round. Open items have a prompt file next to this README; completed rounds keep
 only their summary here.
 
+## Round 3 — open (2026-08-24, follow-up to plan 034)
+
+| #   | Item                                                                                     | Type                          | Severity | Status                                                                                                            |
+| --- | ---------------------------------------------------------------------------------------- | ----------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| 19  | [The gain envelope's realized resolution is the audio frame](19-volume-envelope-audio-frame-resolution.md) | Correctness (residual) / docs | Low      | DONE (plan 038 — `aresample=48000,asetnsamples` grid on automated segments; measured 0.100 → 0.034; ch. 9 states the achieved resolution) |
+
 ## Round 3 — open (review of the round-2 fixes, 2026-08-24)
 
 Re-review of plans 031–037, each fix re-tested against round 2's original

@@ -292,9 +292,30 @@ The telescoped step-sum form has three properties that matter:
   telescoped form (`v₀ + Σ Δvₖ·gte(t,Bₖ)`) is depth-O(1).
 - **Exact boundaries.** Both edges of a step are inclusive (`gte`), but the
   deltas cancel exactly there, so every timestamp — including one landing
-  precisely on a boundary — has exactly one owning value.
+  precisely on a boundary — has exactly one owning value. (This is a statement
+  about the expression's math; see the resolution note below for what the
+  render actually realizes.)
 - **Constant runs are free.** Equal neighbours produce zero delta and no term;
   a 150-frame track with a 30-frame fade emits ~31 terms, not 150.
+
+**The realized resolution is the audio frame the expression lands on.**
+`eval=frame` runs once per decoder buffer — ~4096 samples ≈ 85 ms at 48 kHz,
+i.e. 2–3 video frames. Left alone, a 30-frame linear fade measured a worst
+per-video-frame deviation of **0.100** in linear gain, holding one value for
+three frames at a stretch: inaudible on a monotone fade, but fast automation (a
+3-frame duck, per-frame tremolo) would smear away entirely. So automated
+segments repacketize before the envelope —
+
+```
+atrim… , asetpts=PTS-STARTPTS, aresample=48000, asetnsamples=n=<fps-scaled>, volume=…, adelay…
+```
+
+— pinning the rate to 48 kHz (the encode target; ffprobe-probing the source
+was rejected as complexity without a win) and forcing one video frame's worth
+of samples per audio frame (`n = round(48000/fps)`). Measured through real
+ffmpeg with this exact chain: worst deviation drops **0.100 → 0.034**, one
+frame's step at a couple of boundaries. Constant segments skip both filters —
+nothing to re-evaluate, no needless resample.
 
 then, if there's more than one segment, mix them:
 

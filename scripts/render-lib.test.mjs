@@ -477,6 +477,40 @@ describe('planEncode', () => {
       expect(filterGraph).toContain(':eval=frame');
       expect(filterGraph).not.toContain('amix');
     });
+
+    // Regression (backlog #19): eval=frame evaluates on decoder buffers
+    // (~85 ms), smearing a per-video-frame curve across 2-3 frames. Automated
+    // segments must repacketize to one video frame's worth of samples first.
+    it('automated chain pins the evaluation grid to the video frame, in order', () => {
+      const volumes = Array.from({length: 30}, (_, k) => 1 - k / 30);
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 29, trimStart: 0, volumes}];
+      const plan = planEncode({
+        ...base,
+        fps: 30,
+        format: 'mp4',
+        segments,
+        assetPaths: ['/tmp/a.wav'],
+      });
+      const filterGraph = plan.args[plan.args.indexOf('-filter_complex') + 1];
+      // 48 kHz / 30 fps → 1600 samples per video frame.
+      expect(filterGraph).toContain('aresample=48000');
+      expect(filterGraph).toContain('asetnsamples=n=1600');
+      const atAsetnsamples = filterGraph.indexOf('asetnsamples');
+      const atVolume = filterGraph.indexOf('volume=volume=');
+      const atAdelay = filterGraph.indexOf('adelay=');
+      expect(atAsetnsamples).toBeGreaterThan(-1);
+      expect(atVolume).toBeGreaterThan(atAsetnsamples); // grid BEFORE envelope
+      expect(atAdelay).toBeGreaterThan(atVolume); // envelope BEFORE placement
+    });
+
+    it('constant segments skip the resample/repacketize pair', () => {
+      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 29, trimStart: 0, volumes: [0.5]}];
+      const plan = planEncode({...base, format: 'mp4', segments, assetPaths: ['/tmp/a.wav']});
+      const filterGraph = plan.args[plan.args.indexOf('-filter_complex') + 1];
+      expect(filterGraph).not.toContain('aresample');
+      expect(filterGraph).not.toContain('asetnsamples');
+      expect(filterGraph).toContain('volume=0.5');
+    });
   });
 
   describe('webm', () => {
