@@ -4,14 +4,14 @@ This is the orientation document for the repository: what it is, how it fits
 together, how to work in it day to day, and where it should go next. It
 complements (does not replace) the other documentation:
 
-| Document                                    | What it covers                                            |
-| ------------------------------------------- | --------------------------------------------------------- |
-| [`README.md`](../README.md)                 | Project intro, quickstart commands, API-to-Framewise map  |
-| [`CLAUDE.md`](../CLAUDE.md)                 | Agent-facing guidance: commands, invariants, conventions  |
-| [`docs/code/`](code/README.md)              | The 11-chapter code walkthrough — start here to learn     |
-| [`plans/README.md`](../plans/README.md)     | Completed executor plans from the July 2026 audit         |
-| [`backlog/README.md`](../backlog/README.md) | Open work queue — outstanding items only                  |
-| This document                               | Orientation, workflows, troubleshooting, roadmap proposal |
+| Document                                | What it covers                                            |
+| --------------------------------------- | --------------------------------------------------------- |
+| [`README.md`](../README.md)             | Project intro, quickstart commands, API-to-Framewise map  |
+| [`docs/tutorial.md`](tutorial.md)       | **Getting started**: build a promo video step by step     |
+| [`CLAUDE.md`](../CLAUDE.md)             | Agent-facing guidance: commands, invariants, conventions  |
+| [`docs/code/`](code/README.md)          | The 11-chapter code walkthrough — start here to learn     |
+| [`plans/README.md`](../plans/README.md) | Completed executor plans from the July 2026 audit         |
+| This document                           | Orientation, workflows, troubleshooting, roadmap proposal |
 
 ## 1. What this repository is
 

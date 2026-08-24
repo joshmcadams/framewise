@@ -9,6 +9,10 @@ into an `.mp4`, **`delayRender`** so async assets render deterministically,
 **parallel chunked rendering**, and **distributed chunk-encode + concat**
 (`--distributed`, all stages — see [Roadmap](#roadmap)).
 
+> **New here?** [docs/tutorial.md](docs/tutorial.md) walks you through building
+> a promo video step by step — animation, springs, scenes, media, audio, props,
+> and export.
+
 ```bash
 npm install
 npm run dev     # open http://localhost:5173  (Space = play/pause, ←/→ = step)

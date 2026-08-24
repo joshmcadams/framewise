@@ -1,5 +1,9 @@
 # framewise-lite — Code Walkthrough
 
+> **Author, not reader?** If you want to _make videos_ rather than study the
+> engine, start with the [step-by-step tutorial](../tutorial.md) — this
+> walkthrough explains how the machinery under it works.
+
 This is a guided tour of the codebase, written to be read top-to-bottom as a
 way of _understanding how Framewise works_, not just how this clone is wired.
 Each chapter takes one module, explains the idea it implements, then walks the
