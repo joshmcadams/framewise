@@ -60,10 +60,10 @@ say which, and re-check the mechanism, not the numbers.
 
 3. **Determinism: a frame is a pure function of its number.** Compositions use `random(seed)`
    (`src/framewise-lite/random.ts:24-37`), never `Math.random()`. The renderer verifies a
-   sha256 frame-set hash, identical at any `--concurrency` (`scripts/render.mjs:453-455`).
+   sha256 frame-set hash, identical at any `--concurrency` (`scripts/render.mjs:641-643`).
 
 4. **No-deps `useLayoutEffect`s in `Audio.tsx`/`Video.tsx`/`Img.tsx` are load-bearing.**
-   The file comments explain why: `Audio.tsx:36-41`, `Video.tsx:50-54,79-129`,
+   The file comments explain why: `Audio.tsx:50-55`, `Video.tsx:50-55,81-129`,
    `Img.tsx:10-18`. The preview media-sync is extracted into `useMediaSync.ts`
    (`src/framewise-lite/useMediaSync.ts`) with a full deps list — shared by both components,
    must not be inlined back.
@@ -78,8 +78,8 @@ say which, and re-check the mechanism, not the numbers.
 ## Deliberate decisions — do not "fix" these
 
 - **`interpolate` defaults to `extend`**, not clamp — runs linearly past the range.
-  `src/framewise-lite/interpolate.ts:5-6`.
-- **`posterize` is an extension not in upstream Framewise.** `src/framewise-lite/interpolate.ts:8-11`.
+  `src/framewise-lite/interpolate.ts:3` (rationale), `:289-290` (the defaults).
+- **`posterize` is an extension not in upstream Framewise.** `src/framewise-lite/interpolate.ts:10-11`.
 - **`spring` is verbatim upstream math except `overshootClamping`**, which clamps in output
   space (not upstream's incorrect norm-space clamp). `src/framewise-lite/spring.ts:10-14`.
 
@@ -136,8 +136,17 @@ Implementation plans live in `plans/` with a status index at `plans/README.md`. 
 is a step-by-step executor script. Executors update their row when done. Plans 001–042
 are DONE; new work follows the same pattern (write the plan, execute, flip the row).
 
-The old `backlog/` open-work queue is gone — its queue emptied (items 01–22 all shipped)
-and the folder was removed. New findings go straight through the plan pattern above:
-write the numbered plan, execute it, flip the row. `git log -- backlog/` holds the
-queue's full history. Completing the plan list is not the same as the work being finished;
-verify the artifact a user receives before flipping any row.
+`backlog/` is the **triage/staging area** that feeds `plans/`. It holds researched,
+audited feature proposals (competitive-gap analysis, one file per item, with a status
+index at `backlog/README.md`) that have not been promoted to a numbered plan yet.
+Promote an item by writing the next numbered plan from its file, executing it, flipping
+the plan row, and deleting the backlog file. Read `backlog/README.md` first: it carries
+the dependency ordering, the audit findings, and the items marked NEEDS DECISION.
+Two items gate others and must be read first:
+**`backlog/00-provenance-and-licensing.md`** (TOP PRIORITY — three modules are
+self-described ports with no upstream notice in `LICENSE`; it blocks publishing
+and is fact-finding, never a legal conclusion) and
+**`backlog/00b-render-pipeline-api.md`** (gates items 04, 08, 12, 14 and 15).
+An earlier, unrelated `backlog/` queue (items 01–22) emptied and was removed;
+`git log -- backlog/` holds its history. Completing the plan list is not the same as
+the work being finished; verify the artifact a user receives before flipping any row.
