@@ -299,6 +299,7 @@ describe('parseRegistryIds', () => {
       'WithSeries',
       'WithOffthread',
       'Countdown',
+      'MediaSized',
     ]);
   });
 

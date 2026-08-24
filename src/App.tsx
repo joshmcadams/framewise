@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import type {ComponentType} from 'react';
 import {Player} from './framewise-lite';
 import {parsePropsInput} from './render/parse-props-input';
@@ -12,9 +12,11 @@ import {compositions, resolveCompositionConfig} from './render/registry';
  */
 function Poster({id, onSelect}: {id: string; onSelect: (id: string) => void}) {
   const comp = compositions.find((c) => c.id === id)!;
-  const {config} = resolveCompositionConfig(comp);
+  // Posters show DECLARED statics, not resolved metadata: opening the gallery
+  // must not fire N media probes (one per async calculateMetadata). Opening a
+  // composition resolves its real metadata in CompositionView.
   const previewWidth = 280;
-  const previewHeight = Math.round((config.height / config.width) * previewWidth);
+  const previewHeight = Math.round((comp.height / comp.width) * previewWidth);
   return (
     <button
       onClick={() => onSelect(id)}
@@ -46,36 +48,20 @@ function Poster({id, onSelect}: {id: string; onSelect: (id: string) => void}) {
           fontSize: 12,
         }}
       >
-        {config.width}×{config.height} · {config.durationInFrames} frames
+        {comp.width}×{comp.height} · {comp.durationInFrames} frames
       </div>
       <div style={{padding: '6px 10px', fontSize: 12, color: '#666'}}>Click to open →</div>
     </button>
   );
 }
 
-// Resolve now-or-later: either a usable config+props, or the reason there
-// isn't one. Used as STATE here — resolution runs inside the change handler
-// (and once at init), never during render, so a half-typed JSON box degrades
-// to the LAST GOOD config instead of falling back to composition statics.
-type Resolved =
-  | {
-      status: 'ok';
-      config: ReturnType<typeof resolveCompositionConfig>['config'];
-      props: Record<string, unknown>;
-    }
-  | {status: 'error'; message: string};
-
-const safeResolve = (
-  comp: (typeof compositions)[number],
-  props: Record<string, unknown>,
-): Resolved => {
-  try {
-    const {config, props: effective} = resolveCompositionConfig(comp, props);
-    return {status: 'ok', config, props: effective};
-  } catch (e) {
-    return {status: 'error', message: e instanceof Error ? e.message : String(e)};
-  }
-};
+// Resolve now-or-later: either a usable config+props, or null while none has
+// resolved yet. ASYNC since calculateMetadata may await (media probes):
+// resolution runs in an EFFECT keyed on the props text — never during render —
+// with a cancellation flag so a superseded resolve can't clobber a newer one.
+// A half-typed JSON box degrades to the LAST GOOD config (parse error only),
+// and a rejecting hook keeps the last good config too.
+type Resolved = Awaited<ReturnType<typeof resolveCompositionConfig>>;
 
 // Everything that belongs to ONE composition's editing session. Mounted under
 // key={comp.id}, so switching compositions remounts this subtree and state
@@ -83,34 +69,55 @@ const safeResolve = (
 // changes" pattern, which is why there is no sync-to-state effect here.
 function CompositionView({comp}: {comp: (typeof compositions)[number]}) {
   const [propsText, setPropsText] = useState(() => JSON.stringify(comp.defaultProps, null, 2));
-  const [resolved, setResolved] = useState<Resolved>(() => safeResolve(comp, comp.defaultProps));
-  const [editError, setEditError] = useState<string | null>(null);
+  // null until the first resolve lands; the Player renders statics meanwhile.
+  const [resolved, setResolved] = useState<Resolved | null>(null);
+  // Why the last resolve failed (a rejecting calculateMetadata). Parse errors
+  // are NOT state — they're derived from propsText during render below.
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  // The props text whose resolution has landed. `resolving` derives from it:
+  // any text that hasn't settled yet (including the very first) shows the hint.
+  const [settledText, setSettledText] = useState<string | null>(null);
+
+  const parsed = parsePropsInput(propsText);
+  const editError = parsed.ok ? resolveError : parsed.error;
+  const resolving = parsed.ok && settledText !== propsText;
+
+  useEffect(() => {
+    // Parse here AND during render (pure + cheap): depending on the parsed
+    // object would loop the effect — it's a fresh instance every render.
+    const effectParsed = parsePropsInput(propsText);
+    if (!effectParsed.ok) return; // parse error banner shows; last good config stays
+    let cancelled = false;
+    resolveCompositionConfig(comp, effectParsed.props)
+      .then(({config, props}) => {
+        if (cancelled) return;
+        setResolved({config, props});
+        setResolveError(null);
+        setSettledText(propsText);
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return; // a newer resolve owns the UI now
+        setResolveError(e instanceof Error ? e.message : String(e)); // keep last good
+        setSettledText(propsText); // stop the resolving hint; banner takes over
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [comp, propsText]);
+
+  // Statics guarantee the Player always has something to render — including
+  // the window before the first (possibly probing) resolve lands.
+  const config = resolved?.config ?? {
+    width: comp.width,
+    height: comp.height,
+    fps: comp.fps,
+    durationInFrames: comp.durationInFrames,
+  };
+  const effectiveProps = resolved?.props ?? comp.defaultProps;
 
   const handlePropsChange = (text: string) => {
-    setPropsText(text);
-    const parsed = parsePropsInput(text);
-    if (!parsed.ok) {
-      setEditError(parsed.error);
-      return; // keep showing the last good config underneath
-    }
-    const next = safeResolve(comp, parsed.props);
-    setEditError(next.status === 'error' ? next.message : null);
-    if (next.status === 'ok') {
-      setResolved(next); // parse failed or resolve threw: keep the last good one
-    }
+    setPropsText(text); // the effect above owns parsing + resolution
   };
-
-  // Statics guarantee the Player always has something to render.
-  const config =
-    resolved.status === 'ok'
-      ? resolved.config
-      : {
-          width: comp.width,
-          height: comp.height,
-          fps: comp.fps,
-          durationInFrames: comp.durationInFrames,
-        };
-  const effectiveProps = resolved.status === 'ok' ? resolved.props : comp.defaultProps;
 
   return (
     <>
@@ -140,6 +147,7 @@ function CompositionView({comp}: {comp: (typeof compositions)[number]}) {
         ) : (
           <div style={{color: '#888', fontSize: 12, marginTop: 4}}>
             {config.width}×{config.height} @ {config.fps}fps · {config.durationInFrames} frames
+            {resolving ? ' · resolving…' : ''}
           </div>
         )}
       </div>

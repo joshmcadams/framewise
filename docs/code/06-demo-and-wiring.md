@@ -159,15 +159,37 @@ compositions like `Countdown` update their duration live — typing
 `--props '{"seconds":2}'` does on the CLI. Bad metadata (e.g. `{"seconds":99}`)
 surfaces as a red banner and the Player keeps its last good config.
 
+Since `calculateMetadata` may be **async** (plan 040), resolution moved out of
+the change handler into an effect with a cancellation flag — a superseded
+resolve can never clobber a newer one. The preview's answer to "what shows
+while it resolves": the **statics guarantee something to render** — until a
+resolve lands, the Player renders the declared `width/height/fps/
+durationInFrames`, with a gray `· resolving…` hint beside the config summary.
+A rejecting hook behaves like bad JSON: red banner, last good config stays.
+
 ### Gallery
 
-The `Single` / `Gallery` toggle switches between one Player and a grid of
-posters — one per registry entry. Each poster is a static
-`CompositionHost` at `frame = floor(duration/3)` (no clock, no audio), scaled
-to 280 px wide. Clicking a poster jumps back to single view and selects that
-composition. It's the cheapest possible overview: no rAF loops, no media
-elements, just a frame-accurate thumbnail that reuses the same rendering path
-as the exporter.
+The `Single` / Gallery toggle switches between one Player and a grid of
+posters — one per registry entry. A poster is deliberately cheaper than a
+thumbnail: the composition id plus its declared box
+(`width×height · N frames`) on a tinted card — no `CompositionHost`, no rAF,
+no media elements, nothing probed. Clicking a poster jumps back to single view
+and selects that composition. Posters show **declared statics**, never
+resolved metadata: opening the gallery must not fire one media probe per async
+`calculateMetadata`.
+
+### `MediaSized` — metadata from the media itself
+
+The async hook's reason to exist: a composition **exactly as long as its own
+clip**. Its `calculateMetadata` awaits `probeMediaDurationInSeconds`
+(`src/render/probe-media.ts`) — a detached `<video>` element reading container
+metadata — and returns `durationInFrames: ceil(seconds * fps)`. Both paths can
+run that unchanged because both serve `public/` statically: `npm run dev` is
+Vite default behavior, and `scripts/render.mjs` builds the render page on a
+real Vite server. No server-side probe, no new protocol. The comp's static
+duration is deliberately wrong (30 frames for a 5-second file), so any output
+that comes out ~150 frames proves the probe ran; a silent fallback to statics
+would announce itself as a two-second video.
 
 ## `main.tsx` — the entry point
 

@@ -167,9 +167,11 @@ src/
 │   ├── WithVideo.tsx          embedded clip + React overlay                                (ch. 10)
 │   ├── WithSeries.tsx         <Series>/<Loop> timeline demo                                (ch. 4)
 │   ├── WithOffthread.tsx      <OffthreadVideo> demo — A/B with WithVideo                   (ch. 10)
-│   └── Countdown.tsx          calculateMetadata demo — duration from props.seconds         (ch. 6, 7)
+│   ├── Countdown.tsx          calculateMetadata demo — duration from props.seconds         (ch. 6, 7)
+│   └── MediaSized.tsx         async calculateMetadata demo — duration probed from clip.mp4 (ch. 6, 7)
 ├── render/
 │   ├── registry.ts            composition registry + calculateMetadata resolver
+│   ├── probe-media.ts         in-page media duration probe (async hooks)
 │   ├── parse-props-input.ts   preview props-editor JSON parser (unit-tested)
 │   └── main-render.tsx        chrome-less entry exposing window.framewiseLite
 ├── App.tsx                    host page: dropdown + props editor + gallery + <Player>
@@ -235,15 +237,16 @@ Seven demos ship in `src/compositions/`, registered in `src/render/registry.ts`
 (the minimal analog of Framewise's `<Composition>` declarations). All are
 1280×720 @ 30fps.
 
-| id              | Duration | Demonstrates                                                          |
-| --------------- | -------- | --------------------------------------------------------------------- |
-| `HelloWorld`    | 150 f    | spring pop-in, hue drift, `<Sequence>` timing, seeded `random()`      |
-| `AsyncImage`    | 90 f     | `<Img>` + a `delayRender`-gated simulated fetch (`fetchDelayMs` prop) |
-| `WithAudio`     | 150 f    | `<Audio>` background tone + offset blip inside a `<Sequence>`         |
-| `WithVideo`     | 150 f    | embedded clip with frame-accurate seek + React overlay                |
-| `WithSeries`    | 150 f    | three `<Series>` cards, a nested `<Series>`, and a `<Loop>` pulse     |
-| `WithOffthread` | 150 f    | `<OffthreadVideo>` — same layout as WithVideo for A/B comparison      |
-| `Countdown`     | dynamic  | `calculateMetadata`: duration derived from `props.seconds`            |
+| id              | Duration | Demonstrates                                                                     |
+| --------------- | -------- | -------------------------------------------------------------------------------- |
+| `HelloWorld`    | 150 f    | spring pop-in, hue drift, `<Sequence>` timing, seeded `random()`                 |
+| `AsyncImage`    | 90 f     | `<Img>` + a `delayRender`-gated simulated fetch (`fetchDelayMs` prop)            |
+| `WithAudio`     | 150 f    | `<Audio>` background tone + offset blip inside a `<Sequence>`                    |
+| `WithVideo`     | 150 f    | embedded clip with frame-accurate seek + React overlay                           |
+| `WithSeries`    | 150 f    | three `<Series>` cards, a nested `<Series>`, and a `<Loop>` pulse                |
+| `WithOffthread` | 150 f    | `<OffthreadVideo>` — same layout as WithVideo for A/B comparison                 |
+| `Countdown`     | dynamic  | `calculateMetadata`: duration derived from `props.seconds`                       |
+| `MediaSized`    | probed   | async `calculateMetadata`: duration = the embedded clip's real length (plan 040) |
 
 The preview app (`npm run dev`) reads the **same registry** via a dropdown in
 `src/App.tsx`; switching compositions remounts the `<Player>` (`key={comp.id}`)
@@ -536,11 +539,11 @@ last one).
 
 ### Phase 3 — Renderer capability and performance ✅ COMPLETE
 
-| Item                                          | Origin                                                                                                                                                                                                           | Notes                                                                                                                                                                                                                                         |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ~~Renderer perf trio~~ ✅ plan 024            | plans README "rejected findings" (real, just unplanned): serve a built bundle vs dev-server tradeoff; fold the two CDP round-trips per frame into one; probe registry metadata without launching a whole browser | Folded per-frame CDP to one round trip + adopted probe browser: **−69% c4 / −58% c1 wall time**, byte-identical hashes. Bundle-vs-devserver measured verdict: keep dev server (numbers in ch. 7).                                             |
-| ~~Dynamic composition metadata~~ ✅ plan 025  | plans README notes the probe's "by-design tension"                                                                                                                                                               | `calculateMetadata` on registry entries: props-derived duration/dimensions resolved once at page init in preview AND render (Countdown demo); bad props fail fast with a named error. The tension is resolved — the runtime probe carries it. |
-| ~~`assetPath` containment check~~ ✅ plan 026 | plans README review note                                                                                                                                                                                         | Traversal attempts (`../…`) now throw with an actionable message; return shape unchanged for legitimate paths; characterization flipped + new cases.                                                                                          |
+| Item                                          | Origin                                                                                                                                                                                                           | Notes                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ~~Renderer perf trio~~ ✅ plan 024            | plans README "rejected findings" (real, just unplanned): serve a built bundle vs dev-server tradeoff; fold the two CDP round-trips per frame into one; probe registry metadata without launching a whole browser | Folded per-frame CDP to one round trip + adopted probe browser: **−69% c4 / −58% c1 wall time**, byte-identical hashes. Bundle-vs-devserver measured verdict: keep dev server (numbers in ch. 7).                                                                                                                                                                                                      |
+| ~~Dynamic composition metadata~~ ✅ plan 025  | plans README notes the probe's "by-design tension"                                                                                                                                                               | `calculateMetadata` on registry entries: props-derived duration/dimensions resolved once at page init in preview AND render (Countdown demo); bad props fail fast with a named error. The tension is resolved — the runtime probe carries it. Since plan 040 the hook may be async (MediaSized probes its clip's real duration; hung hooks get a named 30 s deadline ahead of the generic ready-wait). |
+| ~~`assetPath` containment check~~ ✅ plan 026 | plans README review note                                                                                                                                                                                         | Traversal attempts (`../…`) now throw with an actionable message; return shape unchanged for legitimate paths; characterization flipped + new cases.                                                                                                                                                                                                                                                   |
 
 ### Phase 4 — Authoring experience and packaging ✅ COMPLETE
 

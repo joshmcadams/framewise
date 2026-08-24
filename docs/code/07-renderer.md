@@ -262,7 +262,20 @@ chapter 6) work with zero renderer code: the page runs the hook before first
 paint and publishes the final config — or a `configError` naming why metadata
 could not be resolved, which turns bad `--props` into an immediate, named
 failure instead of a probe timeout. The renderer never needs to know whether
-the numbers it chunked were static literals or computed from props. 3. **Dev server vs prebuilt bundle: verdict — keep the dev server.** Measured
+the numbers it chunked were static literals or computed from props.
+
+Since plan 040 the hook may be **async**, so the page's boot awaits it before
+publishing anything. That opens one failure shape the sync version couldn't
+have: a hook that never settles. The page bounds it with its own named
+deadline (`orTimeout`, `CALCULATE_METADATA_TIMEOUT_MS` = 30 s, exported from
+`registry.ts`) — on expiry it publishes a `configError` saying exactly that
+`calculateMetadata` did not settle. The deadline must sit **ahead of** this
+chapter's 60 s ready-wait (`openWorker`, render.mjs:346-352), so the user gets
+"calculateMetadata did not settle within 30000ms" instead of a generic "page
+never became ready" — the same named-before-generic ordering contract as the
+delayRender ladder in `delay-render-defaults.mjs`. The preview adds no
+deadline: a hanging hook there is visible as an eternal `· resolving…` in your
+own dev server; only export must fail loudly. 3. **Dev server vs prebuilt bundle: verdict — keep the dev server.** Measured
 fixed overhead after the two fixes above is ~8 s for c4 (server start +
 browser launches + ffmpeg encode), of which dev-server module serving is a
 few hundred ms per page load. A production bundle would trade that for a

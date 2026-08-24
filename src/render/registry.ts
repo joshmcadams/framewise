@@ -6,6 +6,9 @@ import {WithVideo} from '../compositions/WithVideo';
 import {WithSeries} from '../compositions/WithSeries';
 import {WithOffthread} from '../compositions/WithOffthread';
 import {Countdown} from '../compositions/Countdown';
+import {MediaSized} from '../compositions/MediaSized';
+import {probeMediaDurationInSeconds} from './probe-media';
+import {staticFile} from '../framewise-lite/staticFile';
 
 /**
  * A composition descriptor — a component plus the metadata needed to render it.
@@ -35,13 +38,17 @@ export type Composition = {
    * (defaultProps merged with inputProps). Runs once at page init — in both
    * preview and render, before first paint and before the renderer probes —
    * so dimensions/duration can adapt to inputs. Fields not returned keep
-   * their static values. Throw to reject bad inputs; the message surfaces
-   * on the render page.
+   * their static values. Throw (or reject) to reject bad inputs; the message
+   * surfaces on the render page and in the preview editor.
+   *
+   * May return a promise — e.g. deriving durationInFrames by probing the
+   * media itself (`probeMediaDurationInSeconds`). Resolution is awaited on
+   * both paths; see resolveCompositionConfig.
    */
   calculateMetadata?: (args: {
     props: Record<string, unknown>;
     composition: Composition;
-  }) => CalculatedMetadata;
+  }) => CalculatedMetadata | Promise<CalculatedMetadata>;
 };
 
 export const compositions: Composition[] = [
@@ -122,6 +129,22 @@ export const compositions: Composition[] = [
       return {durationInFrames: Math.ceil(seconds * composition.fps)};
     },
   },
+  {
+    id: 'MediaSized',
+    component: MediaSized,
+    width: 1280,
+    height: 720,
+    fps: 30,
+    // Deliberately WRONG (the file is 5.000 s): a correct render proves the
+    // async probe below ran. See MediaSized.tsx.
+    durationInFrames: 30,
+    defaultProps: {src: 'clip.mp4'},
+    calculateMetadata: async ({props, composition}) => ({
+      durationInFrames: Math.ceil(
+        (await probeMediaDurationInSeconds(staticFile(String(props.src)))) * composition.fps,
+      ),
+    }),
+  },
 ];
 
 /** Look up a composition by id, falling back to the first registered one. */
@@ -148,24 +171,55 @@ const assertPositiveInt = (field: string, value: unknown): number => {
 };
 
 /**
- * Resolves a composition's final config for a given inputProps:
- * merge props → run calculateMetadata (if any) → validate → apply over the
- * static fields. Shared by the preview app and the render entry so both paths
- * always agree. `inputProps` win over defaultProps; returned metadata wins
- * over both statics.
+ * Bounds a promise with a NAMED deadline: on expiry it rejects with an error
+ * naming what did not settle, so the caller can surface that instead of a
+ * generic timeout further up. Used for async calculateMetadata — a hook that
+ * never settles must fail as "[comp]: calculateMetadata …" rather than as the
+ * renderer's generic 60 s ready-wait. The 30 s value aligns with the shortest
+ * layer of the delayRender ladder (see scripts/delay-render-defaults.mjs) and
+ * must stay below render.mjs's ready-wait (60 s) to keep errors named.
  */
-export const resolveCompositionConfig = (
+export const CALCULATE_METADATA_TIMEOUT_MS = 30_000;
+
+export const orTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label}: did not settle within ${ms}ms`)),
+      ms,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (reason) => {
+        clearTimeout(timer);
+        reject(reason);
+      },
+    );
+  });
+
+/**
+ * Resolves a composition's final config for a given inputProps:
+ * merge props → run calculateMetadata (if any, awaited — it may be async) →
+ * validate → apply over the static fields. Shared by the preview app and the
+ * render entry so both paths always agree. `inputProps` win over defaultProps;
+ * returned metadata wins over both statics. ASYNC since plan 040: callers
+ * await it (preview inside an effect with cancellation; render before first
+ * paint / before publishing window.framewiseLite).
+ */
+export const resolveCompositionConfig = async (
   comp: Composition,
   inputProps: Record<string, unknown> = {},
-): {
+): Promise<{
   config: Pick<Composition, 'width' | 'height' | 'fps' | 'durationInFrames'>;
   props: Record<string, unknown>;
-} => {
+}> => {
   const props = {...comp.defaultProps, ...inputProps};
 
   let calculated: CalculatedMetadata = {};
   if (comp.calculateMetadata) {
-    calculated = comp.calculateMetadata({props, composition: comp}) ?? {};
+    calculated = (await comp.calculateMetadata({props, composition: comp})) ?? {};
 
     const known = ['width', 'height', 'fps', 'durationInFrames'] as const;
     for (const key of Object.keys(calculated)) {

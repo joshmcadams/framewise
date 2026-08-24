@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+
+// jsdom never loads media metadata; mirror registry.test.ts's mock so
+// MediaSized's async calculateMetadata resolves instead of hanging.
+vi.mock('./render/probe-media', () => ({
+  probeMediaDurationInSeconds: vi.fn(async () => 5.0),
+}));
+
 import {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App';
@@ -31,13 +38,16 @@ function mount() {
   return {container, root, unmount: () => act(() => root.unmount())};
 }
 
-function setTextareaValue(textarea: HTMLTextAreaElement, value: string) {
+async function setTextareaValue(textarea: HTMLTextAreaElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
-  act(() => {
+  await act(async () => {
     setter.call(textarea, value);
     textarea.dispatchEvent(new Event('input', {bubbles: true}));
     textarea.dispatchEvent(new Event('change', {bubbles: true}));
   });
+  // Resolution is async since calculateMetadata may probe media (plan 040):
+  // flush the resolve effect's promise so assertions see final state.
+  await act(async () => {});
 }
 
 describe('<App> props editor', () => {
@@ -62,7 +72,7 @@ describe('<App> props editor', () => {
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
     expect(textarea.value).toContain('"seconds": 5');
 
-    setTextareaValue(textarea, '{bad json');
+    await setTextareaValue(textarea, '{bad json');
     // Controlled input keeps what was typed.
     expect((container.querySelector('textarea') as HTMLTextAreaElement).value).toBe('{bad json');
     // Error banner appears (either parse error or config error styling).
@@ -80,9 +90,24 @@ describe('<App> props editor', () => {
     });
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
     // Edit to seconds=2 → 60 frames.
-    setTextareaValue(textarea, '{"seconds": 2}');
+    await setTextareaValue(textarea, '{"seconds": 2}');
     expect(container.textContent).toContain('2 seconds');
     expect(container.textContent).toContain('60 frames');
+    unmount();
+    container.remove();
+  });
+
+  it('resolves MediaSized through its async (media-probing) hook', async () => {
+    const {container, unmount} = mount();
+    const select = container.querySelector('select') as HTMLSelectElement;
+    await act(async () => {
+      select.value = 'MediaSized';
+      select.dispatchEvent(new Event('change', {bubbles: true}));
+    });
+    // The probe (mocked to the file's real 5 s) overrides the deliberately
+    // wrong static duration of 30.
+    expect(container.textContent).toContain('150 frames');
+    expect(container.textContent).not.toContain('resolving…');
     unmount();
     container.remove();
   });

@@ -112,9 +112,11 @@ src/
 │   ├── WithVideo.tsx        embedded-video demo               (ch. 10)
 │   ├── WithSeries.tsx       <Series>/<Loop> timeline demo     (ch. 4)
 │   ├── WithOffthread.tsx    <OffthreadVideo> demo             (ch. 10)
-│   └── Countdown.tsx        calculateMetadata demo            (ch. 6, 7)
+│   ├── Countdown.tsx        calculateMetadata demo            (ch. 6, 7)
+│   └── MediaSized.tsx       async calculateMetadata demo (probed duration) (ch. 6, 7)
 ├── render/                 ← Stage 2 renderer (ch. 7)
 │   ├── registry.ts          composition registry + calculateMetadata resolver
+│   ├── probe-media.ts       in-page media duration probe for async hooks (ch. 6, 7)
 │   └── main-render.tsx      chrome-less render entry (window.framewiseLite)
 ├── App.tsx                  host page that embeds the Player   (ch. 6)
 └── main.tsx                 React entry point                 (ch. 6)

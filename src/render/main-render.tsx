@@ -5,7 +5,13 @@ import {CompositionHost} from '../framewise-lite/CompositionHost';
 import {getPendingDelayRenders} from '../framewise-lite/delay-render';
 import {beginAudioFrame, readAudioFrame} from '../framewise-lite/audio-registry';
 import type {AudioReport} from '../framewise-lite/audio-registry';
-import {getComposition, resolveCompositionConfig, compositions} from './registry';
+import {
+  getComposition,
+  resolveCompositionConfig,
+  compositions,
+  orTimeout,
+  CALCULATE_METADATA_TIMEOUT_MS,
+} from './registry';
 
 /**
  * The RENDER entry point — a deliberately chrome-less counterpart to the Player.
@@ -64,14 +70,38 @@ if (propsParam) {
 // Shallow merge: a nested-object prop in ?props= replaces the corresponding
 // default wholesale rather than merging into it (e.g. `{settings: {b: 1}}`
 // drops `settings.a` from defaultProps rather than combining the two).
-// resolveCompositionConfig runs the composition's calculateMetadata (if any)
-// BEFORE first paint, so dimensions/duration adapt to props and the
-// renderer's probe reads the final values.
+
+const el = document.getElementById('render-root');
+if (!el) {
+  throw new Error('main-render: #render-root not found — is render.html the page being served?');
+}
+
+/**
+ * Metadata resolution is ASYNC (calculateMetadata may probe media), so the
+ * whole boot lives behind one await. Until it settles, neither `config` nor
+ * `configError` is published — the renderer's ready-wait (60 s,
+ * render.mjs openWorker) covers that window. Two failure shapes:
+ *
+ * - REJECTING hook → caught below, published as configError: fast and named,
+ *   exactly the sync version's contract.
+ * - HUNG hook → orTimeout's named deadline (30 s, CALCULATE_METADATA_TIMEOUT_MS)
+ *   fires first, also publishing a named configError. It must sit AHEAD of the
+ *   60 s generic ready-wait so the user learns "calculateMetadata did not
+ *   settle", not "page never became ready" — same named-before-generic
+ *   ordering contract as the delayRender ladder. The PREVIEW path adds no
+ *   deadline: a hanging hook there is visible as a spinner in your own dev
+ *   server; only export must fail loudly.
+ */
 let mergedProps: Record<string, unknown> = {};
 let config: VideoConfig | undefined;
 let configError: string | undefined;
 try {
-  ({config, props: mergedProps} = resolveCompositionConfig(comp, overrideProps));
+  const resolved = await orTimeout(
+    resolveCompositionConfig(comp, overrideProps),
+    CALCULATE_METADATA_TIMEOUT_MS,
+    `${comp.id}: calculateMetadata`,
+  );
+  ({config, props: mergedProps} = resolved);
 } catch (e) {
   configError = `${comp.id}: ${e instanceof Error ? e.message : String(e)}`;
   // Banner appended to (not replacing) the body — #render-root must survive.
@@ -81,10 +111,6 @@ try {
   document.body.appendChild(banner);
 }
 
-const el = document.getElementById('render-root');
-if (!el) {
-  throw new Error('main-render: #render-root not found — is render.html the page being served?');
-}
 if (config) {
   // Size the positioned containing block so AbsoluteFill resolves against it
   // (not the viewport) and the capture is exactly the composition box.
