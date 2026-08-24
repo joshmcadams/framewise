@@ -100,11 +100,11 @@ chapter in the same commit. New primitives get a chapter/section and an entry in
 ## Plans
 
 Implementation plans live in `plans/` with a status index at `plans/README.md`. Each plan
-is a step-by-step executor script. Executors update their row when done. Plans 001–030
+is a step-by-step executor script. Executors update their row when done. Plans 001–042
 are DONE; new work follows the same pattern (write the plan, execute, flip the row).
 
-Completing the plan list is not the same as the work being finished. `backlog/` is the
-open work queue — outstanding items only, most-impactful first, each a self-contained
-prompt with evidence and acceptance criteria. Start there rather than inventing the next
-plan number. When an item ships, delete its file and row; the code, its `plans/` file,
-and git hold the history.
+The old `backlog/` open-work queue is gone — its queue emptied (items 01–22 all shipped)
+and the folder was removed. New findings go straight through the plan pattern above:
+write the numbered plan, execute it, flip the row. `git log -- backlog/` holds the
+queue's full history. Completing the plan list is not the same as the work being finished;
+verify the artifact a user receives before flipping any row.

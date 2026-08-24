@@ -183,8 +183,7 @@ scripts/offthread-server.mjs   on-demand ffmpeg frame extraction for <OffthreadV
 render.html                    page served to headless Chrome
 public/                        static assets (photo.png, bg.wav, blip.wav, clip.mp4)
 docs/code/                     the 11-chapter walkthrough (docs are the product)
-plans/                         executor plans, 001–039 all DONE
-backlog/                       open work queue — outstanding items only
+plans/                         executor plans, 001–042 all DONE
 ```
 
 ¹ `posterize` is an extension not present in upstream Framewise.
@@ -483,10 +482,11 @@ The project advanced through four recorded waves, all complete:
   Chrome resolution, spring clamp fix, shared `CompositionHost`, core test
   coverage, renderer preflight/config/props, spring O(N²)→O(N) cache,
   delayRender timeout consolidation, fidelity/docs cleanup, the next primitives
-  (`staticFile`, `random`, progress/`--list`), and the two review rounds that
+  (`staticFile`, `random`, progress/`--list`), and the review rounds that
   followed the roadmap run (packaging, distributed formats, the audio gain
-  envelope). `backlog/` holds only open items now — `git log -- backlog/` is
-  the record of what closed and when.
+  envelope, async metadata). Review findings lived in a `backlog/` queue until
+  it emptied (items 01–22 all shipped) and the folder was removed —
+  `git log -- backlog/` holds the record of what closed and when.
 - **Audit plans (July 2026)** — plans 001–016 in `plans/README.md`: verification
   baseline + CI, render-lib extraction, renderer robustness, characterization
   tests, the Video seek-race fix, CompositionHost docs, ESLint/Prettier gates,
