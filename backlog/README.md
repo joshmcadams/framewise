@@ -4,6 +4,16 @@ Code-review findings for framewise-lite, ordered most-impactful first within eac
 round. Open items have a prompt file next to this README; completed rounds keep
 only their summary here.
 
+## Round 3 — open (review of the round-2 fixes, 2026-08-24)
+
+Re-review of plans 031–037, each fix re-tested against round 2's original
+reproduction. All nine round-2 items confirmed fixed; gates green at 315 tests.
+One residual surfaced.
+
+| #   | Item | Type | Severity | Status |
+| --- | ---- | ---- | -------- | ------ |
+| 19  | [Gain envelope resolves at the audio frame, not the video frame](19-volume-envelope-audio-frame-resolution.md) | Correctness (residual) / docs | Low | OPEN |
+
 ## Round 2 — complete (2026-08-24)
 
 Review of the 36-commit roadmap run (OVERVIEW + plans 017–030). Gates were green
