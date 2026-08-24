@@ -1,7 +1,8 @@
 # AGENTS.md — src/framewise-lite/ (component authoring + test traps)
 
-Read root [`AGENTS.md`](../AGENTS.md) and [`CLAUDE.md`](../CLAUDE.md) first;
-this file is only what this directory keeps teaching the hard way.
+Read root [`AGENTS.md`](../../AGENTS.md) first — it holds the canon
+(invariants, testing conventions, verification discipline); this file is only
+what this directory keeps teaching the hard way.
 
 ## Authoring rules
 

@@ -1,8 +1,9 @@
 # AGENTS.md — scripts/ (renderer + audio)
 
 Working in `scripts/render.mjs` / `render-lib.mjs` / `offthread-server.mjs`?
-Read root [`AGENTS.md`](../AGENTS.md) and [`CLAUDE.md`](../CLAUDE.md) first;
-this file is only the verification playbook specific to this directory.
+Read root [`AGENTS.md`](../AGENTS.md) first — it holds the canon (invariants,
+commands, verification discipline); this file is only the verification
+playbook specific to this directory.
 
 ## Verify the artifact, not the log
 
@@ -53,4 +54,4 @@ combination is meaningless; add a test pinning each allowed/disallowed pair.
 Named-error paths (backstops, timeouts) are verified live: build a temp
 composition that wedges/hangs/rejects, watch the named error arrive at the
 expected layer, then delete the temp files. Generic timeouts further up the
-ladder mean the naming contract broke — see invariant 5 in CLAUDE.md.
+ladder mean the naming contract broke — see invariant 5 in root AGENTS.md.
