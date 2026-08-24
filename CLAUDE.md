@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+> **Companion files:** [`AGENTS.md`](AGENTS.md) holds environment quirks and
+> cross-cutting working habits for all agent tools; [`scripts/AGENTS.md`](scripts/AGENTS.md)
+> is the renderer/audio verification playbook; [`src/framewise-lite/AGENTS.md`](src/framewise-lite/AGENTS.md)
+> covers component authoring + test traps. The invariants below are the canon —
+> those files never override them.
+
 ## What this is
 
 framewise-lite is a minimal, educational reimplementation of Framewise's core. Library in
