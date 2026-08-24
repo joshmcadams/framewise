@@ -137,10 +137,9 @@ These are **not** engineering decisions and were deliberately left untouched:
 1. **Whether the Remotion License permits what `spring.ts` does**, and under what
    conditions this repository may be distributed at all. This is the gating
    question and the one that most warrants professional advice.
-2. **Attribution rewrite.** The `framewise.dev` link (`README.md:3`) is
-   incorrect and names an uninvolved business. This wants fixing regardless of
-   every other decision, but it is part of a single coherent attribution rewrite
-   rather than a patch, so it was not edited unilaterally.
+2. ~~**Attribution rewrite.**~~ **Done** — see §6. The incorrect `framewise.dev`
+   link is replaced, notices are in place, and headers name true origins. The
+   _naming_ half of this (decision 3) is still open.
 3. **Naming.** "Framewise" as a stand-in, and the package name `framewise-lite`,
    are entangled with decision 2. Trademark is a separate body of law from
    copyright.
@@ -153,15 +152,29 @@ These are **not** engineering decisions and were deliberately left untouched:
    "the classic 'almost right' trap"; `measureSpring`-based tests would be the
    safety net.
 
-## 6. Outstanding work in item 00
+## 6. Status of item 00
+
+**Done** (attribution PR, 2026-08-24) — the parts that are correct regardless of
+every open decision:
+
+- [x] `THIRD-PARTY-NOTICES.md` — React Native's MIT notice in full; Remotion
+      recorded with its terms and the open question flagged
+- [x] `LICENSE` — now states plainly that MIT covers this project's original work
+      only, and points at the notices
+- [x] Per-file headers corrected to name **true** origins and licenses
+      (`interpolate.ts`, `easing.ts` → React Native/MIT; `spring.ts` → Remotion,
+      with a "do not publish without resolving this" warning)
+- [x] `README.md` and `docs/OVERVIEW.md` — the incorrect `framewise.dev` link
+      replaced with Remotion, plus a prominent attribution/affiliation notice
+
+**Still open** — each needs an owner decision (§5):
 
 - [ ] Sweep the remaining `src/framewise-lite/` modules for undocumented ported
       code
-- [ ] `NOTICE` / `THIRD-PARTY-LICENSES.md` — shape depends on decisions 1–3
-- [ ] `LICENSE` correction — depends on decisions 1–3
-- [ ] Per-file header corrections naming true origins and licenses
-- [ ] `README.md` / `backlog/README.md` attribution reconciliation
-- [ ] Rename candidates and blast radius
+- [ ] Disposition of `spring.ts` (§5.1, §5.5) — the gating question
+- [ ] Naming: the `framewise-lite` package name and the "Framewise" stand-in
+      still used throughout code and docs (§5.3)
+- [ ] Whether to publish at all (§5.4) — `backlog/17-publishing.md` 17e
 
 ## What this document is not
 

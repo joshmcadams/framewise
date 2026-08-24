@@ -16,10 +16,14 @@ complements (does not replace) the other documentation:
 ## 1. What this repository is
 
 **framewise-lite** is a minimal, educational reimplementation of
-[Framewise](https://www.framewise.dev/)'s _core_ — the part that makes "a video
+[Remotion](https://www.remotion.dev/)'s _core_ — the part that makes "a video
 is a function of the frame number" real. It is not a product or a fork; it is a
 teaching codebase that implements, tests, and documents the essential machinery
 of a programmatic video engine:
+
+> **Attribution:** portions of this code derive from React Native (MIT) and
+> Remotion (source-available). See [PROVENANCE.md](PROVENANCE.md) and
+> [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md).
 
 - The **frame-as-state engine**: compositions are ordinary React components that
   read the current frame from context.

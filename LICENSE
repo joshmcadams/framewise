@@ -1,3 +1,14 @@
+The MIT license below applies to this project's ORIGINAL work only.
+
+This project contains code derived from other projects, which remains subject to
+its own terms -- see THIRD-PARTY-NOTICES.md and docs/PROVENANCE.md. In
+particular, src/framewise-lite/spring.ts derives from Remotion, which ships
+under a source-available license that is not OSI open source, and
+interpolate.ts and easing.ts derive from React Native (MIT, Meta Platforms).
+Nothing here grants rights over those portions.
+
+----------------------------------------------------------------------
+
 MIT License
 
 Copyright (c) 2026 Josh McAdams
