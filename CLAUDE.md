@@ -103,6 +103,8 @@ Implementation plans live in `plans/` with a status index at `plans/README.md`. 
 is a step-by-step executor script. Executors update their row when done. Plans 001–030
 are DONE; new work follows the same pattern (write the plan, execute, flip the row).
 
-Completing the plan list is not the same as the work being finished. `backlog/README.md`
-carries the open code-review findings, ranked by severity with a reproduction in each
-item's file — start there rather than inventing plan 031.
+Completing the plan list is not the same as the work being finished. `backlog/` is the
+open work queue — outstanding items only, most-impactful first, each a self-contained
+prompt with evidence and acceptance criteria. Start there rather than inventing the next
+plan number. When an item ships, delete its file and row; the code, its `plans/` file,
+and git hold the history.

@@ -10,7 +10,7 @@ complements (does not replace) the other documentation:
 | [`CLAUDE.md`](../CLAUDE.md)                 | Agent-facing guidance: commands, invariants, conventions  |
 | [`docs/code/`](code/README.md)              | The 11-chapter code walkthrough — start here to learn     |
 | [`plans/README.md`](../plans/README.md)     | Completed executor plans from the July 2026 audit         |
-| [`backlog/README.md`](../backlog/README.md) | Completed backlog items from an earlier review            |
+| [`backlog/README.md`](../backlog/README.md) | Open work queue — outstanding items only                  |
 | This document                               | Orientation, workflows, troubleshooting, roadmap proposal |
 
 ## 1. What this repository is
@@ -181,7 +181,8 @@ scripts/offthread-server.mjs   on-demand ffmpeg frame extraction for <OffthreadV
 render.html                    page served to headless Chrome
 public/                        static assets (photo.png, bg.wav, blip.wav, clip.mp4)
 docs/code/                     the 11-chapter walkthrough (docs are the product)
-plans/, backlog/               executor plans & review items — all complete (030 plans DONE)
+plans/                         executor plans, 001–039 all DONE
+backlog/                       open work queue — outstanding items only
 ```
 
 ¹ `posterize` is an extension not present in upstream Framewise.
@@ -475,11 +476,14 @@ Recommended order (all under `docs/code/`):
 
 The project advanced through four recorded waves, all complete:
 
-- **Backlog (review-driven fixes)** — items 01–09 in
-  `backlog/README.md`: cross-platform Chrome resolution, spring clamp fix,
-  shared `CompositionHost`, core test coverage, renderer preflight/config/props,
-  spring O(N²)→O(N) cache, delayRender timeout consolidation, fidelity/docs
-  cleanup, and the next primitives (`staticFile`, `random`, progress/`--list`).
+- **Backlog (review-driven fixes)** — items 01–19, all shipped: cross-platform
+  Chrome resolution, spring clamp fix, shared `CompositionHost`, core test
+  coverage, renderer preflight/config/props, spring O(N²)→O(N) cache,
+  delayRender timeout consolidation, fidelity/docs cleanup, the next primitives
+  (`staticFile`, `random`, progress/`--list`), and the two review rounds that
+  followed the roadmap run (packaging, distributed formats, the audio gain
+  envelope). `backlog/` holds only open items now — `git log -- backlog/` is
+  the record of what closed and when.
 - **Audit plans (July 2026)** — plans 001–016 in `plans/README.md`: verification
   baseline + CI, render-lib extraction, renderer robustness, characterization
   tests, the Video seek-race fix, CompositionHost docs, ESLint/Prettier gates,
