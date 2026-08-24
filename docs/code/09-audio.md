@@ -313,9 +313,33 @@ atrim… , asetpts=PTS-STARTPTS, aresample=48000, asetnsamples=n=<fps-scaled>, v
 — pinning the rate to 48 kHz (the encode target; ffprobe-probing the source
 was rejected as complexity without a win) and forcing one video frame's worth
 of samples per audio frame (`n = round(48000/fps)`). Measured through real
-ffmpeg with this exact chain: worst deviation drops **0.100 → 0.034**, one
-frame's step at a couple of boundaries. Constant segments skip both filters —
+ffmpeg with this exact chain: worst deviation drops **0.100 → 0.034**.
+Constant segments skip both filters —
 nothing to re-evaluate, no needless resample.
+
+**Where the step sits inside the frame matters too.** Pinning the grid leaves a
+second, subtler error. Frame k's step was originally emitted at `k/fps`
+rendered with `.toFixed(6)` — and that rounds. `2/30` becomes `0.066667`, a
+hair _past_ the real timestamp `0.0666666…`, so `gte` is false and the step
+fires a frame late; where the value is exactly representable (`3/30` → `0.1`)
+the comparison is an exact-equality coin flip. Either way a predictable subset
+of frames lagged, leaving the deviation stuck at 0.034.
+
+The repacketizing above is what makes the cure available: after
+`asetnsamples`, the only timestamps that ever reach the expression are exactly
+`k/fps`, so a boundary placed _anywhere_ in `((k−1)/fps, k/fps]` selects the
+same frames. Putting it at the **midpoint** `(k − 0.5)/fps` therefore picks out
+the identical set while never comparing two near-equal floats:
+
+```
+boundary at k/fps        → worst deviation 0.0346   (3–4 of 30 frames lag)
+floored to 6 decimals    → worst deviation 0.0346   (the equality cases remain)
+midpoint (k − 0.5)/fps   → worst deviation 0.0001   (every frame exact)
+```
+
+The lesson generalizes past this filter: when a comparison only has to
+distinguish values that arrive on a known grid, put the threshold in the gap
+between grid points, not on one.
 
 then, if there's more than one segment, mix them:
 

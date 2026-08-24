@@ -108,17 +108,27 @@ export function aggregateAudioSegments(audioByFrame) {
 // get the plain scalar form; varying runs get a piecewise-constant expression
 // evaluated per audio frame (`eval=frame`), in TELESCOPED step form:
 //
-//   gain(t) = v0 + Σ (v_k − v_{k−1})·gte(t, k/fps)
+//   gain(t) = v0 + Σ (v_k − v_{k−1})·gte(t, B_k)
 //
-// Frame k of the segment occupies local time [k/fps, (k+1)/fps). Both edges of
-// a step are inclusive (`gte`), but the deltas cancel exactly there, so each t
-// has exactly one owning value — including timestamps that land precisely on a
-// boundary. The form is flat on purpose: ffmpeg's expression parser rejects
-// nested if() past ~90 levels (measured), which a per-frame fade outgrows;
-// equal neighbours contribute no term at all.
+// Frame k of the segment occupies local time [k/fps, (k+1)/fps). The step for
+// frame k is placed at the MIDPOINT B_k = (k − 0.5)/fps, not at k/fps, and
+// that choice is load-bearing. planEncode repacketizes automated segments with
+// asetnsamples so the only timestamps that ever reach this expression are
+// exactly k/fps — so any boundary strictly inside ((k−1)/fps, k/fps] selects
+// the same frames, and the midpoint is the one that never compares near-equal
+// floats. Sitting the boundary ON k/fps loses two ways: `.toFixed(6)` rounds
+// 2/30 UP to 0.066667, just past the real PTS 0.0666666…, so `gte` fails and
+// the step fires a frame late; and where the value IS exactly representable
+// (3/30 → 0.1) the comparison is an exact-equality coin flip. Measured on a
+// 30-frame fade through real ffmpeg: boundary at k/fps → worst deviation
+// 0.0346 (3–4 frames lag), floored → 0.0346, midpoint → 0.0001.
+//
+// The form is flat on purpose: ffmpeg's expression parser rejects nested if()
+// past ~90 levels (measured), which a per-frame fade outgrows; equal
+// neighbours contribute no term at all.
 // Returns e.g.
 //   "volume=0.5"                                            (constant)
-//   "volume=volume='0.90000000-0.10000000*gte(t,0.033333)':eval=frame"
+//   "volume=volume='0.90000000-0.10000000*gte(t,0.016667)':eval=frame"
 export function volumeFilterToken(volumes, fps) {
   const distinct = new Set(volumes);
   if (distinct.size === 1) return `volume=${volumes[0]}`;
@@ -126,7 +136,7 @@ export function volumeFilterToken(volumes, fps) {
   for (let k = 1; k < volumes.length; k++) {
     const d = volumes[k] - volumes[k - 1];
     if (Math.abs(d) < 1e-12) continue;
-    expr += `${d > 0 ? '+' : '-'}${Math.abs(d).toFixed(8)}*gte(t,${(k / fps).toFixed(6)})`;
+    expr += `${d > 0 ? '+' : '-'}${Math.abs(d).toFixed(8)}*gte(t,${((k - 0.5) / fps).toFixed(6)})`;
   }
   return `volume=volume='${expr}':eval=frame`;
 }
@@ -186,6 +196,10 @@ export function planEncode({
     // skip both — nothing to re-evaluate, no needless resample. 48 kHz is the
     // encode target either way (aac/libopus output at this rate); ffprobe
     // probing the source rate was rejected as complexity without a win.
+    // Every integer fps in play divides 48000 exactly (30→1600, 25→1920,
+    // 24→2000, 60→800), so the audio-frame grid lands precisely on k/fps.
+    // A non-integer fps (29.97) would drift; assertPositiveInt keeps fps
+    // integral, and volumeFilterToken's half-frame boundary absorbs the rest.
     const samplesPerVideoFrame = Math.round(48000 / fps);
     segments.forEach((seg, k) => {
       inputArgs.push('-i', assetPaths[k]);

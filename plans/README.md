@@ -52,6 +52,7 @@ plans cite them.
 | 036  | Node-side backstop for the in-page frame wait (backlog Round 2 #15) | P2 | S | 024 | DONE (executed; raceWithBackstop + 40s Node race on per-frame evaluate, protocolTimeout 45s explicit, ready-wait explicit 60s; live-verified named backstop error at ~40s on wedged comp; invariant #5 + ch.8 layering updated) |
 | 037  | Round 2 tail: interpolateColors polish + renderer cleanups + App.tsx disables (#16, #17, #18) | P3 | S | 020, 027 | DONE (executed; 16: gamut-clamped formatColor + case-insensitive parseColor + empty-component rejection; 17: concat quote escaping, dead catch dropped, target=lib=ES2022; 18: zero disables — key-remount CompositionView + handler-side resolution replaces the render-phase ref entirely) |
 | 038  | Gain envelope evaluated per video frame, not audio frame (backlog Round 3 #19) | P3 | S | 034 | DONE (executed; aresample=48000 + asetnsamples=n=round(48000/fps) on automated segments only; ordering pinned by test; measured 0.1001 → 0.0335 worst deviation through real ffmpeg; WithAudio e2e green) |
+| 039  | Gain envelope: place each step at the frame midpoint | P3 | S | 038 | DONE (executed; `gte(t,(k−0.5)/fps)` — boundary rounding/equality made 4 of 30 frames lag; worst deviation 0.0346 → 0.0001 measured through real ffmpeg; invariant pinned by test, ch. 9 note) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale — finding fixed independently or approach abandoned)
 

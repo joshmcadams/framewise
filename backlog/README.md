@@ -4,21 +4,15 @@ Code-review findings for framewise-lite, ordered most-impactful first within eac
 round. Open items have a prompt file next to this README; completed rounds keep
 only their summary here.
 
-## Round 3 — open (2026-08-24, follow-up to plan 034)
+## Round 3 — complete (2026-08-24)
 
-| #   | Item                                                                                     | Type                          | Severity | Status                                                                                                            |
-| --- | ---------------------------------------------------------------------------------------- | ----------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
-| 19  | [The gain envelope's realized resolution is the audio frame](19-volume-envelope-audio-frame-resolution.md) | Correctness (residual) / docs | Low      | DONE (plan 038 — `aresample=48000,asetnsamples` grid on automated segments; measured 0.100 → 0.034; ch. 9 states the achieved resolution) |
+Re-review of plans 031–037. All nine round-2 items confirmed fixed, each
+re-tested against its original reproduction. One residual surfaced and was
+closed across two passes; suite 315 → 318 tests.
 
-## Round 3 — open (review of the round-2 fixes, 2026-08-24)
-
-Re-review of plans 031–037, each fix re-tested against round 2's original
-reproduction. All nine round-2 items confirmed fixed; gates green at 315 tests.
-One residual surfaced.
-
-| #   | Item | Type | Severity | Status |
-| --- | ---- | ---- | -------- | ------ |
-| 19  | [Gain envelope resolves at the audio frame, not the video frame](19-volume-envelope-audio-frame-resolution.md) | Correctness (residual) / docs | Low | OPEN |
+| #   | Item | Type | Severity | Fix |
+| --- | ---- | ---- | -------- | --- |
+| 19  | [Gain envelope resolved at the audio frame, not the video frame](19-volume-envelope-audio-frame-resolution.md) | Correctness (residual) / docs | Low | plan 038 (`f7846d7`) — `aresample=48000,asetnsamples` grid on automated segments, 0.100 → 0.034; then plan 039 — steps moved to the frame midpoint, 0.034 → **0.0001** |
 
 ## Round 2 — complete (2026-08-24)
 

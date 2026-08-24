@@ -194,16 +194,35 @@ describe('volumeFilterToken', () => {
   });
 
   it('emits an eval=frame piecewise expression for varying volumes', () => {
-    // Frames at fps 30: frame k occupies [k/30, (k+1)/30). Values 0.9 then 0.8.
+    // Frame k occupies [k/30, (k+1)/30), but the step is placed at the
+    // MIDPOINT (k-0.5)/30 — asetnsamples means the only timestamps reaching
+    // the expression are exactly k/fps, so a half-frame-early boundary picks
+    // the same frames while never comparing near-equal floats. Frame 1's step
+    // sits at 0.5/30 = 0.016667, not 0.033333.
     expect(volumeFilterToken([0.9, 0.8], 30)).toBe(
-      "volume=volume='0.90000000-0.10000000*gte(t,0.033333)':eval=frame",
+      "volume=volume='0.90000000-0.10000000*gte(t,0.016667)':eval=frame",
     );
   });
 
+  // Regression: a boundary sitting exactly on k/fps fires a frame late
+  // wherever toFixed(6) rounds up past the real PTS (2/30 -> 0.066667 >
+  // 0.0666666...). Measured worst deviation 0.0346 vs 0.0001 at the midpoint.
+  it('places every step strictly inside the frame it belongs to', () => {
+    const fps = 30;
+    const token = volumeFilterToken([1, 0.9, 0.8, 0.7], fps);
+    const boundaries = [...token.matchAll(/gte\(t,([\d.]+)\)/g)].map((m) => Number(m[1]));
+    expect(boundaries).toHaveLength(3);
+    boundaries.forEach((b, i) => {
+      const k = i + 1;
+      expect(b).toBeGreaterThan((k - 1) / fps);
+      expect(b).toBeLessThan(k / fps);
+    });
+  });
+
   it('telescopes one gte() step per value change; constant runs add nothing', () => {
-    // [1, 0.5, 0] @60: boundaries at 1/60 and 2/60, deltas −0.5 each.
+    // [1, 0.5, 0] @60: midpoint boundaries at 0.5/60 and 1.5/60, deltas −0.5.
     expect(volumeFilterToken([1, 0.5, 0], 60)).toBe(
-      "volume=volume='1.00000000-0.50000000*gte(t,0.016667)-0.50000000*gte(t,0.033333)':eval=frame",
+      "volume=volume='1.00000000-0.50000000*gte(t,0.008333)-0.50000000*gte(t,0.025000)':eval=frame",
     );
     // A long constant tail contributes no terms (deltas are zero).
     const token = volumeFilterToken([1, ...Array(200).fill(0.5), 0], 30);
@@ -382,8 +401,8 @@ describe('planEncode', () => {
 
     it('with 2 segments: includes amix in filter complex', () => {
       const segments = [
-        {src: 'a.wav', startFrame: 0, endFrame: 149, trimStart: 0, volumes: [1]},
-        {src: 'b.wav', startFrame: 30, endFrame: 89, trimStart: 5, volumes: [0.5]},
+        {src: 'a.wav', startFrame: 0, endFrame: 149, trimStart: 0, volumes: Array(150).fill(1)},
+        {src: 'b.wav', startFrame: 30, endFrame: 89, trimStart: 5, volumes: Array(60).fill(0.5)},
       ];
       const plan = planEncode({
         ...base,
@@ -473,7 +492,7 @@ describe('planEncode', () => {
       expect(inputCount).toBe(2);
       const filterGraph = plan.args[plan.args.indexOf('-filter_complex') + 1];
       expect(filterGraph).toContain("volume=volume='");
-      expect(filterGraph).toContain('*gte(t,0.033333)');
+      expect(filterGraph).toContain('*gte(t,0.016667)');
       expect(filterGraph).toContain(':eval=frame');
       expect(filterGraph).not.toContain('amix');
     });
@@ -504,7 +523,10 @@ describe('planEncode', () => {
     });
 
     it('constant segments skip the resample/repacketize pair', () => {
-      const segments = [{src: 'a.wav', startFrame: 0, endFrame: 29, trimStart: 0, volumes: [0.5]}];
+      // volumes carries one entry per frame — the shape aggregateAudioSegments emits.
+      const segments = [
+        {src: 'a.wav', startFrame: 0, endFrame: 29, trimStart: 0, volumes: Array(30).fill(0.5)},
+      ];
       const plan = planEncode({...base, format: 'mp4', segments, assetPaths: ['/tmp/a.wav']});
       const filterGraph = plan.args[plan.args.indexOf('-filter_complex') + 1];
       expect(filterGraph).not.toContain('aresample');
